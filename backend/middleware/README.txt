@@ -1,1 +1,0 @@
-ตัวนี้ใช้กับ Json Web Token 

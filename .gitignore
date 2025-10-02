@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 backend/.env
+backend/.env.local
+backend/.env.*.local
+backend/.env
+frontend/package-lock.json
