@@ -1,5 +1,5 @@
 # ข้อมูลเกี่ยวกับโปรเจค
-ues nvm  --> v20.19.5 || nvm install iron
+ues nvm  --> v22.20.0 || nvm install iron
 
 # โครงสร้างโปรเจค
 MyUsafe-ReportProject/
@@ -13,6 +13,7 @@ MyUsafe-ReportProject/
     │── README.txt
     │── server.js
 │── frontend/
+    │── node_modules/
     │── src/
     │── public/
     |── eslint.config.js
