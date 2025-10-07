@@ -2,7 +2,7 @@
 .myusafe-logo {
     /* กำหนดฟอนต์ (ต้องเปลี่ยนเป็นฟอนต์จริง) */
     /* หรือใช้ฟอนต์ Sans-serif หนาพิเศษที่ใกล้เคียง เช่น 'Roboto Black', 'Arial Black' เป็นตัวสำรอง */
-    font-family: 'Roboto Black', Arial, sans-serif;
+    font-family: 'inter Black', Arial, sans-serif;
     font-size: 24px; /* ขนาดของโลโก้ */
     line-height: 1;
     font-weight: 900; /* ฟอนต์หนาพิเศษ */
@@ -13,15 +13,19 @@
 
 /* 1. สีของส่วน "MyU" */
 .myusafe-logo .part1 {
-    /* ค่าสีดำ/เทาเข้ม ที่ใช้ในภาพ */
-    color: #fff;
+    /* ค่าสีดำ/เทาเข้ม #1E1E1E */
+    color: #000;
 }
 
 /* 2. สีของส่วน "Safe" */
 .myusafe-logo .part2 {
-    /* ค่าสีเขียวสดที่ประมาณจากภาพ (Hex Code ที่ใกล้เคียง) */
+    /* ค่าสีเขียวสดที่ประมาณ #26B469*/
     color: #26B469; 
 }
+
+/* .myusafe-logo .part1, .myusafe-logo .part2 {
+    text-shadow: #fff 1px 1px 2px; 
+} */
 
 /* 3. การสร้างขีดเส้นใต้สีขาวใต้ตัว 'u' */
 .myusafe-logo .underline-u {
@@ -30,9 +34,20 @@
     height: 3.5px; /* ความหนาของเส้น */
 
     /* การกำหนดตำแหน่งขีดเส้นใต้ */
-    bottom: -3px; /* ขยับลงมาด้านล่างเล็กน้อย */
+    bottom: -3.5px; /* ขยับลงมาด้านล่างเล็กน้อย */
     left: 39px; /* ต้องปรับค่านี้เพื่อเลื่อนไปอยู่ใต้ตัว 'u' อย่างแม่นยำ */
-    width: 16.5px; /* ความยาวของเส้น */
+    width: 16.8px; /* ความยาวของเส้น */
+}
+
+.text_x {
+    font-family: 'Roboto Black', Arial, sans-serif;
+    font-size: 16px; /* ขนาดของ 'x' */
+    font-weight: 800; /* ฟอนต์หนาพิเศษ */
+    display: inline-block; /* เพื่อให้สามารถจัดตำแหน่งได้ */
+    color: white; /* สีขาวตามภาพ */
+    position: relative; /* เพื่อให้ bottom ใช้งานได้ */
+    bottom: 2.5px; /* ขยับลงมาด้านล่างเล็กน้อย */
+    margin: 0 0.75rem; /* ระยะห่างจากโลโก้ */
 }
 
 /*
