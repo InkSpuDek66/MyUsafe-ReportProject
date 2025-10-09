@@ -82,7 +82,7 @@ export default function Navbar() {
                                             <img
                                                 alt=""
                                                 src={user.imageUrl}
-                                                className="size-8 rounded-full outline -outline-offset-1 outline-white/10"
+                                                className="border-1 border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10"
                                             />
                                         </MenuButton>
 
