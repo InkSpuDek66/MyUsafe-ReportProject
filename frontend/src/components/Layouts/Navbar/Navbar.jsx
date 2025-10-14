@@ -2,6 +2,8 @@ import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuIt
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import './Navbar.css'
 import Notification from '../../Notification/Notification'
+import { Link } from "react-router-dom";
+
 
 
 const user = {
@@ -18,10 +20,23 @@ const navigation = [
     { name: 'Reports', href: '#', current: false },
 ]
 const userNavigation = [
+    { name: 'Loging', href: '/login' },
     { name: 'Your profile', href: '#' },
     { name: 'Settings', href: '#' },
     { name: 'Sign out', href: '#' },
 ]
+
+// แล้วในจุดเมนู dropdown:
+{userNavigation.map((item) => (
+  <MenuItem key={item.name}>
+    <Link
+      to={item.href}
+      className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
+    >
+      {item.name}
+    </Link>
+  </MenuItem>
+))}
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
