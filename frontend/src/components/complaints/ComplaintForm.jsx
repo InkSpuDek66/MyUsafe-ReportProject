@@ -174,7 +174,7 @@ const ComplaintForm = () => {
                 </div>
                 <div className="flex justify-center text-sm text-gray-600">
                     <label htmlFor="files" className="relative cursor-pointer rounded-md bg-white font-medium text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:text-blue-500">
-                        <span>อัปโหลดไฟล์</span>
+                        <span>กดที่นี่เพื่ออัปโหลดไฟล์</span>
                         <input
                             id="files"
                             type="file"
