@@ -1,0 +1,5 @@
+body {
+  font-family: "Noto Sans Thai", sans-serif;
+  background: linear-gradient(135deg, #f0f9ff, #e6fffa);
+  min-height: 100vh;
+}

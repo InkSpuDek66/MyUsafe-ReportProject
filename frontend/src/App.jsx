@@ -11,6 +11,7 @@ import ComplaintForm from './components/complaints/ComplaintForm'
 
 // Pages
 import Home from './pages/Home/Home'
+import ComplaintDetail from './pages/ComplaintDetail/ComplaintDetail';
 
 function App() {
   return (
@@ -27,6 +28,8 @@ function App() {
         {/* หน้าแจ้งเรื่องร้องเรียน */}
         <Route path="/complaints/new" element={<ComplaintForm />} />
         
+        {/* หน้าแสดงรายละเอียดเรื่องร้องเรียน */}
+        <Route path="/complaint/:id" element={<ComplaintDetail/>} />
         {/* เพิ่ม routes อื่นๆ ตามต้องการ */}
         {/* <Route path="/..." element={<... />} /> */}
       </Routes>
@@ -41,7 +44,7 @@ function App() {
         <button className="btn btn-accent btn-outline">Three</button>
       </div>
     </>
-  )
+  );
 }
 
 export default App;
