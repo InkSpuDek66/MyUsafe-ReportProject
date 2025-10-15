@@ -14,7 +14,7 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-frontend/src/main.jsx
+// frontend/src/main.jsx
 
 
 // ReactDOM.createRoot(document.getElementById("root")).render(
