@@ -1,27 +1,30 @@
-import './App.css'
+import './App.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Layouts
-import Navbar from './components/Layouts/Navbar/Navbar'
+import Navbar from './components/Layouts/Navbar/Navbar';
 
-// components
-import LoginForm from './components/LoginForm/LoginForm'
+// Components
+import LoginForm from './components/LoginForm/LoginForm';
 
-// pages
-import Home from './pages/Home/Home'
+// Pages
+import Home from './pages/Home/Home';
+import ComplaintDetail from './pages/ComplaintDetail/ComplaintDetail';
 
 function App() {
   return (
     <>
-      <Navbar />
-      <Home />
-      <div className="flex items-center justify-center min-h-screen">
-        {/* <h1 className="text-4xl font-bold text-blue-600">
-          Hello Tailwind + React 🚀
-        </h1> */}
-      </div>
+      <Router>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/complaint/:id" element={<ComplaintDetail />} />
+        </Routes>
+      </Router>
+
       <LoginForm />
     </>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -3,4 +3,7 @@ npm install @headlessui/react
 
 Navbar ไปแก้เป็น %
 
-npm install lucide-react react-router-dom
+npm install react-router-dom lucide-react framer-motion
+npm install @heroicons/react
+npm install socket.io-client
+npm install socket.io

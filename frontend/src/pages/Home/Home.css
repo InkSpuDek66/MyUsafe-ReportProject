@@ -1,111 +1,16 @@
-.home-container {
-  background-color: #f9fafb;
-  min-height: 100vh;
+body {
+  /* background-color: #f9fafb; */
+  font-family: "Noto Sans Thai", sans-serif;
 }
 
-.stats-container {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  justify-content: center;
+button, select, input {
+  transition: all 0.2s ease;
 }
 
-.stat-card {
-  flex: 1;
-  min-width: 180px;
-  text-align: center;
-  border-radius: 1rem;
-  padding: 1rem;
-  font-weight: 600;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+/* เพิ่มใน global.css หรือ index.css */
+/* .stat-card {
+  @apply bg-white rounded-2xl shadow hover:shadow-lg transition border-t-4;
 }
-
-.filter-btn {
-  background-color: #e5e7eb;
-  color: #111827;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-.filter-btn.active {
-  background-color: #2563eb;
-  color: white;
-}
-
-.filter-icon-btn {
-  background: #f3f4f6;
-  border-radius: 8px;
-  padding: 6px;
-  transition: 0.2s;
-}
-.filter-icon-btn:hover {
-  background: #e5e7eb;
-}
-
-.category-dropdown {
-  position: absolute;
-  top: 40px;
-  right: 0;
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 0.5rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  width: 220px;
-  z-index: 20;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-.category-btn {
-  background-color: #f3f4f6;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.category-btn.active {
-  background-color: #10b981;
-  color: white;
-}
-
-.report-card {
-  background: white;
-  padding: 1rem;
-  border-radius: 1rem;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
-  position: relative;
-}
-.report-card h3 {
-  font-weight: bold;
-  font-size: 16px;
-  color: #1e3a8a;
-}
-.report-card .desc {
-  margin-top: 6px;
-  font-size: 14px;
-  color: #374151;
-}
-
-.status-badge {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.status-badge.pending {
-  background-color: #fbbf24;
-  color: #78350f;
-}
-.status-badge.in-progress {
-  background-color: #60a5fa;
-  color: #1e3a8a;
-}
-.status-badge.done {
-  background-color: #34d399;
-  color: #064e3b;
-}
+.stat-card-green {
+  @apply border-[#55C388];
+} */
