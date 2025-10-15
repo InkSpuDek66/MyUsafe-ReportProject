@@ -13,11 +13,11 @@ const user = {
         'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
 }
 const navigation = [
-    { name: 'Dashboard', href: '#', current: true },
+    { name: 'Dashboard', href: '/', current: true },
     { name: 'Team', href: '#', current: false },
     { name: 'Projects', href: '#', current: false },
     { name: 'Calendar', href: '#', current: false },
-    { name: 'Reports', href: '#', current: false },
+    { name: 'Reports', href: '/complaints/new', current: false },
 ]
 const userNavigation = [
     { name: 'Loging', href: '/login' },
@@ -97,7 +97,7 @@ export default function Navbar() {
                                             <img
                                                 alt=""
                                                 src={user.imageUrl}
-                                                className="size-8 rounded-full outline -outline-offset-1 outline-white/10"
+                                                className="border-1 border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10"
                                             />
                                         </MenuButton>
 

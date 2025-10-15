@@ -28,6 +28,9 @@ MyUsafe-ReportProject/
 # แหล่งอ้างอิงโปรเจค
 # ใช้บ่อย
 Npm Docs https://www.npmjs.com 
+
+# ux/ui
+daisyUI Tailwind Components https://daisyui.com/
 Tailwind CSS (v4.1) https://tailwindcss.com 
 Tailwind CSS Components - Tailwind Plus https://tailwindcss.com/plus/ui-blocks
 React Icons https://react-icons.github.io/react-icons 
@@ -39,5 +42,6 @@ Node.js Official Documentation. https://nodejs.org
 Express.js Guide. https://expressjs.com
 Git Cheat Sheet https://git-scm.com/cheat-sheet 
 MySQL Documentation https://dev.mysql.com/doc 
+Nuxt UI: The Intuitive Vue UI Library https://ui.nuxt.com/
 W3Schools Online Web Tutorials https://www.w3schools.com 
 Mozilla Developer Network (MDN). Web Storage API. https://developer.mozilla.org

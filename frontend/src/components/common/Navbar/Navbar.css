@@ -2,10 +2,10 @@
 .myusafe-logo {
     /* กำหนดฟอนต์ (ต้องเปลี่ยนเป็นฟอนต์จริง) */
     /* หรือใช้ฟอนต์ Sans-serif หนาพิเศษที่ใกล้เคียง เช่น 'Roboto Black', 'Arial Black' เป็นตัวสำรอง */
-    font-family: 'inter Black', Arial, sans-serif;
+    font-family: 'LOGO Official Font', Arial, sans-serif;
     font-size: 24px; /* ขนาดของโลโก้ */
     line-height: 1;
-    font-weight: 900; /* ฟอนต์หนาพิเศษ */
+    font-weight: 800; /* ฟอนต์หนาพิเศษ */
     display: inline-block;
     position: relative; /* สำคัญ: เพื่อให้ขีดเส้นใต้จัดตำแหน่งเทียบกับโลโก้ได้ */
     /* background: black; <--- อันนี้ใส่เพื่อให้เห็นขีดเส้นใต้สีขาวชัดเจน */
@@ -30,7 +30,7 @@
 /* 3. การสร้างขีดเส้นใต้สีขาวใต้ตัว 'u' */
 .myusafe-logo .underline-u {
     position: absolute;
-    background-color: rgb(255, 255, 255); /* สีขาวตามภาพ */
+    background-color: #FF1493; /* สีขาวตามภาพ */
     height: 3.5px; /* ความหนาของเส้น */
 
     /* การกำหนดตำแหน่งขีดเส้นใต้ */

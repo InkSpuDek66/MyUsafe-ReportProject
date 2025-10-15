@@ -1,13 +1,16 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import './App.css'
 
 // React Router
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // Layouts
-import Navbar from './components/Layouts/Navbar/Navbar'
+// import Navbar from './components/Layouts/Navbar/Navbar'
+// common
+import Navbar from './components/common/Navbar/Navbar'
 
 // Components
 import LoginForm from './components/LoginForm/LoginForm'
+import ComplaintForm from './components/complaints/ComplaintForm'
 
 // Pages
 import Home from './pages/Home/Home'
@@ -17,18 +20,29 @@ function App() {
     <BrowserRouter>
       {/* Navbar จะอยู่บนทุกหน้า */}
       <Navbar />
-
-      {/* ส่วนของ Route สำหรับแต่ละหน้า */}
       <Routes>
-        {/* หน้าแรก */}
+        {/* หน้าหลัก */}
         <Route path="/" element={<Home />} />
-
-        {/* หน้าล็อกอิน */}
+        
+        {/* หน้า Login */}
         <Route path="/login" element={<LoginForm />} />
-
-        {/* สามารถเพิ่มหน้าอื่นได้ เช่น */}
-        {/* <Route path="/about" element={<About />} /> */}
+        
+        {/* หน้าแจ้งเรื่องร้องเรียน */}
+        <Route path="/complaints/new" element={<ComplaintForm />} />
+        
+        {/* เพิ่ม routes อื่นๆ ตามต้องการ */}
+        {/* <Route path="/..." element={<... />} /> */}
       </Routes>
+
+      {/* Test Buttons - ลบออกได้เมื่อไม่ใช้แล้ว */}
+      <div className="flex items-center justify-center min-h-screen">
+        <button className="inline-block cursor-pointer rounded-md bg-gray-800 px-4 py-3 text-center text-sm font-semibold uppercase text-white transition duration-200 ease-in-out hover:bg-gray-900">
+          Button
+        </button>
+        <button className="btn btn-primary">One</button>
+        <button className="btn btn-secondary">Two</button>
+        <button className="btn btn-accent btn-outline">Three</button>
+      </div>
     </BrowserRouter>
   )
 }
