@@ -1,10 +1,7 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+// React Router
+import { Routes, Route } from "react-router-dom"; // ลบ BrowserRouter ออก
 import './App.css'
 
-// React Router
-
-// Layouts
-// import Navbar from './components/Layouts/Navbar/Navbar'
 // common
 import Navbar from './components/common/Navbar/Navbar'
 
@@ -17,8 +14,8 @@ import Home from './pages/Home/Home'
 
 function App() {
   return (
-    <BrowserRouter>
-      {/* Navbar จะอยู่บนทุกหน้า */}
+    <>
+      {/* มีทุกๆหน้า */}
       <Navbar />
       <Routes>
         {/* หน้าหลัก */}
@@ -43,7 +40,7 @@ function App() {
         <button className="btn btn-secondary">Two</button>
         <button className="btn btn-accent btn-outline">Three</button>
       </div>
-    </BrowserRouter>
+    </>
   )
 }
 
