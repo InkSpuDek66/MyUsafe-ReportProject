@@ -4,8 +4,8 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
-const complaintRoutes = require('./routes/homeRoutes');
-const Complaint = require('./models/homeModel');
+const complaintRoutes = require('./src/routes/homeRoutes');
+const Complaint = require('./src/models/homeModel');
 
 const app = express();
 const server = http.createServer(app);
