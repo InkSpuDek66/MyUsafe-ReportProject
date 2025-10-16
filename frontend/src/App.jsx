@@ -11,7 +11,7 @@ import LoginForm from './components/LoginForm/LoginForm'
 
 // Pages
 import Home from './pages/Home/Home'
-// import ComplaintDetail from './components/complaints/ComplaintDetail';
+import ComplaintDetail from './components/complaints/ComplaintDetail';
 import MyComplaints from './pages/user/MyComplaints';
 import CreateComplaint from './pages/user/CreateComplaint';
 
@@ -23,14 +23,13 @@ function App() {
       <Routes>
         {/* หน้าหลัก */}
         <Route path="/" element={<Home />} />
-        
         {/* หน้า Login */}
         <Route path="/login" element={<LoginForm />} />
         
         {/* หน้าเรื่องร้องเรียน */}
         <Route path="/complaints/new" element={<CreateComplaint />} />
         <Route path="/my-complaints" element={<MyComplaints />} />
-        {/* <Route path="/complaint/:id" element={<ComplaintDetail />} /> */}
+        <Route path="/complaint/:id" element={<ComplaintDetail />} />
 
         {/* เพิ่ม routes อื่นๆ ตามต้องการ */}
         {/* <Route path="/..." element={<... />} /> */}

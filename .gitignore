@@ -27,3 +27,4 @@ backend/.env.local
 backend/.env.*.local
 backend/.env
 frontend/package-lock.json
+ิbackend/package-lock.json
