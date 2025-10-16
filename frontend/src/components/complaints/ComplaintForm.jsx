@@ -278,8 +278,8 @@ const ComplaintForm = () => {
                                         message: 'รายละเอียดต้องมีความยาวอย่างน้อย 10 ตัวอักษร' 
                                     },
                                     maxLength: {
-                                        value: 1000,
-                                        message: 'รายละเอียดต้องไม่เกิน 1000 ตัวอักษร'
+                                        value: 5000,
+                                        message: 'รายละเอียดต้องไม่เกิน 5000 ตัวอักษร'
                                     }
                                 })}
                                 rows={5}
@@ -300,7 +300,7 @@ const ComplaintForm = () => {
                                     </p>
                                 )}
                                 <span className="text-xs text-gray-500">
-                                    {watch('description')?.length || 0} / 1000
+                                    {watch('description')?.length || 0} / 5000
                                 </span>
                             </div>
                         </div>

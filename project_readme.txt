@@ -307,7 +307,6 @@ Day 3-5: Complaint Pages
 ✅ Pages:
    /complaints (List with filters)
    /complaints/new (Create form)
-   /complaints/:id (Detail view)
    /my-complaints (User's complaints)
    /assigned-complaints (Staff's assignments)
 
@@ -324,12 +323,6 @@ Day 3-5: Complaint Pages
      * Filter by status, multiple categories (OR logic supported)
      * Search bar
      * Pagination
-   
-   - ComplaintDetail.jsx
-     * Full information
-     * Image gallery
-     * Status timeline
-     * Edit/Delete actions
 
 Day 6-7: Integration & Testing
 ✅ Connect to backend APIs
@@ -438,8 +431,17 @@ Day 4-5: Dashboard Pages
    - Pie chart (categories)
    - Bar chart (locations)
 
-Day 6-7: User Management Page (Admin)
-✅ /admin/users
+Day 6-7: Complaint Detail & User Management
+✅ /complaints/:id (Complaint Detail Page)
+   - ComplaintDetail.jsx
+     * Full information display
+     * Image gallery
+     * Status timeline
+     * Edit/Delete actions (based on role)
+     * Responsive design
+     * Print-friendly layout
+
+✅ /admin/users (User Management)
    - User list table
    - Add user modal
    - Edit user modal
@@ -2829,6 +2831,6 @@ Finish Line: "YOU DID IT! 🎉🎉🎉"
 
 ---
 
-**Last Updated:** 8 October 2025  
-**Version:** 2.0 (3-Phase Development Plan)  
+**Last Updated:** 16 October 2025  
+**Version:** 2.1 (ComplaintDetail ย้ายไป Person 3)  
 **Status:** Ready to Start! 🚀
