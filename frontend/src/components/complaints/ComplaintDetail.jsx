@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
+// frontend/src/pages/ComplaintDetail/ComplaintDetail.jsx
+// หน้าแสดงรายละเอียดเรื่องร้องเรียน
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+// import { motion } from "framer-motion";
 import {
   ArrowLeft,
   MapPin,

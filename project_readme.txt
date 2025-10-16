@@ -31,6 +31,7 @@
 ### Frontend
 - React 18 + Vite + SWC
 - Tailwind CSS
+- daisyUI
 - React Router v6
 - React Icons
 - Axios
@@ -78,6 +79,8 @@
 **เป้าหมาย:** พัฒนาให้เป็น Template สำหรับมหาวิทยาลัยอื่นใช้ได้
 
 ### Additional Features
+✅ Multi-category complaint support (choose multiple categories per complaint)
+
 ✅ Multi-tenant Architecture  
 ✅ University Registration System  
 ✅ Custom Domain/Subdomain Support  
@@ -224,7 +227,7 @@ Day 1-2: Setup & Models
 complaints {
   _id: ObjectId,
   reporter_id: ObjectId (ref: User),
-  category: String (enum: ['น้ำท่วม', 'ไฟฟ้า', 'คอมพิวเตอร์/เว็บไซต์', 'อื่นๆ']),
+  categories: [String] // multiple categories supported (enum: ['น้ำท่วม', 'ไฟฟ้า', 'คอมพิวเตอร์/เว็บไซต์', 'อื่นๆ']),
   title: String (required),
   description: String (required),
   images: [String] (URLs, max 5),
@@ -258,6 +261,8 @@ categories {
 }
 
 Day 3-5: Complaint CRUD API
+✅ Default priority set to 'low' automatically for new complaints
+✅ Only Admin/Staff can update priority field
 ✅ POST   /api/complaints (create)
 ✅ GET    /api/complaints (list with filters)
 ✅ GET    /api/complaints/:id (detail)
@@ -309,13 +314,14 @@ Day 3-5: Complaint Pages
 ✅ Components:
    - ComplaintForm.jsx
      * Title, Description
-     * Category dropdown
+     * Category multi-select dropdown (users can choose multiple categories)
+     * Priority is hidden (automatically set to 'low' by default)
      * Location selector (Building > Floor > Room)
      * Image uploader (max 5, preview)
      * Form validation (React Hook Form)
    
    - ComplaintList.jsx
-     * Filter by status, category
+     * Filter by status, multiple categories (OR logic supported)
      * Search bar
      * Pagination
    
@@ -1686,6 +1692,12 @@ npm run dev
 
 ## MongoDB Collections
 
+### 🆕 Multi-category enhancement
+- Each complaint can now have multiple categories.
+- Filtering supports multiple categories (OR logic).
+- Frontend uses multi-select dropdown.
+
+
 ### 1. users
 ```javascript
 {
@@ -1759,7 +1771,7 @@ npm run dev
   
   title: String,
   description: String,
-  category: String, // 'น้ำท่วม', 'ไฟฟ้า', 'คอมพิวเตอร์', 'อื่นๆ'
+  categories: [String] // multiple categories supported, // 'น้ำท่วม', 'ไฟฟ้า', 'คอมพิวเตอร์', 'อื่นๆ'
   
   location: {
     building: String,
@@ -1772,7 +1784,7 @@ npm run dev
   attachments: [String], // URLs
   
   status: String, // 'pending', 'in_progress', 'resolved', 'cancelled'
-  priority: String, // 'low', 'medium', 'high', 'urgent'
+  priority: String, // 'low', 'medium', 'high', 'urgent' (default: 'low', settable by Staff/Admin only)
   
   assigned_to: ObjectId, // ref: users
   assigned_at: Date,

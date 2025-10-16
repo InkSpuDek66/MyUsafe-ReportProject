@@ -1,17 +1,19 @@
-// React Router
+// frontend/src/App.jsx
+// App.jsx - ตัวจัดการเส้นทางหลักของแอปพลิเคชัน
 import { Routes, Route } from "react-router-dom"; // ลบ BrowserRouter ออก
 import './App.css'
 
-// common
+// Common Components
 import Navbar from './components/common/Navbar/Navbar'
 
-// Components
+// Auth Components
 import LoginForm from './components/LoginForm/LoginForm'
-import ComplaintForm from './components/complaints/ComplaintForm'
 
 // Pages
 import Home from './pages/Home/Home'
-import ComplaintDetail from './pages/ComplaintDetail/ComplaintDetail';
+// import ComplaintDetail from './components/complaints/ComplaintDetail';
+import MyComplaints from './pages/user/MyComplaints';
+import CreateComplaint from './pages/user/CreateComplaint';
 
 function App() {
   return (
@@ -25,11 +27,11 @@ function App() {
         {/* หน้า Login */}
         <Route path="/login" element={<LoginForm />} />
         
-        {/* หน้าแจ้งเรื่องร้องเรียน */}
-        <Route path="/complaints/new" element={<ComplaintForm />} />
-        
-        {/* หน้าแสดงรายละเอียดเรื่องร้องเรียน */}
-        <Route path="/complaint/:id" element={<ComplaintDetail/>} />
+        {/* หน้าเรื่องร้องเรียน */}
+        <Route path="/complaints/new" element={<CreateComplaint />} />
+        <Route path="/my-complaints" element={<MyComplaints />} />
+        {/* <Route path="/complaint/:id" element={<ComplaintDetail />} /> */}
+
         {/* เพิ่ม routes อื่นๆ ตามต้องการ */}
         {/* <Route path="/..." element={<... />} /> */}
       </Routes>

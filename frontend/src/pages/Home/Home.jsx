@@ -122,7 +122,7 @@ export default function Home() {
     ];
 
     return (
-        <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
+        <div className="p-6 max-w-7xl mx-auto min-h-screen">
             <h1 className="text-3xl font-extrabold text-center mb-8 text-[#55C388] drop-shadow-md">
                 ระบบรายงานปัญหาภายในมหาวิทยาลัย
             </h1>
