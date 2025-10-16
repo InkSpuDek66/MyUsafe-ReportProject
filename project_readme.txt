@@ -49,11 +49,15 @@
 ### Database
 - MongoDB + Mongoose
 
+### Testing & Tools
+- Mocha (Test Framework)
+- Chai (Assertion Library)
+- Supertest (HTTP Testing)
+
 ### DevOps & Tools
 - Git + GitHub + GitHub Desktop
 - Visual Studio Code
 - Figma (UI/UX Design)
-- Postman/Swagger (API Documentation)
 
 ---
 
@@ -154,6 +158,8 @@ Day 5-7: Authorization & Role Management
 ✅ Permission system
 ✅ PUT /api/users/:id/role (Admin only)
 ✅ GET /api/users (Admin only)
+✅ Setup Mocha + Chai testing environment
+✅ Write basic auth tests (register, login)
 ✅ Testing auth endpoints
 ```
 
@@ -492,7 +498,9 @@ Day 11-12: Email Notifications
    - sendWelcomeEmail()
 
 Day 13-14: Testing & Bug Fixes
-✅ Test all assignment flows
+✅ Write automated tests (Mocha + Chai)
+   - Test auth endpoints
+   - Test assignment flows
 ✅ Test email sending
 ✅ Integration testing
 ✅ Fix Week 1 bugs
@@ -570,6 +578,10 @@ Day 11-12: Comments & History
    - created_at
 
 Day 13-14: Search & Filters
+✅ Write automated tests (Mocha + Chai)
+   - Test complaint CRUD
+   - Test status workflow
+   - Test comments system
 ✅ Improve search functionality:
    - Full-text search in title + description
    - Advanced filters
@@ -657,7 +669,10 @@ Day 11-12: Export System
    &start_date=...&end_date=...
 
 Day 13-14: Documentation & Testing
-✅ API Documentation (Swagger)
+✅ Write automated tests (Mocha + Chai)
+   - Test statistics APIs
+   - Test export functions
+✅ API Documentation (Markdown/README)
 ✅ README updates
 ✅ Test all reports
 ✅ Performance optimization
@@ -715,8 +730,9 @@ Day 13-14: UI Polish
 - [x] Responsive design
 
 ### 🧪 Testing Checklist
-- [ ] All API endpoints tested
-- [ ] All user flows tested
+- [ ] All API endpoints tested with Mocha + Chai
+- [ ] All user flows tested (manual)
+- [ ] Test coverage > 70%
 - [ ] Cross-browser testing (Chrome, Firefox, Safari)
 - [ ] Mobile responsive testing
 - [ ] Performance testing
@@ -1248,8 +1264,8 @@ Day 25-27: Final API Optimization
    - CORS configuration
 
 Day 28-30: API Documentation
-✅ Swagger/OpenAPI documentation
-✅ Postman collection
+✅ API Documentation (Markdown/README)
+✅ Test report generation (mochawesome)
 ✅ API usage examples
 ✅ Authentication guide
 ```
@@ -1450,8 +1466,18 @@ MyUsafe-ReportProject/
 │   │       ├── validators.js
 │   │       ├── helpers.js
 │   │       └── constants.js
+│   ├── test/
+│   │   ├── auth.test.js
+│   │   ├── complaints.test.js
+│   │   ├── users.test.js
+│   │   ├── locations.test.js
+│   │   ├── categories.test.js
+│   │   ├── announcements.test.js
+│   │   ├── stats.test.js
+│   │   └── setup.js
 │   ├── uploads/
 │   ├── .env
+│   ├── .env.test
 │   ├── package-lock.json
 │   ├── package.json
 │   ├── README.txt
@@ -1588,7 +1614,7 @@ npm init -y
 npm install express mongoose dotenv cors bcryptjs jsonwebtoken multer nodemailer @line/bot-sdk
 
 # Install dev dependencies
-npm install -D nodemon
+npm install -D nodemon mocha chai supertest
 
 # Create .env file
 cat > .env << EOF
@@ -1618,6 +1644,8 @@ EOF
 # Add scripts to package.json
 npm pkg set scripts.dev="nodemon src/server.js"
 npm pkg set scripts.start="node src/server.js"
+npm pkg set scripts.test="mocha test/**/*.test.js --timeout 10000 --exit"
+npm pkg set scripts.test:watch="mocha test/**/*.test.js --watch"
 
 # Run
 npm run dev
@@ -2068,7 +2096,8 @@ POST   /webhook/line
 ## For Each Feature
 - [ ] Code เขียนเสร็จและทำงานถูกต้อง
 - [ ] Test ผ่านใน local environment
-- [ ] API tested with Postman
+- [ ] Automated tests written (Mocha + Chai)
+- [ ] All tests passing (npm test)
 - [ ] Frontend UI completed and responsive
 - [ ] Error handling implemented
 - [ ] Git commit with clear message
@@ -2298,12 +2327,12 @@ chore: update dependencies
 
 ## Testing Tips
 ```javascript
-// Backend: Test with Postman
-1. Save requests in collection
-2. Use environment variables
+// Backend: Automated Testing with Mocha + Chai
+1. Write test cases for all endpoints
+2. Use describe() and it() blocks
 3. Test all status codes
 4. Test error cases
-5. Export collection for team
+5. Run tests before committing: npm test
 
 // Frontend: Manual Testing
 1. Test on Chrome, Firefox, Safari
@@ -2311,6 +2340,634 @@ chore: update dependencies
 3. Test all user roles
 4. Test edge cases (empty data, long text)
 5. Test error messages display correctly
+```
+
+---
+
+# 🧪 API Testing with Mocha + Chai
+
+## Setup Testing Environment
+
+### 1. Install Testing Dependencies
+```bash
+cd backend
+npm install -D mocha chai supertest
+npm install -D mochawesome  # For HTML test reports
+```
+
+### 2. Create Test Environment File
+```bash
+# Create .env.test
+cat > .env.test << EOF
+PORT=5001
+MONGODB_URI=mongodb://localhost:27017/complaint-system-test
+JWT_SECRET=test_jwt_secret_key
+JWT_EXPIRE=7d
+NODE_ENV=test
+EOF
+```
+
+### 3. Create Test Setup File
+```javascript
+// test/setup.js
+const mongoose = require('mongoose');
+require('dotenv').config({ path: '.env.test' });
+
+// Connect to test database before tests
+before(async function() {
+  this.timeout(10000);
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log('Connected to test database');
+});
+
+// Clear test data after each test suite
+afterEach(async function() {
+  const collections = mongoose.connection.collections;
+  for (const key in collections) {
+    await collections[key].deleteMany({});
+  }
+});
+
+// Disconnect after all tests
+after(async function() {
+  await mongoose.connection.dropDatabase();
+  await mongoose.connection.close();
+  console.log('Disconnected from test database');
+});
+```
+
+### 4. Update package.json
+```json
+{
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "test": "NODE_ENV=test mocha test/**/*.test.js --timeout 10000 --exit --require test/setup.js",
+    "test:watch": "NODE_ENV=test mocha test/**/*.test.js --watch --require test/setup.js",
+    "test:report": "NODE_ENV=test mocha test/**/*.test.js --timeout 10000 --exit --require test/setup.js --reporter mochawesome --reporter-options reportDir=test-reports,reportFilename=test-report"
+  }
+}
+```
+
+---
+
+## Test Examples
+
+### 1. Authentication Tests (test/auth.test.js)
+```javascript
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Authentication API', () => {
+  describe('POST /api/auth/register', () => {
+    it('should register a new user successfully', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Test User',
+          email: 'test@example.com',
+          password: 'password123',
+          role: 'reporter'
+        });
+
+      expect(res.status).to.equal(201);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body).to.have.property('token');
+      expect(res.body.data).to.have.property('email', 'test@example.com');
+    });
+
+    it('should fail with duplicate email', async () => {
+      // Create first user
+      await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'User One',
+          email: 'duplicate@example.com',
+          password: 'password123'
+        });
+
+      // Try to create duplicate
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'User Two',
+          email: 'duplicate@example.com',
+          password: 'password456'
+        });
+
+      expect(res.status).to.equal(400);
+      expect(res.body).to.have.property('success', false);
+    });
+
+    it('should fail with missing required fields', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Incomplete User'
+        });
+
+      expect(res.status).to.equal(400);
+      expect(res.body).to.have.property('success', false);
+    });
+  });
+
+  describe('POST /api/auth/login', () => {
+    beforeEach(async () => {
+      // Create a test user before each login test
+      await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Login Test User',
+          email: 'login@example.com',
+          password: 'password123'
+        });
+    });
+
+    it('should login successfully with correct credentials', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'password123'
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body).to.have.property('token');
+    });
+
+    it('should fail with incorrect password', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'wrongpassword'
+        });
+
+      expect(res.status).to.equal(401);
+      expect(res.body).to.have.property('success', false);
+    });
+
+    it('should fail with non-existent email', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'notexist@example.com',
+          password: 'password123'
+        });
+
+      expect(res.status).to.equal(401);
+      expect(res.body).to.have.property('success', false);
+    });
+  });
+});
+```
+
+### 2. Complaint Tests (test/complaints.test.js)
+```javascript
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Complaints API', () => {
+  let authToken;
+  let userId;
+
+  // Setup: Create and login user before tests
+  before(async () => {
+    const registerRes = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Complaint User',
+        email: 'complaint@example.com',
+        password: 'password123',
+        role: 'reporter'
+      });
+
+    authToken = registerRes.body.token;
+    userId = registerRes.body.data._id;
+  });
+
+  describe('POST /api/complaints', () => {
+    it('should create a new complaint', async () => {
+      const res = await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Water Leak in Building A',
+          description: 'There is a water leak on the 3rd floor',
+          categories: ['น้ำท่วม'],
+          location: {
+            building: 'Building A',
+            floor: '3',
+            room: '301'
+          }
+        });
+
+      expect(res.status).to.equal(201);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body.data).to.have.property('title', 'Water Leak in Building A');
+      expect(res.body.data).to.have.property('status', 'pending');
+      expect(res.body.data).to.have.property('priority', 'low');
+    });
+
+    it('should fail without authentication', async () => {
+      const res = await request(app)
+        .post('/api/complaints')
+        .send({
+          title: 'Test Complaint',
+          description: 'Test Description'
+        });
+
+      expect(res.status).to.equal(401);
+    });
+
+    it('should fail with missing required fields', async () => {
+      const res = await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Incomplete Complaint'
+        });
+
+      expect(res.status).to.equal(400);
+    });
+  });
+
+  describe('GET /api/complaints', () => {
+    beforeEach(async () => {
+      // Create test complaints
+      await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Complaint 1',
+          description: 'Description 1',
+          categories: ['ไฟฟ้า'],
+          location: { building: 'A', floor: '1', room: '101' }
+        });
+
+      await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Complaint 2',
+          description: 'Description 2',
+          categories: ['น้ำท่วม'],
+          location: { building: 'B', floor: '2', room: '202' }
+        });
+    });
+
+    it('should get all complaints', async () => {
+      const res = await request(app)
+        .get('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body.data).to.be.an('array');
+      expect(res.body.data).to.have.lengthOf(2);
+    });
+
+    it('should filter complaints by status', async () => {
+      const res = await request(app)
+        .get('/api/complaints?status=pending')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data.every(c => c.status === 'pending')).to.be.true;
+    });
+
+    it('should filter complaints by category', async () => {
+      const res = await request(app)
+        .get('/api/complaints?category=ไฟฟ้า')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data.every(c => c.categories.includes('ไฟฟ้า'))).to.be.true;
+    });
+  });
+
+  describe('PATCH /api/complaints/:id/status', () => {
+    let complaintId;
+    let staffToken;
+
+    before(async () => {
+      // Create staff user
+      const staffRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Staff User',
+          email: 'staff@example.com',
+          password: 'password123',
+          role: 'staff'
+        });
+      staffToken = staffRes.body.token;
+
+      // Create a complaint
+      const complaintRes = await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Status Test Complaint',
+          description: 'Test',
+          categories: ['ไฟฟ้า'],
+          location: { building: 'A', floor: '1' }
+        });
+      complaintId = complaintRes.body.data._id;
+    });
+
+    it('should update complaint status (staff only)', async () => {
+      const res = await request(app)
+        .patch(`/api/complaints/${complaintId}/status`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          status: 'in_progress',
+          comment: 'Working on it'
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data).to.have.property('status', 'in_progress');
+    });
+
+    it('should fail when reporter tries to update status', async () => {
+      const res = await request(app)
+        .patch(`/api/complaints/${complaintId}/status`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          status: 'resolved'
+        });
+
+      expect(res.status).to.equal(403);
+    });
+  });
+});
+```
+
+### 3. User Tests (test/users.test.js)
+```javascript
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Users API', () => {
+  let adminToken;
+
+  before(async () => {
+    // Create admin user
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Admin User',
+        email: 'admin@example.com',
+        password: 'password123',
+        role: 'admin'
+      });
+    adminToken = res.body.token;
+  });
+
+  describe('GET /api/users', () => {
+    it('should get all users (admin only)', async () => {
+      const res = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body.data).to.be.an('array');
+    });
+
+    it('should fail without admin role', async () => {
+      // Create regular user
+      const userRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Regular User',
+          email: 'user@example.com',
+          password: 'password123',
+          role: 'reporter'
+        });
+
+      const res = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${userRes.body.token}`);
+
+      expect(res.status).to.equal(403);
+    });
+  });
+
+  describe('PUT /api/users/:id/role', () => {
+    it('should update user role (admin only)', async () => {
+      // Create a user to update
+      const userRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Update Role User',
+          email: 'roleupdate@example.com',
+          password: 'password123',
+          role: 'reporter'
+        });
+
+      const userId = userRes.body.data._id;
+
+      const res = await request(app)
+        .put(`/api/users/${userId}/role`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ role: 'staff' });
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data).to.have.property('role', 'staff');
+    });
+  });
+});
+```
+
+### 4. Statistics Tests (test/stats.test.js)
+```javascript
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Statistics API', () => {
+  let authToken;
+
+  before(async () => {
+    // Create user and some test complaints
+    const userRes = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Stats User',
+        email: 'stats@example.com',
+        password: 'password123',
+        role: 'admin'
+      });
+    authToken = userRes.body.token;
+
+    // Create multiple complaints for statistics
+    const complaints = [
+      { title: 'C1', categories: ['ไฟฟ้า'], status: 'pending' },
+      { title: 'C2', categories: ['น้ำท่วม'], status: 'in_progress' },
+      { title: 'C3', categories: ['ไฟฟ้า'], status: 'resolved' }
+    ];
+
+    for (const complaint of complaints) {
+      await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          ...complaint,
+          description: 'Test description',
+          location: { building: 'A', floor: '1' }
+        });
+    }
+  });
+
+  describe('GET /api/stats/overview', () => {
+    it('should get statistics overview', async () => {
+      const res = await request(app)
+        .get('/api/stats/overview')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body.data).to.have.property('total_complaints');
+      expect(res.body.data).to.have.property('by_status');
+      expect(res.body.data).to.have.property('by_category');
+      expect(res.body.data.total_complaints).to.equal(3);
+    });
+  });
+
+  describe('GET /api/stats/by-category', () => {
+    it('should get complaints grouped by category', async () => {
+      const res = await request(app)
+        .get('/api/stats/by-category')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data).to.be.an('array');
+      expect(res.body.data.length).to.be.greaterThan(0);
+    });
+  });
+});
+```
+
+---
+
+## Running Tests
+
+### Run All Tests
+```bash
+npm test
+```
+
+### Run Tests in Watch Mode
+```bash
+npm run test:watch
+```
+
+### Generate HTML Test Report
+```bash
+npm run test:report
+```
+
+Then open `test-reports/test-report.html` in your browser.
+
+---
+
+## Test Coverage Best Practices
+
+### What to Test:
+✅ All API endpoints (POST, GET, PATCH, DELETE)
+✅ Authentication and authorization
+✅ Input validation
+✅ Error handling
+✅ Database operations
+✅ Business logic
+✅ Edge cases
+
+### Test Structure:
+```javascript
+describe('Feature Name', () => {
+  // Setup before all tests
+  before(() => {});
+
+  // Setup before each test
+  beforeEach(() => {});
+
+  // Cleanup after each test
+  afterEach(() => {});
+
+  // Cleanup after all tests
+  after(() => {});
+
+  describe('Specific Function', () => {
+    it('should do something successfully', async () => {
+      // Arrange - Setup test data
+      // Act - Execute the function
+      // Assert - Verify the result
+    });
+
+    it('should fail with invalid input', async () => {
+      // Test error cases
+    });
+  });
+});
+```
+
+---
+
+## CI/CD Integration
+
+### GitHub Actions Example
+```yaml
+# .github/workflows/test.yml
+name: API Tests
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        cd backend
+        npm install
+        
+    - name: Run tests
+      run: |
+        cd backend
+        npm test
+        
+    - name: Generate test report
+      run: |
+        cd backend
+        npm run test:report
+        
+    - name: Upload test report
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-report
+        path: backend/test-reports/
 ```
 
 ---
@@ -2327,6 +2984,9 @@ chore: update dependencies
 - **Recharts:** https://recharts.org/
 - **LINE Bot SDK:** https://github.com/line/line-bot-sdk-nodejs
 - **Nodemailer:** https://nodemailer.com/
+- **Mocha:** https://mochajs.org/
+- **Chai:** https://www.chaijs.com/
+- **Supertest:** https://github.com/visionmedia/supertest
 
 ## Learning Resources
 - **MongoDB University:** https://university.mongodb.com/
@@ -2531,13 +3191,14 @@ Chapter 5: Maintenance
 - Troubleshooting
 ```
 
-## 3. API Documentation (Swagger/Postman)
+## 3. API Documentation & Test Reports
 ```
-✅ All endpoints documented
+✅ All endpoints documented (README)
 ✅ Request/Response examples
 ✅ Authentication explained
 ✅ Error codes listed
-✅ Postman collection exported
+✅ Mocha test reports exported (HTML/JSON)
+✅ Test coverage report
 ```
 
 ## 4. Technical Documentation
@@ -2675,9 +3336,10 @@ Chapter 5: Maintenance
 ## Documentation
 - [ ] User Manual (PDF)
 - [ ] Admin Guide (PDF)
-- [ ] API Documentation (Swagger/Postman)
+- [ ] API Documentation (Markdown + Test Reports)
 - [ ] Technical Documentation (PDF)
 - [ ] Setup Guide for new universities (PDF)
+- [ ] Mocha Test Reports (HTML)
 
 ## Presentation Materials
 - [ ] PowerPoint slides (PDF export)
@@ -2832,5 +3494,5 @@ Finish Line: "YOU DID IT! 🎉🎉🎉"
 ---
 
 **Last Updated:** 16 October 2025  
-**Version:** 2.1 (ComplaintDetail ย้ายไป Person 3)  
+**Version:** 2.2 (Mocha + Chai Testing)  
 **Status:** Ready to Start! 🚀
