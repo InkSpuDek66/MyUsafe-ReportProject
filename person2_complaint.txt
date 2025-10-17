@@ -1,0 +1,2415 @@
+# PERSON 2: COMPLAINT SYSTEM MASTER 📝
+
+## 📋 ความรับผิดชอบหลัก
+- ระบบร้องเรียน (Complaint CRUD)
+- File Upload System
+- Status Management
+- Comments System
+- Location & Category Management
+- Search & Filter
+
+---
+
+# 🗓️ TIMELINE OVERVIEW
+
+## PHASE 1: Single University System (Week 1-2)
+- Week 1 (Day 1-7): Complaint System
+- Week 2 (Day 8-14): Status Management & Comments
+
+## PHASE 2: Template System (Week 3)
+- Day 15-21: Template Configuration
+
+## PHASE 3: Advanced Features (Week 4)  
+- Day 22-30: Announcement System
+
+---
+
+# 📅 WEEK 1 (8-14 ตุลาคม): COMPLAINT SYSTEM
+
+## Day 1-2: Setup & Models 🎯
+
+### Clone Repository & Setup
+```bash
+# 1. Clone the repository (after Person 1 creates it)
+git clone <repository-url>
+cd backend
+
+# 2. Install dependencies
+npm install
+
+# 3. Copy .env file and update if needed
+cp .env.example .env
+
+# 4. Start development server
+npm run dev
+
+# 5. Test connection
+curl http://localhost:5000/api/test
+```
+
+### Complaint Model
+```javascript
+// src/models/Complaint.js
+const mongoose = require('mongoose');
+
+const complaintSchema = new mongoose.Schema({
+  tenant_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University'
+    // Will be used in Phase 2
+  },
+  complaint_number: {
+    type: String,
+    unique: true
+  },
+  reporter_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  title: {
+    type: String,
+    required: [true, 'Please provide a title'],
+    trim: true,
+    maxlength: [200, 'Title cannot be more than 200 characters']
+  },
+  description: {
+    type: String,
+    required: [true, 'Please provide a description'],
+    trim: true
+  },
+  categories: [{
+    type: String,
+    required: true,
+    enum: ['น้ำท่วม', 'ไฟฟ้า', 'คอมพิวเตอร์/เว็บไซต์', 'อื่นๆ']
+  }],
+  location: {
+    building: {
+      type: String,
+      required: [true, 'Please provide building']
+    },
+    floor: {
+      type: String,
+      required: [true, 'Please provide floor']
+    },
+    room: {
+      type: String
+    },
+    description: {
+      type: String
+    }
+  },
+  images: [{
+    type: String,
+    validate: {
+      validator: function(v) {
+        return this.images.length <= 5;
+      },
+      message: 'Cannot upload more than 5 images'
+    }
+  }],
+  attachments: [String],
+  status: {
+    type: String,
+    enum: ['pending', 'in_progress', 'resolved', 'cancelled'],
+    default: 'pending'
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'low'
+  },
+  assigned_to: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  assigned_at: Date,
+  resolution_notes: String,
+  resolution_images: [String],
+  resolved_at: Date,
+  cancellation_reason: String,
+  cancelled_at: Date,
+  view_count: {
+    type: Number,
+    default: 0
+  },
+  source: {
+    type: String,
+    enum: ['web', 'line', 'mobile'],
+    default: 'web'
+  }
+}, {
+  timestamps: true
+});
+
+// Generate complaint number before saving
+complaintSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    const year = new Date().getFullYear();
+    const count = await this.constructor.countDocuments({}) + 1;
+    this.complaint_number = `C${year}-${String(count).padStart(4, '0')}`;
+  }
+  next();
+});
+
+// Indexes
+complaintSchema.index({ tenant_id: 1, created_at: -1 });
+complaintSchema.index({ tenant_id: 1, status: 1 });
+complaintSchema.index({ tenant_id: 1, reporter_id: 1 });
+complaintSchema.index({ tenant_id: 1, assigned_to: 1 });
+complaintSchema.index({ status: 1, priority: 1 });
+
+module.exports = mongoose.model('Complaint', complaintSchema);
+```
+
+### Location Model
+```javascript
+// src/models/Location.js
+const mongoose = require('mongoose');
+
+const locationSchema = new mongoose.Schema({
+  tenant_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University'
+  },
+  building: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  floor: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  room: {
+    type: String,
+    trim: true
+  },
+  description: {
+    type: String,
+    trim: true
+  },
+  is_active: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true
+});
+
+// Compound unique index
+locationSchema.index(
+  { tenant_id: 1, building: 1, floor: 1, room: 1 }, 
+  { unique: true }
+);
+
+module.exports = mongoose.model('Location', locationSchema);
+```
+
+### Category Model
+```javascript
+// src/models/Category.js
+const mongoose = require('mongoose');
+
+const categorySchema = new mongoose.Schema({
+  tenant_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University'
+  },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    trim: true
+  },
+  icon: {
+    type: String,
+    default: 'FaExclamationCircle'
+  },
+  color: {
+    type: String,
+    default: '#6b7280'
+  },
+  auto_assign_dept: {
+    type: String
+  },
+  default_priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'low'
+  },
+  is_active: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true
+});
+
+categorySchema.index({ tenant_id: 1, name: 1 });
+
+module.exports = mongoose.model('Category', categorySchema);
+```
+
+### Complaint History Model
+```javascript
+// src/models/ComplaintHistory.js
+const mongoose = require('mongoose');
+
+const complaintHistorySchema = new mongoose.Schema({
+  complaint_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Complaint',
+    required: true
+  },
+  tenant_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University'
+  },
+  action: {
+    type: String,
+    enum: ['created', 'status_changed', 'assigned', 'commented', 'resolved', 'cancelled'],
+    required: true
+  },
+  old_value: String,
+  new_value: String,
+  comment: String,
+  images: [String],
+  changed_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }
+}, {
+  timestamps: true
+});
+
+complaintHistorySchema.index({ complaint_id: 1, created_at: -1 });
+
+module.exports = mongoose.model('ComplaintHistory', complaintHistorySchema);
+```
+
+### Day 1-2 Checklist:
+- [ ] Repository cloned
+- [ ] Environment setup
+- [ ] Complaint model created
+- [ ] Location model created
+- [ ] Category model created
+- [ ] Complaint history model created
+- [ ] All validations added
+- [ ] Indexes created
+- [ ] Models tested in console
+- [ ] Code committed
+
+---
+
+## Day 3-5: Complaint CRUD API 📝
+
+### Complaint Controller
+```javascript
+// src/controllers/complaintController.js
+const Complaint = require('../models/Complaint');
+const ComplaintHistory = require('../models/ComplaintHistory');
+const { sendWelcomeEmail } = require('../services/emailService');
+
+// @desc    Create new complaint
+// @route   POST /api/complaints
+// @access  Private
+exports.createComplaint = async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      categories,
+      location,
+      images,
+      attachments
+    } = req.body;
+
+    // Validate categories is array
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select at least one category'
+      });
+    }
+
+    // Create complaint
+    const complaint = await Complaint.create({
+      reporter_id: req.user.id,
+      tenant_id: req.tenant?._id, // For Phase 2
+      title,
+      description,
+      categories,
+      location,
+      images: images || [],
+      attachments: attachments || [],
+      source: 'web'
+    });
+
+    // Create history record
+    await ComplaintHistory.create({
+      complaint_id: complaint._id,
+      tenant_id: req.tenant?._id,
+      action: 'created',
+      new_value: 'pending',
+      changed_by: req.user.id
+    });
+
+    // Populate for response
+    await complaint.populate('reporter_id', 'name email');
+
+    res.status(201).json({
+      success: true,
+      message: 'Complaint created successfully',
+      data: complaint
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all complaints with filters
+// @route   GET /api/complaints
+// @access  Private
+exports.getAllComplaints = async (req, res) => {
+  try {
+    const {
+      status,
+      categories, // Support multiple categories (OR logic)
+      priority,
+      assigned_to,
+      search,
+      start_date,
+      end_date,
+      page = 1,
+      limit = 20,
+      sort = '-created_at'
+    } = req.query;
+
+    // Build query
+    const query = {};
+    
+    // Tenant filter (Phase 2)
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    // Multiple categories support (OR logic)
+    if (categories) {
+      const categoryArray = categories.split(',').map(c => c.trim());
+      query.categories = { $in: categoryArray };
+    }
+
+    if (priority) {
+      query.priority = priority;
+    }
+
+    if (assigned_to) {
+      query.assigned_to = assigned_to;
+    }
+
+    // Search in title and description
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { complaint_number: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Date range filter
+    if (start_date || end_date) {
+      query.created_at = {};
+      if (start_date) {
+        query.created_at.$gte = new Date(start_date);
+      }
+      if (end_date) {
+        query.created_at.$lte = new Date(end_date);
+      }
+    }
+
+    // Pagination
+    const skip = (page - 1) * limit;
+
+    // Execute query
+    const complaints = await Complaint.find(query)
+      .populate('reporter_id', 'name email phone')
+      .populate('assigned_to', 'name email')
+      .sort(sort)
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Complaint.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: complaints,
+      pagination: {
+        current_page: Number(page),
+        total_pages: Math.ceil(total / limit),
+        total: total,
+        per_page: Number(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get single complaint
+// @route   GET /api/complaints/:id
+// @access  Private
+exports.getComplaint = async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id)
+      .populate('reporter_id', 'name email phone')
+      .populate('assigned_to', 'name email');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Increment view count
+    complaint.view_count += 1;
+    await complaint.save();
+
+    res.json({
+      success: true,
+      data: complaint
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update complaint
+// @route   PATCH /api/complaints/:id
+// @access  Private
+exports.updateComplaint = async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check permission
+    const isOwner = complaint.reporter_id.toString() === req.user.id;
+    const isStaffOrAdmin = ['admin', 'staff'].includes(req.user.role);
+
+    if (!isOwner && !isStaffOrAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this complaint'
+      });
+    }
+
+    // Update allowed fields
+    const allowedUpdates = ['title', 'description', 'categories', 'location', 'images'];
+    const updates = {};
+
+    Object.keys(req.body).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        updates[key] = req.body[key];
+      }
+    });
+
+    // Apply updates
+    Object.assign(complaint, updates);
+    await complaint.save();
+
+    res.json({
+      success: true,
+      message: 'Complaint updated successfully',
+      data: complaint
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete complaint (soft delete)
+// @route   DELETE /api/complaints/:id
+// @access  Private
+exports.deleteComplaint = async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check permission (only owner or admin can delete)
+    const isOwner = complaint.reporter_id.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this complaint'
+      });
+    }
+
+    // Check if can be deleted (only pending status)
+    if (complaint.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete complaint that is already being processed'
+      });
+    }
+
+    // Soft delete (update status to cancelled)
+    complaint.status = 'cancelled';
+    complaint.cancellation_reason = 'Deleted by user';
+    complaint.cancelled_at = Date.now();
+    await complaint.save();
+
+    res.json({
+      success: true,
+      message: 'Complaint deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get my complaints
+// @route   GET /api/complaints/my-complaints
+// @access  Private
+exports.getMyComplaints = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const query = { reporter_id: req.user.id };
+
+    if (status) {
+      query.status = status;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const complaints = await Complaint.find(query)
+      .populate('assigned_to', 'name')
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Complaint.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: complaints,
+      pagination: {
+        current_page: Number(page),
+        total_pages: Math.ceil(total / limit),
+        total: total,
+        per_page: Number(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Complaint Routes
+```javascript
+// src/routes/complaints.js
+const express = require('express');
+const router = express.Router();
+const {
+  createComplaint,
+  getAllComplaints,
+  getComplaint,
+  updateComplaint,
+  deleteComplaint,
+  getMyComplaints
+} = require('../controllers/complaintController');
+const { authenticateUser, checkRole } = require('../middleware/auth');
+
+// All routes require authentication
+router.use(authenticateUser);
+
+// Public routes (authenticated users)
+router.post('/', createComplaint);
+router.get('/my-complaints', getMyComplaints);
+router.get('/:id', getComplaint);
+router.patch('/:id', updateComplaint);
+router.delete('/:id', deleteComplaint);
+
+// Admin/Staff routes
+router.get('/', checkRole('admin', 'staff'), getAllComplaints);
+
+module.exports = router;
+```
+
+### Update Server
+```javascript
+// Add to src/server.js
+const complaintRoutes = require('./routes/complaints');
+
+app.use('/api/complaints', complaintRoutes);
+```
+
+### Day 3-5 Checklist:
+- [ ] Complaint controller created
+- [ ] Create complaint endpoint
+- [ ] Get all complaints (with filters)
+- [ ] Get single complaint
+- [ ] Update complaint endpoint
+- [ ] Delete complaint (soft delete)
+- [ ] Get my complaints endpoint
+- [ ] Multi-category support (categories array)
+- [ ] Priority defaults to 'low'
+- [ ] Search functionality
+- [ ] Pagination working
+- [ ] Tested with Postman
+- [ ] Code committed
+
+---
+
+## Day 6-7: File Upload & Location API 📁
+
+### Upload Middleware
+```javascript
+// src/middleware/upload.js
+const multer = require('multer');
+const path = require('path');
+
+// Configure storage
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function(req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter
+const fileFilter = (req, file, cb) => {
+  // Accept images only
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+// Create multer instance
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});
+
+module.exports = upload;
+```
+
+### Upload Controller
+```javascript
+// src/controllers/uploadController.js
+const fs = require('fs');
+const path = require('path');
+
+// @desc    Upload image
+// @route   POST /api/upload/image
+// @access  Private
+exports.uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      data: {
+        filename: req.file.filename,
+        url: fileUrl,
+        size: req.file.size
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Upload error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Upload multiple images
+// @route   POST /api/upload/images
+// @access  Private
+exports.uploadImages = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded'
+      });
+    }
+
+    if (req.files.length > 5) {
+      // Delete uploaded files
+      req.files.forEach(file => {
+        fs.unlinkSync(file.path);
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 5 images allowed'
+      });
+    }
+
+    const files = req.files.map(file => ({
+      filename: file.filename,
+      url: `/uploads/${file.filename}`,
+      size: file.size
+    }));
+
+    res.json({
+      success: true,
+      message: `${files.length} files uploaded successfully`,
+      data: files
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Upload error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete uploaded file
+// @route   DELETE /api/upload/:filename
+// @access  Private
+exports.deleteFile = async (req, res) => {
+  try {
+    const filePath = path.join(__dirname, '../../uploads', req.params.filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found'
+      });
+    }
+
+    fs.unlinkSync(filePath);
+
+    res.json({
+      success: true,
+      message: 'File deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Delete error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Location Controller
+```javascript
+// src/controllers/locationController.js
+const Location = require('../models/Location');
+
+// @desc    Get all locations
+// @route   GET /api/locations
+// @access  Private
+exports.getAllLocations = async (req, res) => {
+  try {
+    const query = { is_active: true };
+    
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    const locations = await Location.find(query)
+      .sort({ building: 1, floor: 1, room: 1 });
+
+    res.json({
+      success: true,
+      data: locations,
+      count: locations.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get buildings list
+// @route   GET /api/locations/buildings
+// @access  Private
+exports.getBuildings = async (req, res) => {
+  try {
+    const query = { is_active: true };
+    
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    const buildings = await Location.distinct('building', query);
+
+    res.json({
+      success: true,
+      data: buildings
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get floors by building
+// @route   GET /api/locations/floors/:building
+// @access  Private
+exports.getFloors = async (req, res) => {
+  try {
+    const query = {
+      building: req.params.building,
+      is_active: true
+    };
+    
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    const floors = await Location.distinct('floor', query);
+
+    res.json({
+      success: true,
+      data: floors
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get rooms by building and floor
+// @route   GET /api/locations/rooms/:building/:floor
+// @access  Private
+exports.getRooms = async (req, res) => {
+  try {
+    const query = {
+      building: req.params.building,
+      floor: req.params.floor,
+      is_active: true,
+      room: { $exists: true, $ne: '' }
+    };
+    
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    const locations = await Location.find(query).select('room description');
+
+    res.json({
+      success: true,
+      data: locations
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Create location
+// @route   POST /api/locations
+// @access  Private/Admin
+exports.createLocation = async (req, res) => {
+  try {
+    const { building, floor, room, description } = req.body;
+
+    const location = await Location.create({
+      tenant_id: req.tenant?._id,
+      building,
+      floor,
+      room,
+      description
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Location created successfully',
+      data: location
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Location already exists'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete location
+// @route   DELETE /api/locations/:id
+// @access  Private/Admin
+exports.deleteLocation = async (req, res) => {
+  try {
+    const location = await Location.findByIdAndUpdate(
+      req.params.id,
+      { is_active: false },
+      { new: true }
+    );
+
+    if (!location) {
+      return res.status(404).json({
+        success: false,
+        message: 'Location not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Location deactivated successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Category Controller
+```javascript
+// src/controllers/categoryController.js
+const Category = require('../models/Category');
+
+// @desc    Get all categories
+// @route   GET /api/categories
+// @access  Private
+exports.getAllCategories = async (req, res) => {
+  try {
+    const query = { is_active: true };
+    
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    const categories = await Category.find(query).sort({ name: 1 });
+
+    res.json({
+      success: true,
+      data: categories,
+      count: categories.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Create category
+// @route   POST /api/categories
+// @access  Private/Admin
+exports.createCategory = async (req, res) => {
+  try {
+    const { name, description, icon, color, default_priority } = req.body;
+
+    const category = await Category.create({
+      tenant_id: req.tenant?._id,
+      name,
+      description,
+      icon,
+      color,
+      default_priority
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Category created successfully',
+      data: category
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Routes
+```javascript
+// src/routes/upload.js
+const express = require('express');
+const router = express.Router();
+const upload = require('../middleware/upload');
+const {
+  uploadImage,
+  uploadImages,
+  deleteFile
+} = require('../controllers/uploadController');
+const { authenticateUser } = require('../middleware/auth');
+
+router.use(authenticateUser);
+
+router.post('/image', upload.single('image'), uploadImage);
+router.post('/images', upload.array('images', 5), uploadImages);
+router.delete('/:filename', deleteFile);
+
+module.exports = router;
+
+// src/routes/locations.js
+const express = require('express');
+const router = express.Router();
+const {
+  getAllLocations,
+  getBuildings,
+  getFloors,
+  getRooms,
+  createLocation,
+  deleteLocation
+} = require('../controllers/locationController');
+const { authenticateUser, checkRole } = require('../middleware/auth');
+
+router.use(authenticateUser);
+
+router.get('/', getAllLocations);
+router.get('/buildings', getBuildings);
+router.get('/floors/:building', getFloors);
+router.get('/rooms/:building/:floor', getRooms);
+router.post('/', checkRole('admin'), createLocation);
+router.delete('/:id', checkRole('admin'), deleteLocation);
+
+module.exports = router;
+
+// src/routes/categories.js
+const express = require('express');
+const router = express.Router();
+const {
+  getAllCategories,
+  createCategory
+} = require('../controllers/categoryController');
+const { authenticateUser, checkRole } = require('../middleware/auth');
+
+router.use(authenticateUser);
+
+router.get('/', getAllCategories);
+router.post('/', checkRole('admin'), createCategory);
+
+module.exports = router;
+```
+
+### Serve Static Files
+```javascript
+// Add to src/server.js
+const express = require('express');
+
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
+
+// Add routes
+const uploadRoutes = require('./routes/upload');
+const locationRoutes = require('./routes/locations');
+const categoryRoutes = require('./routes/categories');
+
+app.use('/api/upload', uploadRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/categories', categoryRoutes);
+```
+
+### Day 6-7 Checklist:
+- [ ] Upload middleware created (Multer)
+- [ ] Single image upload endpoint
+- [ ] Multiple images upload (max 5)
+- [ ] File validation (type, size)
+- [ ] Delete file endpoint
+- [ ] Static file serving
+- [ ] Location API (buildings, floors, rooms)
+- [ ] Category API
+- [ ] Create location endpoint
+- [ ] File upload tested
+- [ ] Code committed
+
+---
+
+# 📅 WEEK 2 (15-21 ตุลาคม): STATUS & COMMENTS
+
+## Day 8-10: Status Workflow 🔄
+
+### Status Controller
+```javascript
+// src/controllers/statusController.js
+const Complaint = require('../models/Complaint');
+const ComplaintHistory = require('../models/ComplaintHistory');
+const { sendStatusUpdateEmail, sendResolvedEmail } = require('../services/emailService');
+
+// @desc    Update complaint status
+// @route   PATCH /api/complaints/:id/status
+// @access  Private/Staff/Admin
+exports.updateStatus = async (req, res) => {
+  try {
+    const { status, comment, resolution_notes } = req.body;
+
+    // Validate status
+    const validStatuses = ['pending', 'in_progress', 'resolved', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status'
+      });
+    }
+
+    const complaint = await Complaint.findById(req.params.id)
+      .populate('reporter_id', 'name email line_user_id');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    const oldStatus = complaint.status;
+
+    // Validate status transition
+    const validTransitions = {
+      'pending': ['in_progress', 'cancelled'],
+      'in_progress': ['resolved', 'cancelled'],
+      'resolved': ['in_progress'], // Can reopen
+      'cancelled': ['pending'] // Can reactivate
+    };
+
+    if (!validTransitions[oldStatus]?.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change status from ${oldStatus} to ${status}`
+      });
+    }
+
+    // Update complaint
+    complaint.status = status;
+
+    if (status === 'resolved') {
+      complaint.resolved_at = Date.now();
+      if (resolution_notes) {
+        complaint.resolution_notes = resolution_notes;
+      }
+    }
+
+    if (status === 'cancelled' && comment) {
+      complaint.cancellation_reason = comment;
+      complaint.cancelled_at = Date.now();
+    }
+
+    await complaint.save();
+
+    // Create history record
+    await ComplaintHistory.create({
+      complaint_id: complaint._id,
+      tenant_id: req.tenant?._id,
+      action: 'status_changed',
+      old_value: oldStatus,
+      new_value: status,
+      comment: comment,
+      changed_by: req.user.id
+    });
+
+    // Send notifications
+    if (status === 'resolved') {
+      await sendResolvedEmail(complaint);
+    } else {
+      await sendStatusUpdateEmail(complaint, oldStatus, status);
+    }
+
+    // Send LINE notification if user has LINE
+    if (complaint.reporter_id.line_user_id) {
+      const { sendStatusChangeNotification } = require('../services/lineService');
+      await sendStatusChangeNotification(
+        complaint.reporter_id.line_user_id,
+        complaint,
+        oldStatus,
+        status
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Status updated successfully',
+      data: complaint
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Add Status Route
+```javascript
+// Add to src/routes/complaints.js
+const { updateStatus } = require('../controllers/statusController');
+
+router.patch('/:id/status', checkRole('admin', 'staff'), updateStatus);
+```
+
+### Day 8-10 Checklist:
+- [ ] Status controller created
+- [ ] Update status endpoint
+- [ ] Status transition validation
+- [ ] Resolution notes field
+- [ ] Cancellation reason field
+- [ ] Timestamp updates (resolved_at, cancelled_at)
+- [ ] History record created
+- [ ] Email notifications sent
+- [ ] LINE notifications sent (if available)
+- [ ] Tested all status transitions
+- [ ] Code committed
+
+---
+
+## Day 11-12: Comments System 💬
+
+### Comment Model
+```javascript
+// src/models/Comment.js
+const mongoose = require('mongoose');
+
+const commentSchema = new mongoose.Schema({
+  complaint_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Complaint',
+    required: true
+  },
+  tenant_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University'
+  },
+  user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  comment: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  images: [String],
+  is_internal: {
+    type: Boolean,
+    default: false // Internal comments only visible to staff
+  }
+}, {
+  timestamps: true
+});
+
+commentSchema.index({ complaint_id: 1, created_at: -1 });
+
+module.exports = mongoose.model('Comment', commentSchema);
+```
+
+### Comment Controller
+```javascript
+// src/controllers/commentController.js
+const Comment = require('../models/Comment');
+const Complaint = require('../models/Complaint');
+const ComplaintHistory = require('../models/ComplaintHistory');
+
+// @desc    Add comment
+// @route   POST /api/complaints/:id/comments
+// @access  Private
+exports.addComment = async (req, res) => {
+  try {
+    const { comment, images, is_internal } = req.body;
+
+    // Validate complaint exists
+    const complaint = await Complaint.findById(req.params.id);
+    
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check permission for internal comments
+    if (is_internal && !['admin', 'staff'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to create internal comments'
+      });
+    }
+
+    // Create comment
+    const newComment = await Comment.create({
+      complaint_id: req.params.id,
+      tenant_id: req.tenant?._id,
+      user_id: req.user.id,
+      comment,
+      images: images || [],
+      is_internal: is_internal || false
+    });
+
+    // Populate user info
+    await newComment.populate('user_id', 'name role');
+
+    // Add to history
+    await ComplaintHistory.create({
+      complaint_id: req.params.id,
+      tenant_id: req.tenant?._id,
+      action: 'commented',
+      comment: comment,
+      images: images,
+      changed_by: req.user.id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Comment added successfully',
+      data: newComment
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get comments for complaint
+// @route   GET /api/complaints/:id/comments
+// @access  Private
+exports.getComments = async (req, res) => {
+  try {
+    const query = { complaint_id: req.params.id };
+
+    // Non-staff users cannot see internal comments
+    if (!['admin', 'staff'].includes(req.user.role)) {
+      query.is_internal = false;
+    }
+
+    const comments = await Comment.find(query)
+      .populate('user_id', 'name role')
+      .sort({ created_at: 1 });
+
+    res.json({
+      success: true,
+      data: comments,
+      count: comments.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete comment
+// @route   DELETE /api/complaints/:complaintId/comments/:commentId
+// @access  Private
+exports.deleteComment = async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Check permission (only comment owner or admin)
+    const isOwner = comment.user_id.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this comment'
+      });
+    }
+
+    await comment.deleteOne();
+
+    res.json({
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### History Controller
+```javascript
+// src/controllers/historyController.js
+const ComplaintHistory = require('../models/ComplaintHistory');
+
+// @desc    Get complaint history/timeline
+// @route   GET /api/complaints/:id/history
+// @access  Private
+exports.getHistory = async (req, res) => {
+  try {
+    const history = await ComplaintHistory.find({
+      complaint_id: req.params.id
+    })
+    .populate('changed_by', 'name role')
+    .sort({ created_at: 1 });
+
+    res.json({
+      success: true,
+      data: history,
+      count: history.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Comment Routes
+```javascript
+// Add to src/routes/complaints.js
+const {
+  addComment,
+  getComments,
+  deleteComment
+} = require('../controllers/commentController');
+const { getHistory } = require('../controllers/historyController');
+
+router.post('/:id/comments', addComment);
+router.get('/:id/comments', getComments);
+router.delete('/:complaintId/comments/:commentId', deleteComment);
+router.get('/:id/history', getHistory);
+```
+
+### Day 11-12 Checklist:
+- [ ] Comment model created
+- [ ] Add comment endpoint
+- [ ] Get comments endpoint
+- [ ] Delete comment endpoint
+- [ ] Internal comments feature
+- [ ] Permission checks
+- [ ] Get history/timeline endpoint
+- [ ] Comments saved to history
+- [ ] Image support in comments
+- [ ] Tested all comment operations
+- [ ] Code committed
+
+---
+
+## Day 13-14: Testing & Search 🔍
+
+### Search Enhancement
+```javascript
+// Add to src/controllers/complaintController.js
+
+// @desc    Search complaints (advanced)
+// @route   GET /api/complaints/search
+// @access  Private
+exports.searchComplaints = async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+
+    if (!q || q.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query is required'
+      });
+    }
+
+    const query = {
+      $or: [
+        { title: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } },
+        { complaint_number: { $regex: q, $options: 'i' } },
+        { 'location.building': { $regex: q, $options: 'i' } }
+      ]
+    };
+
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const complaints = await Complaint.find(query)
+      .populate('reporter_id', 'name email')
+      .populate('assigned_to', 'name')
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Complaint.countDocuments(query);
+
+    res.json({
+      success: true,
+      query: q,
+      data: complaints,
+      pagination: {
+        current_page: Number(page),
+        total_pages: Math.ceil(total / limit),
+        total: total,
+        per_page: Number(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Complaint Tests
+```javascript
+// test/complaints.test.js
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Complaints API', () => {
+  let authToken;
+  let staffToken;
+
+  before(async () => {
+    // Create users
+    const user = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Test User',
+        email: 'user@test.com',
+        password: 'pass123',
+        role: 'reporter'
+      });
+    authToken = user.body.token;
+
+    const staff = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Staff User',
+        email: 'staff@test.com',
+        password: 'pass123',
+        role: 'staff'
+      });
+    staffToken = staff.body.token;
+  });
+
+  describe('POST /api/complaints', () => {
+    it('should create a new complaint', async () => {
+      const res = await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Water Leak',
+          description: 'Water leak in room',
+          categories: ['น้ำท่วม'],
+          location: {
+            building: 'A',
+            floor: '3',
+            room: '301'
+          }
+        });
+
+      expect(res.status).to.equal(201);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body.data).to.have.property('complaint_number');
+      expect(res.body.data).to.have.property('status', 'pending');
+      expect(res.body.data).to.have.property('priority', 'low');
+    });
+
+    it('should support multiple categories', async () => {
+      const res = await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Multiple Issues',
+          description: 'Test',
+          categories: ['น้ำท่วม', 'ไฟฟ้า'],
+          location: { building: 'A', floor: '1' }
+        });
+
+      expect(res.status).to.equal(201);
+      expect(res.body.data.categories).to.have.lengthOf(2);
+      expect(res.body.data.categories).to.include('น้ำท่วม');
+      expect(res.body.data.categories).to.include('ไฟฟ้า');
+    });
+
+    it('should fail without categories', async () => {
+      const res = await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'No Category',
+          description: 'Test',
+          location: { building: 'A', floor: '1' }
+        });
+
+      expect(res.status).to.equal(400);
+    });
+  });
+
+  describe('GET /api/complaints', () => {
+    it('should get complaints with filters', async () => {
+      const res = await request(app)
+        .get('/api/complaints?status=pending')
+        .set('Authorization', `Bearer ${staffToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data).to.be.an('array');
+    });
+
+    it('should filter by multiple categories', async () => {
+      const res = await request(app)
+        .get('/api/complaints?categories=น้ำท่วม,ไฟฟ้า')
+        .set('Authorization', `Bearer ${staffToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data).to.be.an('array');
+    });
+  });
+
+  describe('PATCH /api/complaints/:id/status', () => {
+    let complaintId;
+
+    before(async () => {
+      const complaint = await request(app)
+        .post('/api/complaints')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({
+          title: 'Status Test',
+          description: 'Test',
+          categories: ['ไฟฟ้า'],
+          location: { building: 'A', floor: '1' }
+        });
+      complaintId = complaint.body.data._id;
+    });
+
+    it('should update status', async () => {
+      const res = await request(app)
+        .patch(`/api/complaints/${complaintId}/status`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          status: 'in_progress',
+          comment: 'Working on it'
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body.data).to.have.property('status', 'in_progress');
+    });
+
+    it('should fail with invalid status transition', async () => {
+      const res = await request(app)
+        .patch(`/api/complaints/${complaintId}/status`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          status: 'cancelled' // in_progress -> cancelled not allowed
+        });
+
+      expect(res.status).to.equal(400);
+    });
+  });
+});
+```
+
+### Day 13-14 Checklist:
+- [ ] Search endpoint created
+- [ ] Advanced search working
+- [ ] All complaint tests written
+- [ ] Status tests written
+- [ ] Comment tests written
+- [ ] All tests passing
+- [ ] Test coverage > 70%
+- [ ] Code refactored
+- [ ] Documentation updated
+- [ ] Code committed
+
+---
+
+# 📅 PHASE 2: WEEK 3 - TEMPLATE CONFIGURATION
+
+## Day 15-17: Template Data 📦
+
+### Import/Export Functions
+```javascript
+// src/controllers/templateController.js
+
+// @desc    Export configuration as JSON
+// @route   GET /api/tenants/:id/export-config
+// @access  Private/Admin
+exports.exportConfig = async (req, res) => {
+  try {
+    const Location = require('../models/Location');
+    const Category = require('../models/Category');
+
+    const locations = await Location.find({ tenant_id: req.tenant._id });
+    const categories = await Category.find({ tenant_id: req.tenant._id });
+
+    const config = {
+      version: '1.0',
+      exported_at: new Date(),
+      locations: locations.map(l => ({
+        building: l.building,
+        floor: l.floor,
+        room: l.room,
+        description: l.description
+      })),
+      categories: categories.map(c => ({
+        name: c.name,
+        description: c.description,
+        icon: c.icon,
+        color: c.color,
+        default_priority: c.default_priority
+      }))
+    };
+
+    res.json({
+      success: true,
+      data: config
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Export error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Import configuration from JSON
+// @route   POST /api/tenants/:id/import-config
+// @access  Private/Admin
+exports.importConfig = async (req, res) => {
+  try {
+    const { locations, categories } = req.body;
+    const Location = require('../models/Location');
+    const Category = require('../models/Category');
+
+    // Import locations
+    if (locations && Array.isArray(locations)) {
+      const locationDocs = locations.map(l => ({
+        ...l,
+        tenant_id: req.tenant._id
+      }));
+      await Location.insertMany(locationDocs, { ordered: false });
+    }
+
+    // Import categories
+    if (categories && Array.isArray(categories)) {
+      const categoryDocs = categories.map(c => ({
+        ...c,
+        tenant_id: req.tenant._id
+      }));
+      await Category.insertMany(categoryDocs, { ordered: false });
+    }
+
+    res.json({
+      success: true,
+      message: 'Configuration imported successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Import error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Day 15-17 Checklist:
+- [ ] Export config endpoint
+- [ ] Import config endpoint
+- [ ] JSON validation
+- [ ] Bulk location import
+- [ ] Bulk category import
+- [ ] Error handling
+- [ ] Tested import/export
+- [ ] Code committed
+
+---
+
+## Day 18-21: Location & Category Builder 🏗️
+
+### Bulk Operations
+```javascript
+// Add to src/controllers/locationController.js
+
+// @desc    Bulk import locations from CSV
+// @route   POST /api/locations/bulk-import
+// @access  Private/Admin
+exports.bulkImportLocations = async (req, res) => {
+  try {
+    const { locations } = req.body; // Array of location objects
+
+    if (!Array.isArray(locations) || locations.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid locations data'
+      });
+    }
+
+    const locationDocs = locations.map(l => ({
+      ...l,
+      tenant_id: req.tenant?._id
+    }));
+
+    const result = await Location.insertMany(locationDocs, {
+      ordered: false, // Continue on duplicate errors
+      rawResult: true
+    });
+
+    res.json({
+      success: true,
+      message: `Imported ${result.insertedCount} locations`,
+      inserted: result.insertedCount,
+      total: locations.length
+    });
+  } catch (error) {
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const inserted = error.result?.nInserted || 0;
+      return res.json({
+        success: true,
+        message: `Imported ${inserted} locations (some duplicates skipped)`,
+        inserted: inserted
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Import error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Day 18-21 Checklist:
+- [ ] Bulk location import
+- [ ] CSV parsing support
+- [ ] Duplicate handling
+- [ ] Category management endpoints
+- [ ] Location builder tested
+- [ ] Import/export tested
+- [ ] Code committed
+
+---
+
+# 📅 PHASE 3: WEEK 4 - ANNOUNCEMENT SYSTEM
+
+## Day 22-24: Announcement Model & API 📢
+
+### Announcement Model
+```javascript
+// src/models/Announcement.js
+const mongoose = require('mongoose');
+
+const announcementSchema = new mongoose.Schema({
+  tenant_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University'
+  },
+  title: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  content: {
+    type: String,
+    required: true
+  },
+  excerpt: {
+    type: String,
+    maxlength: 200
+  },
+  type: {
+    type: String,
+    enum: ['info', 'warning', 'urgent', 'event'],
+    default: 'info'
+  },
+  images: [String],
+  attachments: [{
+    name: String,
+    url: String,
+    size: Number
+  }],
+  target_audience: {
+    type: String,
+    enum: ['all', 'students', 'staff', 'faculty'],
+    default: 'all'
+  },
+  is_pinned: {
+    type: Boolean,
+    default: false
+  },
+  is_active: {
+    type: Boolean,
+    default: true
+  },
+  start_date: {
+    type: Date,
+    default: Date.now
+  },
+  end_date: Date,
+  view_count: {
+    type: Number,
+    default: 0
+  },
+  like_count: {
+    type: Number,
+    default: 0
+  },
+  created_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }
+}, {
+  timestamps: true
+});
+
+// Auto-generate excerpt from content
+announcementSchema.pre('save', function(next) {
+  if (this.isModified('content') && !this.excerpt) {
+    // Strip HTML and get first 200 chars
+    const plainText = this.content.replace(/<[^>]*>/g, '');
+    this.excerpt = plainText.substring(0, 200);
+  }
+  next();
+});
+
+announcementSchema.index({ tenant_id: 1, is_active: 1, start_date: -1 });
+announcementSchema.index({ tenant_id: 1, is_pinned: 1 });
+
+module.exports = mongoose.model('Announcement', announcementSchema);
+```
+
+### Announcement Controller
+```javascript
+// src/controllers/announcementController.js
+const Announcement = require('../models/Announcement');
+
+// @desc    Create announcement
+// @route   POST /api/announcements
+// @access  Private/Admin
+exports.createAnnouncement = async (req, res) => {
+  try {
+    const {
+      title,
+      content,
+      type,
+      images,
+      attachments,
+      target_audience,
+      is_pinned,
+      start_date,
+      end_date
+    } = req.body;
+
+    const announcement = await Announcement.create({
+      tenant_id: req.tenant?._id,
+      title,
+      content,
+      type,
+      images,
+      attachments,
+      target_audience,
+      is_pinned,
+      start_date,
+      end_date,
+      created_by: req.user.id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Announcement created successfully',
+      data: announcement
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all announcements
+// @route   GET /api/announcements
+// @access  Public
+exports.getAllAnnouncements = async (req, res) => {
+  try {
+    const { type, page = 1, limit = 10 } = req.query;
+
+    const query = {
+      is_active: true,
+      start_date: { $lte: new Date() },
+      $or: [
+        { end_date: { $exists: false } },
+        { end_date: { $gte: new Date() } }
+      ]
+    };
+
+    if (req.tenant) {
+      query.tenant_id = req.tenant._id;
+    }
+
+    if (type) {
+      query.type = type;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const announcements = await Announcement.find(query)
+      .populate('created_by', 'name')
+      .sort({ is_pinned: -1, start_date: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Announcement.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: announcements,
+      pagination: {
+        current_page: Number(page),
+        total_pages: Math.ceil(total / limit),
+        total: total,
+        per_page: Number(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get single announcement
+// @route   GET /api/announcements/:id
+// @access  Public
+exports.getAnnouncement = async (req, res) => {
+  try {
+    const announcement = await Announcement.findById(req.params.id)
+      .populate('created_by', 'name');
+
+    if (!announcement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Announcement not found'
+      });
+    }
+
+    // Increment view count
+    announcement.view_count += 1;
+    await announcement.save();
+
+    res.json({
+      success: true,
+      data: announcement
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update announcement
+// @route   PATCH /api/announcements/:id
+// @access  Private/Admin
+exports.updateAnnouncement = async (req, res) => {
+  try {
+    const allowedUpdates = [
+      'title', 'content', 'type', 'images', 'attachments',
+      'target_audience', 'is_pinned', 'is_active', 'start_date', 'end_date'
+    ];
+
+    const updates = {};
+    Object.keys(req.body).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        updates[key] = req.body[key];
+      }
+    });
+
+    const announcement = await Announcement.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    if (!announcement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Announcement not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Announcement updated successfully',
+      data: announcement
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete announcement
+// @route   DELETE /api/announcements/:id
+// @access  Private/Admin
+exports.deleteAnnouncement = async (req, res) => {
+  try {
+    const announcement = await Announcement.findByIdAndUpdate(
+      req.params.id,
+      { is_active: false },
+      { new: true }
+    );
+
+    if (!announcement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Announcement not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Announcement deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Announcement Routes
+```javascript
+// src/routes/announcements.js
+const express = require('express');
+const router = express.Router();
+const {
+  createAnnouncement,
+  getAllAnnouncements,
+  getAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement
+} = require('../controllers/announcementController');
+const { authenticateUser, checkRole } = require('../middleware/auth');
+
+// Public routes
+router.get('/', getAllAnnouncements);
+router.get('/:id', getAnnouncement);
+
+// Admin routes
+router.use(authenticateUser);
+router.use(checkRole('admin'));
+
+router.post('/', createAnnouncement);
+router.patch('/:id', updateAnnouncement);
+router.delete('/:id', deleteAnnouncement);
+
+module.exports = router;
+```
+
+### Day 22-24 Checklist:
+- [ ] Announcement model created
+- [ ] Create announcement endpoint
+- [ ] Get all announcements
+- [ ] Get single announcement
+- [ ] Update announcement
+- [ ] Delete announcement
+- [ ] Auto-generate excerpt
+- [ ] View count tracking
+- [ ] Pinned announcements
+- [ ] Date range filtering
+- [ ] Code committed
+
+---
+
+## Day 25-30: Final Testing & Documentation 📝
+
+### Day 25-27 Checklist:
+- [ ] All announcement features tested
+- [ ] Integration with notifications
+- [ ] Rich text content support
+- [ ] File attachments working
+- [ ] All endpoints tested
+
+### Day 28-30 Checklist:
+- [ ] Complete API documentation
+- [ ] Test reports generated
+- [ ] All automated tests passing
+- [ ] Code refactored and clean
+- [ ] No console.log statements
+- [ ] All comments added
+- [ ] README updated
+- [ ] Ready for deployment!
+
+---
+
+# 🎯 YOUR KEY DELIVERABLES
+
+## Week 1:
+✅ Complaint CRUD system
+✅ File upload (images)
+✅ Location API (3-level selector)
+✅ Category API
+✅ Multi-category support
+
+## Week 2:
+✅ Status management workflow
+✅ Comments system
+✅ Search functionality
+✅ Complaint history/timeline
+✅ Automated tests (Mocha + Chai)
+
+## Week 3:
+✅ Template configuration
+✅ Import/export tools
+✅ Bulk operations
+✅ Location builder
+
+## Week 4:
+✅ Announcement system
+✅ Rich content support
+✅ Final testing
+✅ Documentation
+
+---
+
+# 📞 IMPORTANT NOTES
+
+## Your Focus Areas:
+1. **Complaints** - CRUD, multi-category, search
+2. **File Upload** - Images, validation, storage
+3. **Status** - Workflow, validation, notifications
+4. **Comments** - Add, view, internal comments
+5. **Locations** - 3-level hierarchy, bulk import
+6. **Announcements** - Full featured system
+
+## Collaborate With:
+- **Person 1**: User data, authentication
+- **Person 3**: Stats for dashboard
+
+## Testing Priority:
+- Complaint CRUD (100% coverage)
+- Status transitions (100% coverage)
+- File uploads (test all scenarios)
+- Search functionality
+- Multi-category support
+
+---
+
+# 🚀 YOU GOT THIS!
+
+**Good luck! ให้สู้ๆนะ! 💪**
+
+ระบบร้องเรียนคือหัวใจของโปรเจกต์
+ถ้าส่วนนี้ทำงานได้ดี ผู้ใช้จะได้รับประสบการณ์ที่ดี! 🎯

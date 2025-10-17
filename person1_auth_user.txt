@@ -1,0 +1,2216 @@
+# PERSON 1: AUTHENTICATION & USER MANAGEMENT MASTER 🔐
+
+## 📋 ความรับผิดชอบหลัก
+- ระบบผู้ใช้งาน (User Management)
+- Authentication & Authorization
+- JWT & Security
+- Role-based Access Control
+- Email Notifications
+- Assignment System
+
+---
+
+# 🗓️ TIMELINE OVERVIEW
+
+## PHASE 1: Single University System (Week 1-2)
+- Week 1 (Day 1-7): Authentication System
+- Week 2 (Day 8-14): Assignment & Notifications
+
+## PHASE 2: Template System (Week 3)
+- Day 15-21: University Management & Multi-Tenant
+
+## PHASE 3: Advanced Features (Week 4)  
+- Day 22-30: LINE Bot Integration
+
+---
+
+# 📅 WEEK 1 (8-14 ตุลาคม): AUTHENTICATION SYSTEM
+
+## Day 1-2: Project Setup ⚙️
+
+### Backend Setup
+```bash
+# 1. Create project folder
+mkdir backend
+cd backend
+npm init -y
+
+# 2. Install dependencies
+npm install express mongoose dotenv cors bcryptjs jsonwebtoken multer nodemailer
+
+# 3. Install dev dependencies
+npm install -D nodemon mocha chai supertest
+
+# 4. Create folder structure
+mkdir src
+mkdir src/models
+mkdir src/routes
+mkdir src/middleware
+mkdir src/controllers
+mkdir src/services
+mkdir src/config
+mkdir src/utils
+mkdir test
+mkdir uploads
+
+# 5. Create .env file
+cat > .env << EOF
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/complaint-system
+JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+JWT_EXPIRE=7d
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-specific-password
+
+FRONTEND_URL=http://localhost:5173
+EOF
+
+# 6. Create .env.test for testing
+cat > .env.test << EOF
+PORT=5001
+MONGODB_URI=mongodb://localhost:27017/complaint-system-test
+JWT_SECRET=test_jwt_secret_key
+JWT_EXPIRE=7d
+NODE_ENV=test
+EOF
+
+# 7. Update package.json scripts
+npm pkg set scripts.dev="nodemon src/server.js"
+npm pkg set scripts.start="node src/server.js"
+npm pkg set scripts.test="NODE_ENV=test mocha test/**/*.test.js --timeout 10000 --exit --require test/setup.js"
+npm pkg set scripts.test:watch="NODE_ENV=test mocha test/**/*.test.js --watch --require test/setup.js"
+```
+
+### Database Connection Setup
+```javascript
+// src/config/database.js
+const mongoose = require('mongoose');
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+    console.log('✅ MongoDB Connected Successfully');
+  } catch (error) {
+    console.error('❌ MongoDB Connection Error:', error.message);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+```
+
+### Server Setup
+```javascript
+// src/server.js
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const connectDB = require('./config/database');
+
+// Load environment variables
+dotenv.config();
+
+// Initialize Express
+const app = express();
+
+// Connect to MongoDB
+connectDB();
+
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Test route
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working!' });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
+module.exports = app;
+```
+
+### Test Setup
+```javascript
+// test/setup.js
+const mongoose = require('mongoose');
+require('dotenv').config({ path: '.env.test' });
+
+before(async function() {
+  this.timeout(10000);
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log('✅ Connected to test database');
+});
+
+afterEach(async function() {
+  const collections = mongoose.connection.collections;
+  for (const key in collections) {
+    await collections[key].deleteMany({});
+  }
+});
+
+after(async function() {
+  await mongoose.connection.dropDatabase();
+  await mongoose.connection.close();
+  console.log('✅ Disconnected from test database');
+});
+```
+
+### Day 1-2 Checklist:
+- [ ] Backend project initialized
+- [ ] All dependencies installed
+- [ ] Folder structure created
+- [ ] Environment variables configured
+- [ ] Database connection working
+- [ ] Test server running (npm run dev)
+- [ ] Git repository initialized
+- [ ] First commit pushed to GitHub
+- [ ] Test environment configured
+
+---
+
+## Day 3-4: User Model & Auth API 👤
+
+### User Model
+```javascript
+// src/models/User.js
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+  tenant_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'University'
+    // Will be used in Phase 2
+  },
+  name: {
+    type: String,
+    required: [true, 'Please provide a name'],
+    trim: true
+  },
+  email: {
+    type: String,
+    required: [true, 'Please provide an email'],
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+  },
+  password: {
+    type: String,
+    required: [true, 'Please provide a password'],
+    minlength: 6,
+    select: false
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'staff', 'reporter'],
+    default: 'reporter'
+  },
+  phone: {
+    type: String,
+    trim: true
+  },
+  line_user_id: {
+    type: String
+    // Will be used in Phase 3
+  },
+  notification_preferences: {
+    email: { type: Boolean, default: true },
+    line: { type: Boolean, default: false },
+    push: { type: Boolean, default: true }
+  },
+  is_active: {
+    type: Boolean,
+    default: true
+  },
+  last_login: {
+    type: Date
+  },
+  reset_password_token: String,
+  reset_password_expire: Date
+}, {
+  timestamps: true
+});
+
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Compare password method
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+module.exports = mongoose.model('User', userSchema);
+```
+
+### JWT Configuration
+```javascript
+// src/config/jwt.js
+const jwt = require('jsonwebtoken');
+
+const generateToken = (userId) => {
+  return jwt.sign(
+    { id: userId },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE }
+  );
+};
+
+const verifyToken = (token) => {
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    return null;
+  }
+};
+
+module.exports = { generateToken, verifyToken };
+```
+
+### Auth Controller
+```javascript
+// src/controllers/authController.js
+const User = require('../models/User');
+const { generateToken } = require('../config/jwt');
+
+// @desc    Register user
+// @route   POST /api/auth/register
+// @access  Public
+exports.register = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists with this email'
+      });
+    }
+
+    // Create user
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role: role || 'reporter'
+    });
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      token,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
+      });
+    }
+
+    // Find user with password
+    const user = await User.findOne({ email }).select('+password');
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if active
+    if (!user.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account has been deactivated'
+      });
+    }
+
+    // Check password
+    const isMatch = await user.comparePassword(password);
+    
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Update last login
+    user.last_login = Date.now();
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get current user
+// @route   GET /api/auth/me
+// @access  Private
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Auth Routes
+```javascript
+// src/routes/auth.js
+const express = require('express');
+const router = express.Router();
+const { register, login, getMe } = require('../controllers/authController');
+const { authenticateUser } = require('../middleware/auth');
+
+router.post('/register', register);
+router.post('/login', login);
+router.get('/me', authenticateUser, getMe);
+
+module.exports = router;
+```
+
+### Update Server
+```javascript
+// Add to src/server.js after middleware
+const authRoutes = require('./routes/auth');
+
+app.use('/api/auth', authRoutes);
+```
+
+### Day 3-4 Checklist:
+- [ ] User model created with validation
+- [ ] Password hashing implemented (bcrypt)
+- [ ] JWT configuration setup
+- [ ] Register endpoint working
+- [ ] Login endpoint working
+- [ ] Get current user endpoint working
+- [ ] Tested with Postman/Thunder Client
+- [ ] Error handling implemented
+- [ ] Code committed to GitHub
+
+---
+
+## Day 5-7: Authorization & Role Management 🔒
+
+### Auth Middleware
+```javascript
+// src/middleware/auth.js
+const { verifyToken } = require('../config/jwt');
+const User = require('../models/User');
+
+// Authenticate user
+exports.authenticateUser = async (req, res, next) => {
+  try {
+    // Get token from header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    // Verify token
+    const decoded = verifyToken(token);
+    
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    // Get user from database
+    const user = await User.findById(decoded.id);
+    
+    if (!user || !user.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found or inactive'
+      });
+    }
+
+    // Attach user to request
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Authentication error',
+      error: error.message
+    });
+  }
+};
+
+// Check role
+exports.checkRole = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Role '${req.user.role}' is not authorized to access this route`
+      });
+    }
+    next();
+  };
+};
+```
+
+### User Controller
+```javascript
+// src/controllers/userController.js
+const User = require('../models/User');
+
+// @desc    Get all users
+// @route   GET /api/users
+// @access  Private/Admin
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { role, search, page = 1, limit = 20 } = req.query;
+
+    // Build query
+    const query = {};
+    
+    if (role) {
+      query.role = role;
+    }
+    
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Pagination
+    const skip = (page - 1) * limit;
+
+    const users = await User.find(query)
+      .select('-password')
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: users,
+      pagination: {
+        current_page: Number(page),
+        total_pages: Math.ceil(total / limit),
+        total_users: total,
+        per_page: Number(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get single user
+// @route   GET /api/users/:id
+// @access  Private/Admin
+exports.getUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update user role
+// @route   PUT /api/users/:id/role
+// @access  Private/Admin
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    // Validate role
+    if (!['admin', 'staff', 'reporter'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role'
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'User role updated successfully',
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Activate/Deactivate user
+// @route   PATCH /api/users/:id/status
+// @access  Private/Admin
+exports.toggleUserStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    user.is_active = !user.is_active;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `User ${user.is_active ? 'activated' : 'deactivated'} successfully`,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### User Routes
+```javascript
+// src/routes/users.js
+const express = require('express');
+const router = express.Router();
+const {
+  getAllUsers,
+  getUser,
+  updateUserRole,
+  toggleUserStatus
+} = require('../controllers/userController');
+const { authenticateUser, checkRole } = require('../middleware/auth');
+
+// All routes require authentication
+router.use(authenticateUser);
+
+// Admin only routes
+router.get('/', checkRole('admin'), getAllUsers);
+router.get('/:id', checkRole('admin'), getUser);
+router.put('/:id/role', checkRole('admin'), updateUserRole);
+router.patch('/:id/status', checkRole('admin'), toggleUserStatus);
+
+module.exports = router;
+```
+
+### Authentication Tests
+```javascript
+// test/auth.test.js
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Authentication API', () => {
+  describe('POST /api/auth/register', () => {
+    it('should register a new user successfully', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Test User',
+          email: 'test@example.com',
+          password: 'password123',
+          role: 'reporter'
+        });
+
+      expect(res.status).to.equal(201);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body).to.have.property('token');
+      expect(res.body.data).to.have.property('email', 'test@example.com');
+    });
+
+    it('should fail with duplicate email', async () => {
+      await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'User One',
+          email: 'duplicate@example.com',
+          password: 'password123'
+        });
+
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'User Two',
+          email: 'duplicate@example.com',
+          password: 'password456'
+        });
+
+      expect(res.status).to.equal(400);
+      expect(res.body).to.have.property('success', false);
+    });
+  });
+
+  describe('POST /api/auth/login', () => {
+    beforeEach(async () => {
+      await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Login Test User',
+          email: 'login@example.com',
+          password: 'password123'
+        });
+    });
+
+    it('should login successfully', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'password123'
+        });
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body).to.have.property('token');
+    });
+
+    it('should fail with wrong password', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'login@example.com',
+          password: 'wrongpassword'
+        });
+
+      expect(res.status).to.equal(401);
+      expect(res.body).to.have.property('success', false);
+    });
+  });
+});
+```
+
+### User Tests
+```javascript
+// test/users.test.js
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Users API', () => {
+  let adminToken;
+  let regularToken;
+
+  before(async () => {
+    // Create admin
+    const adminRes = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Admin User',
+        email: 'admin@example.com',
+        password: 'password123',
+        role: 'admin'
+      });
+    adminToken = adminRes.body.token;
+
+    // Create regular user
+    const userRes = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Regular User',
+        email: 'user@example.com',
+        password: 'password123',
+        role: 'reporter'
+      });
+    regularToken = userRes.body.token;
+  });
+
+  describe('GET /api/users', () => {
+    it('should get all users (admin only)', async () => {
+      const res = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.have.property('success', true);
+      expect(res.body.data).to.be.an('array');
+    });
+
+    it('should fail without admin role', async () => {
+      const res = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${regularToken}`);
+
+      expect(res.status).to.equal(403);
+    });
+  });
+});
+```
+
+### Update Server with Routes
+```javascript
+// Add to src/server.js
+const userRoutes = require('./routes/users');
+
+app.use('/api/users', userRoutes);
+```
+
+### Day 5-7 Checklist:
+- [ ] Auth middleware implemented
+- [ ] Role-based middleware created
+- [ ] User management endpoints created
+- [ ] Get all users (with filters)
+- [ ] Update user role
+- [ ] Activate/Deactivate user
+- [ ] Authorization working correctly
+- [ ] Automated tests written (Mocha + Chai)
+- [ ] All tests passing (npm test)
+- [ ] Code committed to GitHub
+
+---
+
+# 📅 WEEK 2 (15-21 ตุลาคม): ASSIGNMENT & NOTIFICATIONS
+
+## Day 8-10: Assignment System 📋
+
+### Assignment Controller
+```javascript
+// src/controllers/assignmentController.js
+const Complaint = require('../models/Complaint');
+const User = require('../models/User');
+const { sendAssignmentEmail } = require('../services/emailService');
+
+// @desc    Assign complaint to staff
+// @route   PATCH /api/complaints/:id/assign
+// @access  Private/Admin/Staff
+exports.assignComplaint = async (req, res) => {
+  try {
+    const { assigned_to } = req.body;
+
+    // Validate staff exists and has staff role
+    const staff = await User.findById(assigned_to);
+    
+    if (!staff || !['admin', 'staff'].includes(staff.role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid staff user'
+      });
+    }
+
+    // Update complaint
+    const complaint = await Complaint.findByIdAndUpdate(
+      req.params.id,
+      {
+        assigned_to,
+        assigned_at: Date.now(),
+        status: 'in_progress'
+      },
+      { new: true }
+    ).populate('reporter_id', 'name email')
+     .populate('assigned_to', 'name email');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Send email notification
+    await sendAssignmentEmail(complaint, staff);
+
+    res.json({
+      success: true,
+      message: 'Complaint assigned successfully',
+      data: complaint
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get my assignments
+// @route   GET /api/complaints/my-assignments
+// @access  Private/Staff
+exports.getMyAssignments = async (req, res) => {
+  try {
+    const { status, priority, page = 1, limit = 20 } = req.query;
+
+    const query = { assigned_to: req.user.id };
+
+    if (status) {
+      query.status = status;
+    }
+    
+    if (priority) {
+      query.priority = priority;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const complaints = await Complaint.find(query)
+      .populate('reporter_id', 'name email phone')
+      .sort({ priority: -1, created_at: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Complaint.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: complaints,
+      pagination: {
+        current_page: Number(page),
+        total_pages: Math.ceil(total / limit),
+        total: total,
+        per_page: Number(limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Day 8-10 Checklist:
+- [ ] Assignment controller created
+- [ ] Assign complaint endpoint
+- [ ] Get my assignments endpoint
+- [ ] Validation for staff users
+- [ ] Auto-update status on assignment
+- [ ] Assignment timestamp recorded
+- [ ] Tests written
+- [ ] Code committed
+
+---
+
+## Day 11-12: Email Notifications 📧
+
+### Email Service
+```javascript
+// src/services/emailService.js
+const nodemailer = require('nodemailer');
+
+// Create transporter
+const transporter = nodemailer.createTransporter({
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+// Send welcome email
+exports.sendWelcomeEmail = async (user) => {
+  try {
+    const mailOptions = {
+      from: `"Complaint System" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Welcome to Complaint System',
+      html: `
+        <h1>Welcome ${user.name}!</h1>
+        <p>Your account has been created successfully.</p>
+        <p>You can now login and start submitting complaints.</p>
+        <br>
+        <p>Best regards,<br>Complaint System Team</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Welcome email sent to:', user.email);
+  } catch (error) {
+    console.error('❌ Error sending welcome email:', error.message);
+  }
+};
+
+// Send assignment email
+exports.sendAssignmentEmail = async (complaint, staff) => {
+  try {
+    const mailOptions = {
+      from: `"Complaint System" <${process.env.EMAIL_USER}>`,
+      to: staff.email,
+      subject: `New Complaint Assigned: ${complaint.title}`,
+      html: `
+        <h2>New Complaint Assigned to You</h2>
+        <p><strong>Complaint ID:</strong> ${complaint.complaint_number}</p>
+        <p><strong>Title:</strong> ${complaint.title}</p>
+        <p><strong>Category:</strong> ${complaint.categories.join(', ')}</p>
+        <p><strong>Priority:</strong> ${complaint.priority.toUpperCase()}</p>
+        <p><strong>Location:</strong> ${complaint.location.building}, Floor ${complaint.location.floor}</p>
+        <p><strong>Reporter:</strong> ${complaint.reporter_id.name}</p>
+        <br>
+        <p><strong>Description:</strong></p>
+        <p>${complaint.description}</p>
+        <br>
+        <p>Please login to the system to view details and take action.</p>
+        <br>
+        <p>Best regards,<br>Complaint System</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Assignment email sent to:', staff.email);
+  } catch (error) {
+    console.error('❌ Error sending assignment email:', error.message);
+  }
+};
+
+// Send status update email
+exports.sendStatusUpdateEmail = async (complaint, oldStatus, newStatus) => {
+  try {
+    const reporter = complaint.reporter_id;
+    
+    const mailOptions = {
+      from: `"Complaint System" <${process.env.EMAIL_USER}>`,
+      to: reporter.email,
+      subject: `Complaint Status Updated: ${complaint.title}`,
+      html: `
+        <h2>Complaint Status Updated</h2>
+        <p><strong>Complaint ID:</strong> ${complaint.complaint_number}</p>
+        <p><strong>Title:</strong> ${complaint.title}</p>
+        <p><strong>Status Changed:</strong> ${oldStatus.toUpperCase()} → ${newStatus.toUpperCase()}</p>
+        <br>
+        <p>Please login to view more details.</p>
+        <br>
+        <p>Best regards,<br>Complaint System</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Status update email sent to:', reporter.email);
+  } catch (error) {
+    console.error('❌ Error sending status email:', error.message);
+  }
+};
+
+// Send resolved email
+exports.sendResolvedEmail = async (complaint) => {
+  try {
+    const reporter = complaint.reporter_id;
+    
+    const mailOptions = {
+      from: `"Complaint System" <${process.env.EMAIL_USER}>`,
+      to: reporter.email,
+      subject: `Complaint Resolved: ${complaint.title}`,
+      html: `
+        <h2>✅ Your Complaint Has Been Resolved</h2>
+        <p><strong>Complaint ID:</strong> ${complaint.complaint_number}</p>
+        <p><strong>Title:</strong> ${complaint.title}</p>
+        <br>
+        <p><strong>Resolution Notes:</strong></p>
+        <p>${complaint.resolution_notes || 'No additional notes'}</p>
+        <br>
+        <p>Thank you for reporting this issue!</p>
+        <br>
+        <p>Best regards,<br>Complaint System</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Resolved email sent to:', reporter.email);
+  } catch (error) {
+    console.error('❌ Error sending resolved email:', error.message);
+  }
+};
+```
+
+### Update Auth Controller to Send Welcome Email
+```javascript
+// In src/controllers/authController.js
+const { sendWelcomeEmail } = require('../services/emailService');
+
+// In register function, after user creation:
+await sendWelcomeEmail(user);
+```
+
+### Day 11-12 Checklist:
+- [ ] Nodemailer configured
+- [ ] Email templates created
+- [ ] Welcome email on registration
+- [ ] Assignment notification email
+- [ ] Status update email
+- [ ] Resolved notification email
+- [ ] Error handling for email failures
+- [ ] Tested email sending
+- [ ] Code committed
+
+---
+
+## Day 13-14: Testing & Bug Fixes 🧪
+
+### Final Integration Tests
+```javascript
+// test/assignment.test.js
+const request = require('supertest');
+const { expect } = require('chai');
+const app = require('../src/server');
+
+describe('Assignment System', () => {
+  let adminToken, staffToken, userToken;
+  let complaintId;
+
+  before(async () => {
+    // Create users
+    const admin = await request(app).post('/api/auth/register').send({
+      name: 'Admin', email: 'admin@test.com', password: 'pass123', role: 'admin'
+    });
+    adminToken = admin.body.token;
+
+    const staff = await request(app).post('/api/auth/register').send({
+      name: 'Staff', email: 'staff@test.com', password: 'pass123', role: 'staff'
+    });
+    staffToken = staff.body.token;
+
+    const user = await request(app).post('/api/auth/register').send({
+      name: 'User', email: 'user@test.com', password: 'pass123', role: 'reporter'
+    });
+    userToken = user.body.token;
+
+    // Create complaint
+    const complaint = await request(app)
+      .post('/api/complaints')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        title: 'Test Complaint',
+        description: 'Test',
+        categories: ['ไฟฟ้า'],
+        location: { building: 'A', floor: '1' }
+      });
+    complaintId = complaint.body.data._id;
+  });
+
+  it('should assign complaint to staff', async () => {
+    const staff = await request(app)
+      .get('/api/users?role=staff')
+      .set('Authorization', `Bearer ${adminToken}`);
+    
+    const staffId = staff.body.data[0]._id;
+
+    const res = await request(app)
+      .patch(`/api/complaints/${complaintId}/assign`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ assigned_to: staffId });
+
+    expect(res.status).to.equal(200);
+    expect(res.body.data).to.have.property('assigned_to');
+  });
+
+  it('should get my assignments', async () => {
+    const res = await request(app)
+      .get('/api/complaints/my-assignments')
+      .set('Authorization', `Bearer ${staffToken}`);
+
+    expect(res.status).to.equal(200);
+    expect(res.body.data).to.be.an('array');
+  });
+});
+```
+
+### Day 13-14 Checklist:
+- [ ] All automated tests written
+- [ ] All tests passing (npm test)
+- [ ] Test coverage > 70%
+- [ ] Manual testing completed
+- [ ] Bug list created
+- [ ] Critical bugs fixed
+- [ ] Code refactored
+- [ ] Documentation updated
+- [ ] Code review completed
+- [ ] Final commit pushed
+
+---
+
+# 📅 PHASE 2: WEEK 3 (22-28 ตุลาคม) - UNIVERSITY MANAGEMENT
+
+## Day 15-17: Multi-Tenant Database 🏢
+
+### University Model
+```javascript
+// src/models/University.js
+const mongoose = require('mongoose');
+const crypto = require('crypto');
+
+const universitySchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  name_en: {
+    type: String,
+    trim: true
+  },
+  subdomain: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: /^[a-z0-9-]+$/
+  },
+  domain: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
+  logo_url: String,
+  favicon_url: String,
+  theme_color: {
+    type: String,
+    default: '#0ea5e9'
+  },
+  contact_email: {
+    type: String,
+    required: true
+  },
+  contact_phone: String,
+  address: String,
+  api_key: {
+    type: String,
+    select: false
+  },
+  settings: {
+    auto_assignment: {
+      type: Boolean,
+      default: false
+    },
+    require_approval: {
+      type: Boolean,
+      default: false
+    },
+    email_notifications: {
+      type: Boolean,
+      default: true
+    },
+    line_notifications: {
+      type: Boolean,
+      default: false
+    },
+    allow_anonymous: {
+      type: Boolean,
+      default: false
+    }
+  },
+  is_active: {
+    type: Boolean,
+    default: true
+  },
+  trial_end_date: Date,
+  subscription_plan: {
+    type: String,
+    enum: ['free', 'basic', 'premium'],
+    default: 'free'
+  }
+}, {
+  timestamps: true
+});
+
+// Generate API key before saving
+universitySchema.pre('save', async function(next) {
+  if (this.isNew) {
+    this.api_key = crypto.randomBytes(32).toString('hex');
+  }
+  next();
+});
+
+module.exports = mongoose.model('University', universitySchema);
+```
+
+### Update User Model for Multi-Tenant
+```javascript
+// Update src/models/User.js
+// Add tenant_id as required in Phase 2
+tenant_id: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'University',
+  required: true  // Make required
+}
+
+// Add compound unique index for email per tenant
+userSchema.index({ tenant_id: 1, email: 1 }, { unique: true });
+```
+
+### Day 15-17 Checklist:
+- [ ] University model created
+- [ ] Multi-tenant fields added
+- [ ] API key generation
+- [ ] User model updated
+- [ ] Tenant isolation prepared
+- [ ] Code committed
+
+---
+
+## Day 18-19: Tenant Middleware ⚙️
+
+### Tenant Middleware
+```javascript
+// src/middleware/tenant.js
+const University = require('../models/University');
+
+// Extract tenant from subdomain or API key
+exports.extractTenant = async (req, res, next) => {
+  try {
+    let tenant;
+
+    // Method 1: From API key header
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey) {
+      tenant = await University.findOne({ api_key: apiKey, is_active: true });
+    }
+
+    // Method 2: From subdomain
+    if (!tenant) {
+      const host = req.get('host') || '';
+      const subdomain = host.split('.')[0];
+      
+      tenant = await University.findOne({ 
+        subdomain, 
+        is_active: true 
+      });
+    }
+
+    if (!tenant) {
+      return res.status(404).json({
+        success: false,
+        message: 'University not found or inactive'
+      });
+    }
+
+    // Attach tenant to request
+    req.tenant = tenant;
+    next();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Tenant extraction error',
+      error: error.message
+    });
+  }
+};
+
+// Ensure tenant isolation in queries
+exports.tenantIsolation = (req, res, next) => {
+  // Override find methods to include tenant_id
+  const originalFind = req.model?.find;
+  
+  if (originalFind && req.tenant) {
+    req.model.find = function(conditions = {}) {
+      conditions.tenant_id = req.tenant._id;
+      return originalFind.call(this, conditions);
+    };
+  }
+  
+  next();
+};
+```
+
+### University Controller
+```javascript
+// src/controllers/universityController.js
+const University = require('../models/University');
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+
+// @desc    Register new university
+// @route   POST /api/tenants/register
+// @access  Public
+exports.registerUniversity = async (req, res) => {
+  try {
+    const {
+      name,
+      name_en,
+      subdomain,
+      contact_email,
+      contact_phone,
+      address,
+      admin_name,
+      admin_email,
+      admin_password
+    } = req.body;
+
+    // Check subdomain availability
+    const existing = await University.findOne({ subdomain });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subdomain already taken'
+      });
+    }
+
+    // Create university
+    const university = await University.create({
+      name,
+      name_en,
+      subdomain,
+      contact_email,
+      contact_phone,
+      address,
+      trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    });
+
+    // Create admin user
+    const admin = await User.create({
+      tenant_id: university._id,
+      name: admin_name,
+      email: admin_email,
+      password: admin_password,
+      role: 'admin'
+    });
+
+    // Initialize default data (categories, locations)
+    await initializeDefaultData(university._id);
+
+    res.status(201).json({
+      success: true,
+      message: 'University registered successfully',
+      data: {
+        university: {
+          _id: university._id,
+          name: university.name,
+          subdomain: university.subdomain,
+          url: `https://${university.subdomain}.yourdomain.com`
+        },
+        admin: {
+          name: admin.name,
+          email: admin.email
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// Helper: Initialize default data
+async function initializeDefaultData(tenantId) {
+  const Category = require('../models/Category');
+  const Location = require('../models/Location');
+
+  // Default categories
+  const defaultCategories = [
+    { tenant_id: tenantId, name: 'น้ำท่วม', color: '#3b82f6' },
+    { tenant_id: tenantId, name: 'ไฟฟ้า', color: '#eab308' },
+    { tenant_id: tenantId, name: 'คอมพิวเตอร์/เว็บไซต์', color: '#8b5cf6' },
+    { tenant_id: tenantId, name: 'อื่นๆ', color: '#6b7280' }
+  ];
+
+  await Category.insertMany(defaultCategories);
+
+  // Default locations
+  const defaultLocations = [
+    { tenant_id: tenantId, building: 'อาคาร A', floor: '1' },
+    { tenant_id: tenantId, building: 'อาคาร A', floor: '2' }
+  ];
+
+  await Location.insertMany(defaultLocations);
+}
+
+// @desc    Get all universities
+// @route   GET /api/tenants
+// @access  Private/SuperAdmin
+exports.getAllUniversities = async (req, res) => {
+  try {
+    const universities = await University.find()
+      .select('-api_key')
+      .sort({ created_at: -1 });
+
+    res.json({
+      success: true,
+      data: universities,
+      count: universities.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### Day 18-19 Checklist:
+- [ ] Tenant middleware created
+- [ ] Extract tenant from subdomain/API key
+- [ ] Tenant isolation middleware
+- [ ] University registration endpoint
+- [ ] Initialize default data function
+- [ ] Get all universities endpoint
+- [ ] Tests written
+- [ ] Code committed
+
+---
+
+## Day 20-21: Tenant Management API 🔧
+
+### Complete University Controller
+```javascript
+// Add to src/controllers/universityController.js
+
+// @desc    Get university details
+// @route   GET /api/tenants/:id
+// @access  Private/Admin
+exports.getUniversity = async (req, res) => {
+  try {
+    const university = await University.findById(req.params.id)
+      .select('-api_key');
+
+    if (!university) {
+      return res.status(404).json({
+        success: false,
+        message: 'University not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: university
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update university settings
+// @route   PATCH /api/tenants/:id
+// @access  Private/Admin
+exports.updateUniversity = async (req, res) => {
+  try {
+    const allowedUpdates = [
+      'name',
+      'name_en',
+      'logo_url',
+      'favicon_url',
+      'theme_color',
+      'contact_email',
+      'contact_phone',
+      'address',
+      'settings'
+    ];
+
+    const updates = {};
+    Object.keys(req.body).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        updates[key] = req.body[key];
+      }
+    });
+
+    const university = await University.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
+    ).select('-api_key');
+
+    if (!university) {
+      return res.status(404).json({
+        success: false,
+        message: 'University not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'University updated successfully',
+      data: university
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Toggle university status
+// @route   PATCH /api/tenants/:id/status
+// @access  Private/SuperAdmin
+exports.toggleUniversityStatus = async (req, res) => {
+  try {
+    const university = await University.findById(req.params.id);
+
+    if (!university) {
+      return res.status(404).json({
+        success: false,
+        message: 'University not found'
+      });
+    }
+
+    university.is_active = !university.is_active;
+    await university.save();
+
+    res.json({
+      success: true,
+      message: `University ${university.is_active ? 'activated' : 'deactivated'}`,
+      data: university
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get university theme
+// @route   GET /api/tenants/:id/theme
+// @access  Public
+exports.getTheme = async (req, res) => {
+  try {
+    const university = await University.findById(req.params.id)
+      .select('name logo_url favicon_url theme_color');
+
+    if (!university) {
+      return res.status(404).json({
+        success: false,
+        message: 'University not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        name: university.name,
+        logo_url: university.logo_url,
+        favicon_url: university.favicon_url,
+        theme_color: university.theme_color
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+```
+
+### University Routes
+```javascript
+// src/routes/universities.js
+const express = require('express');
+const router = express.Router();
+const {
+  registerUniversity,
+  getAllUniversities,
+  getUniversity,
+  updateUniversity,
+  toggleUniversityStatus,
+  getTheme
+} = require('../controllers/universityController');
+const { authenticateUser, checkRole } = require('../middleware/auth');
+
+// Public routes
+router.post('/register', registerUniversity);
+router.get('/:id/theme', getTheme);
+
+// Protected routes
+router.use(authenticateUser);
+
+router.get('/', checkRole('admin'), getAllUniversities);
+router.get('/:id', checkRole('admin'), getUniversity);
+router.patch('/:id', checkRole('admin'), updateUniversity);
+router.patch('/:id/status', checkRole('admin'), toggleUniversityStatus);
+
+module.exports = router;
+```
+
+### Day 20-21 Checklist:
+- [ ] Complete university CRUD
+- [ ] Update settings endpoint
+- [ ] Toggle status endpoint
+- [ ] Get theme endpoint
+- [ ] Multi-tenant isolation tested
+- [ ] Can create 3+ test universities
+- [ ] Data completely isolated
+- [ ] Tests written
+- [ ] Code committed
+
+---
+
+# 📅 PHASE 3: WEEK 4 (29 ต.ค. - 7 พ.ย.) - LINE BOT
+
+## Day 22-24: LINE Bot Setup 🤖
+
+### LINE Configuration
+```javascript
+// src/config/line.js
+const line = require('@line/bot-sdk');
+
+const config = {
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET
+};
+
+const client = new line.Client(config);
+
+module.exports = { config, client };
+```
+
+### LINE Service
+```javascript
+// src/services/lineService.js
+const { client } = require('../config/line');
+
+// Send text message
+exports.sendTextMessage = async (userId, text) => {
+  try {
+    await client.pushMessage(userId, {
+      type: 'text',
+      text: text
+    });
+    console.log('✅ LINE message sent to:', userId);
+  } catch (error) {
+    console.error('❌ Error sending LINE message:', error.message);
+  }
+};
+
+// Send rich message
+exports.sendComplaintUpdate = async (userId, complaint) => {
+  try {
+    const message = {
+      type: 'flex',
+      altText: 'Complaint Update',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: 'Complaint Update',
+              weight: 'bold',
+              size: 'xl'
+            },
+            {
+              type: 'text',
+              text: complaint.title,
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: `Status: ${complaint.status}`,
+              color: '#aaaaaa',
+              size: 'sm',
+              margin: 'md'
+            }
+          ]
+        }
+      }
+    };
+
+    await client.pushMessage(userId, message);
+  } catch (error) {
+    console.error('❌ Error sending rich message:', error.message);
+  }
+};
+```
+
+### LINE Webhook Controller
+```javascript
+// src/controllers/lineWebhookController.js
+const { client } = require('../config/line');
+const User = require('../models/User');
+const Complaint = require('../models/Complaint');
+
+// @desc    LINE webhook handler
+// @route   POST /webhook/line
+// @access  Public (but verified)
+exports.handleWebhook = async (req, res) => {
+  try {
+    const events = req.body.events;
+
+    // Process each event
+    const results = await Promise.all(
+      events.map(event => handleEvent(event))
+    );
+
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('LINE webhook error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Handle individual event
+async function handleEvent(event) {
+  if (event.type !== 'message' || event.message.type !== 'text') {
+    return null;
+  }
+
+  const userId = event.source.userId;
+  const text = event.message.text.trim();
+
+  // Find user by LINE ID
+  const user = await User.findOne({ line_user_id: userId });
+
+  // Command: Help
+  if (text === 'ช่วยเหลือ' || text === 'help') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `คำสั่งที่ใช้ได้:\n\n` +
+            `📝 "แจ้งปัญหา" - แจ้งปัญหาใหม่\n` +
+            `📋 "ตรวจสอบสถานะ" - ดูสถานะเรื่องของคุณ\n` +
+            `ℹ️ "ช่วยเหลือ" - แสดงคำสั่งนี้`
+    });
+  }
+
+  // Command: Check status
+  if (text === 'ตรวจสอบสถานะ') {
+    if (!user) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'กรุณาเชื่อมต่อบัญชี LINE กับระบบก่อน'
+      });
+    }
+
+    const complaints = await Complaint.find({ reporter_id: user._id })
+      .sort({ created_at: -1 })
+      .limit(5);
+
+    if (complaints.length === 0) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'คุณยังไม่มีเรื่องร้องเรียน'
+      });
+    }
+
+    const statusText = complaints.map(c => 
+      `${c.complaint_number}: ${c.title}\nสถานะ: ${c.status}`
+    ).join('\n\n');
+
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `เรื่องร้องเรียนของคุณ:\n\n${statusText}`
+    });
+  }
+
+  // Default response
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: 'พิมพ์ "ช่วยเหลือ" เพื่อดูคำสั่งที่ใช้ได้'
+  });
+}
+```
+
+### LINE Routes
+```javascript
+// src/routes/webhooks.js
+const express = require('express');
+const router = express.Router();
+const { middleware } = require('@line/bot-sdk');
+const { config } = require('../config/line');
+const { handleWebhook } = require('../controllers/lineWebhookController');
+
+// LINE webhook with signature verification
+router.post('/line', middleware(config), handleWebhook);
+
+module.exports = router;
+```
+
+### Update Server
+```javascript
+// Add to src/server.js
+const webhookRoutes = require('./routes/webhooks');
+
+app.use('/webhook', webhookRoutes);
+```
+
+### Day 22-24 Checklist:
+- [ ] LINE Bot SDK installed
+- [ ] LINE configuration setup
+- [ ] Webhook endpoint created
+- [ ] Signature verification
+- [ ] Basic commands (help, status)
+- [ ] Rich message templates
+- [ ] Tested with LINE Developer Console
+- [ ] Code committed
+
+---
+
+## Day 25-27: LINE Bot Features 🎯
+
+### Enhanced LINE Service
+```javascript
+// Add to src/services/lineService.js
+
+// Send assignment notification
+exports.sendAssignmentNotification = async (userId, complaint, staff) => {
+  try {
+    await client.pushMessage(userId, {
+      type: 'text',
+      text: `✅ เรื่องร้องเรียนของคุณถูกมอบหมายแล้ว\n\n` +
+            `เรื่อง: ${complaint.title}\n` +
+            `ผู้รับผิดชอบ: ${staff.name}\n` +
+            `สถานะ: กำลังดำเนินการ`
+    });
+  } catch (error) {
+    console.error('Error sending assignment notification:', error);
+  }
+};
+
+// Send status change notification
+exports.sendStatusChangeNotification = async (userId, complaint, oldStatus, newStatus) => {
+  try {
+    const statusText = {
+      'pending': 'รอดำเนินการ',
+      'in_progress': 'กำลังดำเนินการ',
+      'resolved': 'แก้ไขเรียบร้อย',
+      'cancelled': 'ยกเลิก'
+    };
+
+    await client.pushMessage(userId, {
+      type: 'text',
+      text: `🔔 อัพเดทสถานะเรื่องร้องเรียน\n\n` +
+            `เรื่อง: ${complaint.title}\n` +
+            `สถานะเดิม: ${statusText[oldStatus]}\n` +
+            `สถานะใหม่: ${statusText[newStatus]}`
+    });
+  } catch (error) {
+    console.error('Error sending status notification:', error);
+  }
+};
+
+// Send resolved notification
+exports.sendResolvedNotification = async (userId, complaint) => {
+  try {
+    await client.pushMessage(userId, {
+      type: 'text',
+      text: `✅ เรื่องร้องเรียนของคุณได้รับการแก้ไขเรียบร้อยแล้ว\n\n` +
+            `เรื่อง: ${complaint.title}\n` +
+            `หมายเหตุ: ${complaint.resolution_notes || 'ไม่มี'}\n\n` +
+            `ขอบคุณที่แจ้งปัญหาครับ/ค่ะ`
+    });
+  } catch (error) {
+    console.error('Error sending resolved notification:', error);
+  }
+};
+```
+
+### Update Assignment Controller
+```javascript
+// In src/controllers/assignmentController.js
+const { sendAssignmentNotification } = require('../services/lineService');
+
+// In assignComplaint function, after email:
+if (complaint.reporter_id.line_user_id) {
+  await sendAssignmentNotification(
+    complaint.reporter_id.line_user_id,
+    complaint,
+    staff
+  );
+}
+```
+
+### Day 25-27 Checklist:
+- [ ] All LINE notification functions
+- [ ] Integration with assignment system
+- [ ] Integration with status updates
+- [ ] Rich menu configured (optional)
+- [ ] Commands working correctly
+- [ ] Notifications sent properly
+- [ ] Tested end-to-end
+- [ ] Code committed
+
+---
+
+## Day 28-30: Final Testing & Polish ✨
+
+### Integration Testing Checklist:
+- [ ] Auth system fully working
+- [ ] User management working
+- [ ] Role-based access working
+- [ ] Assignment system working
+- [ ] Email notifications working
+- [ ] LINE notifications working (if implemented)
+- [ ] Multi-tenant isolation verified
+- [ ] All API endpoints tested
+- [ ] All automated tests passing
+
+### Code Quality Checklist:
+- [ ] No console.log in production code
+- [ ] No commented code
+- [ ] Variables named clearly
+- [ ] Functions are focused
+- [ ] Error handling everywhere
+- [ ] No hardcoded values
+- [ ] Security best practices
+- [ ] Input validation everywhere
+
+### Documentation Checklist:
+- [ ] README updated
+- [ ] API documentation complete
+- [ ] Setup guide written
+- [ ] Test reports generated
+- [ ] Comments on complex logic
+
+### Day 28-30 Final Checklist:
+- [ ] All features tested
+- [ ] All bugs fixed
+- [ ] Code cleaned up
+- [ ] Documentation complete
+- [ ] Test coverage > 70%
+- [ ] Performance optimized
+- [ ] Security hardened
+- [ ] Final commit pushed
+- [ ] Ready for deployment!
+
+---
+
+# 📊 TESTING SUMMARY
+
+## Run All Tests
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate test report
+npm run test:report
+```
+
+## Test Files You Created:
+- [ ] test/setup.js
+- [ ] test/auth.test.js
+- [ ] test/users.test.js
+- [ ] test/assignment.test.js
+
+## Expected Test Coverage:
+- Authentication: 100%
+- User Management: 90%+
+- Assignment System: 80%+
+- Overall: 70%+
+
+---
+
+# 🎯 YOUR KEY DELIVERABLES
+
+## Week 1:
+✅ User authentication system
+✅ Role-based access control
+✅ User management API
+✅ Automated tests (Mocha + Chai)
+
+## Week 2:
+✅ Assignment system
+✅ Email notifications
+✅ My assignments endpoint
+✅ Integration tests
+
+## Week 3:
+✅ Multi-tenant database
+✅ University registration
+✅ Tenant isolation
+✅ University management API
+
+## Week 4:
+✅ LINE Bot integration
+✅ LINE notifications
+✅ Final testing
+✅ Documentation
+
+---
+
+# 🚀 QUICK COMMANDS REFERENCE
+
+```bash
+# Development
+npm run dev
+
+# Testing
+npm test
+npm run test:watch
+npm run test:report
+
+# Start production
+npm start
+
+# Database
+mongosh  # Access MongoDB shell
+
+# Git
+git add .
+git commit -m "feat: description"
+git push origin dev
+```
+
+---
+
+# 📞 IMPORTANT NOTES
+
+## Your Focus Areas:
+1. **Security** - Auth, JWT, passwords
+2. **Users** - CRUD, roles, permissions
+3. **Assignment** - Assign to staff, tracking
+4. **Notifications** - Email & LINE
+5. **Multi-tenant** - University management
+6. **Testing** - Mocha + Chai tests
+
+## Collaborate With:
+- **Person 2**: Complaint data for assignment
+- **Person 3**: User stats for dashboard
+
+## Daily Standups:
+- Share progress
+- Report blockers
+- Ask for help
+
+## Remember:
+- Commit often (multiple times per day)
+- Write tests as you code
+- Document complex logic
+- Ask questions early
+- Help teammates when done
+
+---
+
+# 🎉 YOU GOT THIS!
+
+**Good luck! ให้สู้ๆนะ! 💪**
+
+Remember: Authentication & User Management คือรากฐานของระบบ
+ถ้าส่วนนี้แข็งแรง ทั้งโปรเจกต์จะแข็งแรงตามไปด้วย! 🚀

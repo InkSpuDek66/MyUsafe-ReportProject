@@ -1,6 +1,7 @@
 // frontend/src/components/complaints/LocationSelector.jsx
-// Component สำหรับเลือกสถานที่ (อาคาร, ชั้น, ห้อง)
+// Component สำหรับเลือกสถานที่ (อาคาร, ชั้น, ห้อง) - FIXED VERSION
 import { useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 const LocationSelector = ({ register, errors, setValue }) => {
     const [selectedFloor, setSelectedFloor] = useState('');
@@ -55,26 +56,32 @@ const LocationSelector = ({ register, errors, setValue }) => {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Building */}
+            {/* Building - ✅ แก้ไขให้ส่ง building.name แทน building.id */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     อาคาร <span className="text-red-500">*</span>
                 </label>
                 <select
                     {...register('building', { required: 'กรุณาเลือกอาคาร' })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-400 ${
-                        errors.building ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all ${
+                        errors.building ? 'border-red-500 bg-red-50' : 'border-gray-300'
                     }`}
                 >
                     <option value="">เลือกอาคาร</option>
                     {buildings.map(building => (
-                        <option key={building.id} value={building.id}>
+                        <option 
+                            key={building.id} 
+                            value={building.name} // ✅ เปลี่ยนจาก building.id เป็น building.name
+                        >
                             {building.name}
                         </option>
                     ))}
                 </select>
                 {errors.building && (
-                    <p className="mt-1 text-sm text-red-500">{errors.building.message}</p>
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle size={14} />
+                        {errors.building.message}
+                    </p>
                 )}
             </div>
 
@@ -89,11 +96,11 @@ const LocationSelector = ({ register, errors, setValue }) => {
                         handleFloorChange(e);
                         register('floor').onChange(e);
                     }}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-400 ${
-                        errors.floor ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all ${
+                        errors.floor ? 'border-red-500 bg-red-50' : 'border-gray-300'
                     }`}
                 >
-                    <option value="" >เลือกชั้น</option>
+                    <option value="">เลือกชั้น</option>
                     {floors.map(floor => (
                         <option key={floor} value={floor}>
                             {floor}
@@ -101,18 +108,21 @@ const LocationSelector = ({ register, errors, setValue }) => {
                     ))}
                 </select>
                 {errors.floor && (
-                    <p className="mt-1 text-sm text-red-500">{errors.floor.message}</p>
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle size={14} />
+                        {errors.floor.message}
+                    </p>
                 )}
             </div>
 
             {/* Room */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ห้อง
+                    ห้อง <span className="text-gray-400 text-xs">(ถ้ามี)</span>
                 </label>
                 <select
                     {...register('room')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 text-gray-400"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 transition-all"
                     disabled={!selectedFloor}
                 >
                     <option value="">เลือกห้อง (ถ้ามี)</option>
@@ -122,6 +132,11 @@ const LocationSelector = ({ register, errors, setValue }) => {
                         </option>
                     ))}
                 </select>
+                {!selectedFloor && (
+                    <p className="mt-1 text-xs text-gray-500">
+                        💡 เลือกชั้นก่อนเพื่อเลือกห้อง
+                    </p>
+                )}
             </div>
         </div>
     );

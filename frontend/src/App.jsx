@@ -36,14 +36,14 @@ function App() {
       </Routes>
 
       {/* Test Buttons - ลบออกได้เมื่อไม่ใช้แล้ว */}
-      <div className="flex items-center justify-center min-h-screen">
+      {/* <div className="flex items-center justify-center min-h-screen">
         <button className="inline-block cursor-pointer rounded-md bg-gray-800 px-4 py-3 text-center text-sm font-semibold uppercase text-white transition duration-200 ease-in-out hover:bg-gray-900">
           Button
         </button>
         <button className="btn btn-primary">One</button>
         <button className="btn btn-secondary">Two</button>
         <button className="btn btn-accent btn-outline">Three</button>
-      </div>
+      </div> */}
     </>
   );
 }
