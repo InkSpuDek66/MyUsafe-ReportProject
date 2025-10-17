@@ -16,8 +16,6 @@ const io = new Server(server, {
   },
 });
 
-const PORT = process.env.PORT || 5000;
-
 // ================= MongoDB Connect ==================
 mongoose
   .connect('mongodb://127.0.0.1:27017/MyUSafe_db', {
@@ -63,10 +61,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// ================= Start Server ===================
-server.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -74,7 +68,6 @@ import cors from 'cors';
 import User from './models/User.js';
 
 dotenv.config();
-const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -110,6 +103,6 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+// ================= Start Server ===================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
