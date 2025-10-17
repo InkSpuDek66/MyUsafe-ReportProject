@@ -1466,7 +1466,7 @@ MyUsafe-ReportProject/
 │   │       ├── validators.js
 │   │       ├── helpers.js
 │   │       └── constants.js
-│   ├── test/
+│   ├── tests/
 │   │   ├── auth.test.js
 │   │   ├── complaints.test.js
 │   │   ├── users.test.js

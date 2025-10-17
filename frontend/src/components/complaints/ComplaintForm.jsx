@@ -53,50 +53,112 @@ const ComplaintForm = () => {
             setLoading(true);
             setSubmitError('');
 
+            console.log('📤 Submitting complaint...');
+            console.log('🔹 Form Data:', {
+                title: data.title,
+                description: data.description?.substring(0, 50) + '...',
+                building: data.building,
+                floor: data.floor,
+                room: data.room
+            });
+            console.log('🔹 Selected Categories:', selectedCategories);
+            console.log('🔹 Files Count:', files.length);
+
             const formData = new FormData();
 
             // Append text fields
             formData.append('title', data.title);
-            formData.append('description', data.description);
-            
-            // Append multiple categories as JSON array
-            formData.append('categories', JSON.stringify(selectedCategories));
-            
-            // Priority จะถูกตั้งค่าเป็น 'low' โดยอัตโนมัติที่ Backend
-            // เฉพาะ Staff/Admin เท่านั้นที่สามารถแก้ไข priority ได้
+            formData.append('description', data.description || '');
+
+            // Append categories as JSON string
+            const categoriesJSON = JSON.stringify(selectedCategories);
+            formData.append('categories', categoriesJSON);
+            console.log('✅ Categories JSON:', categoriesJSON);
 
             // Append location as JSON string
-            formData.append('location', JSON.stringify({
-                building: data.building,
+            const locationData = {
+                building: data.building, // ✅ ตอนนี้จะเป็น 'อาคาร 1' แล้ว (ไม่ใช่ '1')
                 floor: data.floor,
                 room: data.room || ''
-            }));
+            };
+            const locationJSON = JSON.stringify(locationData);
+            formData.append('location', locationJSON);
+            console.log('✅ Location JSON:', locationJSON);
+
+            // Append user_id
+            formData.append('user_id', 'U0000001');
 
             // Append image files
-            files.forEach(file => {
+            files.forEach((file, index) => {
                 formData.append('images', file);
+                console.log(`📎 File ${index + 1}: ${file.name} (${(file.size / 1024).toFixed(2)} KB, ${file.type})`);
             });
 
-            // Call API using complaintAPI service
+            // Log all FormData entries
+            console.log('\n📋 FormData Summary:');
+            let hasFiles = false;
+            for (let pair of formData.entries()) {
+                if (pair[1] instanceof File) {
+                    console.log(`  ✅ ${pair[0]}: [File] ${pair[1].name}`);
+                    hasFiles = true;
+                } else {
+                    console.log(`  ✅ ${pair[0]}: ${pair[1]}`);
+                }
+            }
+            console.log(`  📊 Total Files: ${hasFiles ? files.length : 0}\n`);
+
+            // Call API
+            console.log('🌐 Calling API: POST /api/complaints');
             const response = await complaintAPI.create(formData);
 
+            console.log('✅ API Response:', response);
+
             if (response.success) {
-                // Show success message
                 alert('✅ สร้างเรื่องร้องเรียนสำเร็จ');
-                
-                // Navigate to complaint detail page
-                navigate(`/complaint/${response.data._id || response.data.complaint_id}`);
+                const complaintId = response.data.complaint_id || response.data._id;
+                console.log('🔄 Navigating to:', `/complaint/${complaintId}`);
+                navigate(`/complaint/${complaintId}`);
+            } else {
+                throw new Error(response.error || 'การสร้างเรื่องร้องเรียนไม่สำเร็จ');
             }
         } catch (error) {
-            console.error('Error submitting complaint:', error);
-            
-            // Set error message
-            const errorMessage = error.response?.data?.message || 
-                                error.message || 
-                                'เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง';
+            console.error('\n❌ ========== ERROR DETAILS ==========');
+            console.error('Error Name:', error.name);
+            console.error('Error Message:', error.message);
+
+            let errorMessage = 'เกิดข้อผิดพลาดในการส่งข้อมูล';
+
+            if (error.response) {
+                console.error('📡 Response Error:');
+                console.error('  Status:', error.response.status);
+                console.error('  Data:', error.response.data);
+                console.error('  Headers:', error.response.headers);
+
+                errorMessage = error.response.data?.error ||
+                    error.response.data?.message ||
+                    `Server Error ${error.response.status}`;
+
+                if (error.response.data?.details) {
+                    console.error('  Details:', error.response.data.details);
+                    if (Array.isArray(error.response.data.details)) {
+                        errorMessage += '\n' + error.response.data.details.join('\n');
+                    } else {
+                        errorMessage += '\n' + error.response.data.details;
+                    }
+                }
+            } else if (error.request) {
+                console.error('🔌 No Response - Connection Error:');
+                console.error('  Request was made but no response received');
+                console.error('  Check if backend is running on port 5000');
+                errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้\nกรุณาตรวจสอบว่า Backend กำลังทำงานอยู่';
+            } else {
+                console.error('⚙️ Request Setup Error:', error.message);
+                errorMessage = error.message;
+            }
+
+            console.error('====================================\n');
+
             setSubmitError(errorMessage);
-            
-            // Scroll to top to show error
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
             setLoading(false);
@@ -159,18 +221,16 @@ const ComplaintForm = () => {
                                 type="text"
                                 {...register('title', {
                                     required: 'กรุณากรอกหัวข้อเรื่อง',
-                                    minLength: { 
-                                        value: 5, 
-                                        message: 'หัวข้อต้องมีความยาวอย่างน้อย 5 ตัวอักษร' 
+                                    minLength: {
+                                        value: 5,
+                                        message: 'หัวข้อต้องมีความยาวอย่างน้อย 5 ตัวอักษร'
                                     },
                                     maxLength: {
                                         value: 100,
                                         message: 'หัวข้อต้องไม่เกิน 100 ตัวอักษร'
                                     }
                                 })}
-                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-600 ${
-                                    errors.title ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                                }`}
+                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-600 ${errors.title ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                 placeholder="เช่น: น้ำรั่วในห้องน้ำชั้น 2"
                             />
                             {errors.title && (
@@ -189,7 +249,7 @@ const ComplaintForm = () => {
                                     (เลือกได้มากกว่า 1 หมวดหมู่)
                                 </span>
                             </label>
-                            
+
                             {/* Selected Categories Counter */}
                             {selectedCategories.length > 0 && (
                                 <div className="mb-3 flex items-center gap-2">
@@ -206,32 +266,33 @@ const ComplaintForm = () => {
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
                                 {categories.map(category => {
                                     const isSelected = selectedCategories.includes(category.id);
-                                    
+
                                     return (
                                         <button
                                             key={category.id}
                                             type="button"
                                             onClick={() => handleCategoryToggle(category.id)}
-                                            className={`relative flex flex-col items-center p-4 border-2 rounded-lg transition-all hover:border-[#55C388] hover:shadow-md ${
-                                                isSelected
-                                                    ? 'border-[#55C388] bg-green-50 shadow-md'
-                                                    : 'border-gray-200 bg-white'
-                                            }`}
+                                            className={`relative flex flex-col items-center p-2.5 border rounded-lg transition-all hover:border-[#55C388] hover:shadow-sm ${isSelected
+                                                ? 'border-[#55C388] bg-green-50 shadow-sm'
+                                                : 'border-gray-200 bg-white'
+                                                }`}
                                         >
-                                            {/* Checkmark Badge */}
+                                            {/* Checkmark Badge - เล็กลง */}
                                             {isSelected && (
-                                                <div className="absolute -top-2 -right-2 bg-[#55C388] rounded-full p-1 shadow-md">
-                                                    <Check size={14} className="text-white" />
+                                                <div className="absolute -top-1.5 -right-1.5 bg-[#55C388] rounded-full p-0.5 shadow-sm">
+                                                    <Check size={10} className="text-white" />
                                                 </div>
                                             )}
-                                            
-                                            <span className="text-3xl mb-2">{category.icon}</span>
-                                            <span className={`text-xs text-center font-medium ${
-                                                isSelected ? 'text-[#55C388]' : 'text-gray-700'
-                                            }`}>
+
+                                            {/* Icon - เล็กลง */}
+                                            <span className="text-2xl mb-1">{category.icon}</span>
+
+                                            {/* Text - เล็กลงและกระชับ */}
+                                            <span className={`text-[10px] text-center font-medium leading-tight ${isSelected ? 'text-[#55C388]' : 'text-gray-700'
+                                                }`}>
                                                 {category.name}
                                             </span>
                                         </button>
@@ -273,9 +334,9 @@ const ComplaintForm = () => {
                             <textarea
                                 {...register('description', {
                                     required: 'กรุณากรอกรายละเอียด',
-                                    minLength: { 
-                                        value: 10, 
-                                        message: 'รายละเอียดต้องมีความยาวอย่างน้อย 10 ตัวอักษร' 
+                                    minLength: {
+                                        value: 10,
+                                        message: 'รายละเอียดต้องมีความยาวอย่างน้อย 10 ตัวอักษร'
                                     },
                                     maxLength: {
                                         value: 5000,
@@ -283,9 +344,8 @@ const ComplaintForm = () => {
                                     }
                                 })}
                                 rows={5}
-                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all resize-none text-gray-600 ${
-                                    errors.description ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                                }`}
+                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all resize-none text-gray-600 ${errors.description ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                    }`}
                                 placeholder="โปรดอธิบายปัญหาอย่างละเอียด เช่น อาการ, ความรุนแรง, เวลาที่เกิดขึ้น เป็นต้น"
                             />
                             <div className="flex justify-between items-center mt-2">
