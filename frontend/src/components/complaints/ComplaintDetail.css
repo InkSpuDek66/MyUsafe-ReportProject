@@ -3,3 +3,18 @@ body {
   background: linear-gradient(135deg, #f0f9ff, #e6fffa);
   min-height: 100vh;
 }
+
+/* Force word breaking everywhere */
+* {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Specific for comment text */
+.comment-text,
+.text-gray-700 {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: pre-wrap !important;
+  max-width: 100% !important;
+}

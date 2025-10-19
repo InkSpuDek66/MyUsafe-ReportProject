@@ -344,7 +344,7 @@ const ComplaintForm = () => {
                                     }
                                 })}
                                 rows={5}
-                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all resize-none text-gray-600 ${errors.description ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all resize-y text-gray-600 ${errors.description ? 'border-red-500 bg-red-50' : 'border-gray-300'
                                     }`}
                                 placeholder="โปรดอธิบายปัญหาอย่างละเอียด เช่น อาการ, ความรุนแรง, เวลาที่เกิดขึ้น เป็นต้น"
                             />
