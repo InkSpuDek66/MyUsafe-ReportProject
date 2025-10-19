@@ -1,5 +1,5 @@
 // backend/tests/setup.js
-// Test setup file - ทำงานก่อนและหลัง tests ทั้งหมด
+// ไฟล์ตั้งค่าการทดสอบ - ทำงานก่อนและหลัง tests ทั้งหมด
 // ===============================================
 // ## 🏃 วิธีรัน Tests
 // ### 1. รัน Tests ทั้งหมด
@@ -28,7 +28,7 @@ async function connectTestDb() {
     }
 
     await mongoose.connect(testDbUri);
-    console.log('\n🟢 Connected to test database:', testDbUri);
+    console.log('\n🟢 เชื่อมต่อกับฐานข้อมูลทดสอบสำเร็จ:', testDbUri);
 }
 
 async function clearAllCollections() {
@@ -41,7 +41,7 @@ async function clearAllCollections() {
 async function closeTestDb() {
     await mongoose.connection.dropDatabase();
     await mongoose.connection.close();
-    console.log('🔴 Disconnected from test database\n');
+    console.log('🔴 ปิดการเชื่อมต่อฐานข้อมูลทดสอบแล้ว\n');
 }
 
 module.exports = {

@@ -7,11 +7,11 @@ const Complaint = require('../src/models/homeModel');
 const Location = require('../src/models/locationModel');
 const Category = require('../src/models/categoryModel');
 
-describe('🔗 Integration Tests', () => {
+describe('🔗 ทดสอบแบบบูรณาการ', () => {
 
-    describe('Complete Complaint Flow', () => {
+    describe('กระบวนการเรื่องร้องเรียนแบบสมบูรณ์', () => {
 
-        it('should complete full complaint lifecycle', async () => {
+        it('ควรทำงานผ่านวงจรชีวิตเรื่องร้องเรียนแบบเต็มรูปแบบ', async () => {
             // 1. สร้าง Location
             const locationRes = await request(app)
                 .post('/api/locations')
@@ -33,28 +33,33 @@ describe('🔗 Integration Tests', () => {
 
             expect(categoryRes.status).to.equal(201);
 
-            // 3. สร้าง Complaint
+            // 3. สร้าง Complaint (ใช้ Schema ใหม่)
             const complaintRes = await request(app)
                 .post('/api/complaints')
                 .send({
                     title: 'Integration Test Complaint',
-                    category: 'Integration Test',
+                    categories: ['Integration Test'], // ✅ array
                     description: 'Testing full flow',
-                    location: 'อาคาร Integration ชั้น 1 ห้อง 101',
+                    location: JSON.stringify({ // ✅ JSON string
+                        building: 'อาคาร Integration',
+                        floor: '1',
+                        room: '101'
+                    }),
                     user_id: 'U_INT_001'
                 });
 
             expect(complaintRes.status).to.equal(201);
-            const complaintId = complaintRes.body.complaint_id;
+            expect(complaintRes.body).to.have.property('success', true);
+            const complaintId = complaintRes.body.data.complaint_id;
 
-            // 4. Get Complaint
+            // 4. ดึงข้อมูล Complaint
             const getRes = await request(app)
                 .get(`/api/complaints/${complaintId}`);
 
             expect(getRes.status).to.equal(200);
-            expect(getRes.body).to.have.property('title', 'Integration Test Complaint');
+            expect(getRes.body.data).to.have.property('title', 'Integration Test Complaint');
 
-            // 5. Update Status
+            // 5. อัปเดตสถานะ
             const updateRes = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
@@ -62,9 +67,9 @@ describe('🔗 Integration Tests', () => {
                 });
 
             expect(updateRes.status).to.equal(200);
-            expect(updateRes.body).to.have.property('current_status', 'กำลังดำเนินการ');
+            expect(updateRes.body.data).to.have.property('current_status', 'กำลังดำเนินการ');
 
-            // 6. Add Likes
+            // 6. เพิ่มไลค์
             const likeRes = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
@@ -72,9 +77,9 @@ describe('🔗 Integration Tests', () => {
                 });
 
             expect(likeRes.status).to.equal(200);
-            expect(likeRes.body).to.have.property('likes', 1);
+            expect(likeRes.body.data).to.have.property('likes', 1);
 
-            // 7. Complete Complaint
+            // 7. ทำเรื่องร้องเรียนให้เสร็จสิ้น
             const completeRes = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
@@ -82,10 +87,10 @@ describe('🔗 Integration Tests', () => {
                 });
 
             expect(completeRes.status).to.equal(200);
-            expect(completeRes.body).to.have.property('current_status', 'เสร็จสิ้น');
-            expect(completeRes.body.completed_date).to.not.equal('-');
+            expect(completeRes.body.data).to.have.property('current_status', 'เสร็จสิ้น');
+            expect(completeRes.body.data.completed_date).to.not.equal('-');
 
-            // 8. Delete Complaint
+            // 8. ลบ Complaint
             const deleteRes = await request(app)
                 .delete(`/api/complaints/${complaintId}`);
 
@@ -93,17 +98,23 @@ describe('🔗 Integration Tests', () => {
         });
     });
 
-    describe('Data Consistency Tests', () => {
+    describe('ทดสอบความสอดคล้องของข้อมูล', () => {
 
-        it('should maintain data consistency across operations', async () => {
-            // สร้าง 5 complaints
+        it('ควรรักษาความสอดคล้องของข้อมูลตลอดการดำเนินการ', async () => {
+            // สร้าง 5 complaints (ใช้ Schema ใหม่)
             for (let i = 1; i <= 5; i++) {
                 await request(app)
                     .post('/api/complaints')
                     .send({
                         title: `Complaint ${i}`,
-                        category: 'ทั่วไป',
-                        description: `Test ${i}`
+                        categories: ['ทั่วไป'], // ✅ array
+                        description: `Test ${i}`,
+                        location: JSON.stringify({ // ✅ JSON string
+                            building: 'Test Building',
+                            floor: '1',
+                            room: `10${i}`
+                        }),
+                        user_id: 'U001'
                     });
             }
 
@@ -111,10 +122,10 @@ describe('🔗 Integration Tests', () => {
             const listRes = await request(app)
                 .get('/api/complaints');
 
-            expect(listRes.body).to.have.lengthOf(5);
+            expect(listRes.body.data).to.have.lengthOf(5); // ✅ ใช้ .data
 
             // อัปเดตทั้งหมดเป็น 'กำลังดำเนินการ'
-            for (const complaint of listRes.body) {
+            for (const complaint of listRes.body.data) {
                 await request(app)
                     .put(`/api/complaints/${complaint.complaint_id}`)
                     .send({ status: 'กำลังดำเนินการ' });
@@ -124,27 +135,34 @@ describe('🔗 Integration Tests', () => {
             const updatedRes = await request(app)
                 .get(`/api/complaints?status=${encodeURIComponent('กำลังดำเนินการ')}`);
 
-            expect(updatedRes.body).to.have.lengthOf(5);
-            updatedRes.body.forEach(complaint => {
+            expect(updatedRes.body.data).to.have.lengthOf(5); // ✅ ใช้ .data
+            updatedRes.body.data.forEach(complaint => {
                 expect(complaint).to.have.property('current_status', 'กำลังดำเนินการ');
                 expect(complaint.status_history).to.have.lengthOf(2);
             });
         });
     });
 
-    describe('Error Handling Tests', () => {
+    describe('ทดสอบการจัดการข้อผิดพลาด', () => {
 
-        it('should handle concurrent updates gracefully', async () => {
-            // สร้าง complaint
+        it('ควรจัดการการอัปเดตพร้อมกันได้อย่างเหมาะสม', async () => {
+            // สร้าง complaint (ใช้ Schema ใหม่)
             const createRes = await request(app)
                 .post('/api/complaints')
                 .send({
                     title: 'Concurrent Test',
-                    category: 'ทั่วไป',
-                    description: 'Testing concurrent updates'
+                    categories: ['ทั่วไป'], // ✅ array
+                    description: 'Testing concurrent updates',
+                    location: JSON.stringify({ // ✅ JSON string
+                        building: 'Test Building',
+                        floor: '1',
+                        room: '101'
+                    }),
+                    user_id: 'U001'
                 });
 
-            const complaintId = createRes.body.complaint_id;
+            expect(createRes.status).to.equal(201);
+            const complaintId = createRes.body.data.complaint_id; // ✅ ใช้ .data
 
             // อัปเดตพร้อมกัน
             const updates = [];
@@ -162,7 +180,7 @@ describe('🔗 Integration Tests', () => {
             const finalRes = await request(app)
                 .get(`/api/complaints/${complaintId}`);
 
-            expect(finalRes.body).to.have.property('likes', 5);
+            expect(finalRes.body.data).to.have.property('likes', 5); // ✅ ใช้ .data
         });
     });
 });

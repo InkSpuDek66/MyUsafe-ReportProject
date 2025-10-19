@@ -5,7 +5,7 @@ const { expect } = require('chai');
 const app = require('../server');
 const Category = require('../src/models/categoryModel');
 
-describe('📂 Category System Tests', () => {
+describe('📂 ทดสอบระบบหมวดหมู่', () => {
 
     beforeEach(async () => {
         // สร้างข้อมูลทดสอบ
@@ -16,9 +16,9 @@ describe('📂 Category System Tests', () => {
         ]);
     });
 
-    describe('GET /api/categories - Get All Categories', () => {
+    describe('GET /api/categories - ดึงข้อมูลหมวดหมู่ทั้งหมด', () => {
 
-        it('should get all categories sorted by name', async () => {
+        it('ควรดึงหมวดหมู่ทั้งหมดที่เรียงตามชื่อ', async () => {
             const res = await request(app)
                 .get('/api/categories');
 
@@ -32,7 +32,7 @@ describe('📂 Category System Tests', () => {
             expect(res.body.data[0]).to.have.property('description');
         });
 
-        it('should return empty array when no categories exist', async () => {
+        it('ควรคืนค่า array ว่างเมื่อไม่มีหมวดหมู่', async () => {
             await Category.deleteMany({});
 
             const res = await request(app)
@@ -44,9 +44,9 @@ describe('📂 Category System Tests', () => {
         });
     });
 
-    describe('POST /api/categories - Create Category', () => {
+    describe('POST /api/categories - สร้างหมวดหมู่ใหม่', () => {
 
-        it('should create a new category successfully', async () => {
+        it('ควรสร้างหมวดหมู่ใหม่สำเร็จ', async () => {
             const categoryData = {
                 name: 'ทั่วไป',
                 description: 'เรื่องทั่วไปอื่นๆ'
@@ -63,7 +63,7 @@ describe('📂 Category System Tests', () => {
             expect(res.body.data).to.have.property('description', categoryData.description);
         });
 
-        it('should create category without description', async () => {
+        it('ควรสร้างหมวดหมู่ได้โดยไม่มี description', async () => {
             const res = await request(app)
                 .post('/api/categories')
                 .send({
@@ -74,7 +74,7 @@ describe('📂 Category System Tests', () => {
             expect(res.body.data).to.have.property('description', '');
         });
 
-        it('should fail when name is missing', async () => {
+        it('ควรล้มเหลวเมื่อไม่มีชื่อหมวดหมู่', async () => {
             const res = await request(app)
                 .post('/api/categories')
                 .send({
@@ -86,7 +86,7 @@ describe('📂 Category System Tests', () => {
             expect(res.body).to.have.property('error');
         });
 
-        it('should fail when name is empty string', async () => {
+        it('ควรล้มเหลวเมื่อชื่อหมวดหมู่เป็น string ว่าง', async () => {
             const res = await request(app)
                 .post('/api/categories')
                 .send({
@@ -98,7 +98,7 @@ describe('📂 Category System Tests', () => {
             expect(res.body).to.have.property('success', false);
         });
 
-        it('should fail when category name already exists', async () => {
+        it('ควรล้มเหลวเมื่อชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว', async () => {
             const res = await request(app)
                 .post('/api/categories')
                 .send({
@@ -111,7 +111,7 @@ describe('📂 Category System Tests', () => {
             expect(res.body).to.have.property('error', 'มีหมวดหมู่นี้อยู่แล้ว');
         });
 
-        it('should trim whitespace from name', async () => {
+        it('ควรตัดช่องว่างออกจากชื่อหมวดหมู่', async () => {
             const res = await request(app)
                 .post('/api/categories')
                 .send({

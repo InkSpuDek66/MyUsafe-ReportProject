@@ -69,6 +69,13 @@ const complaintSchema = new mongoose.Schema({
     }
   },
   
+    priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'low',
+    index: true  // เพิ่ม index เพื่อให้ค้นหา/กรองได้เร็ว
+  },
+
   current_status: {
     type: String,
     enum: ['รอรับเรื่อง', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ยกเลิก'],

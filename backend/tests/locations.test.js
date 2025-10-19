@@ -5,7 +5,7 @@ const { expect } = require('chai');
 const app = require('../server');
 const Location = require('../src/models/locationModel');
 
-describe('🏢 Location System Tests', () => {
+describe('🏢 ทดสอบระบบตำแหน่งที่ตั้ง', () => {
 
     beforeEach(async () => {
         // สร้างข้อมูลทดสอบ
@@ -19,9 +19,9 @@ describe('🏢 Location System Tests', () => {
         ]);
     });
 
-    describe('GET /api/locations/buildings - Get All Buildings', () => {
+    describe('GET /api/locations/buildings - ดึงข้อมูลอาคารทั้งหมด', () => {
 
-        it('should get all unique buildings', async () => {
+        it('ควรดึงอาคารที่ไม่ซ้ำกันทั้งหมด', async () => {
             const res = await request(app)
                 .get('/api/locations/buildings');
 
@@ -34,7 +34,7 @@ describe('🏢 Location System Tests', () => {
             expect(res.body.data).to.include('หอพัก');
         });
 
-        it('should return empty array when no locations exist', async () => {
+        it('ควรคืนค่า array ว่างเมื่อไม่มีตำแหน่งที่ตั้ง', async () => {
             await Location.deleteMany({});
 
             const res = await request(app)
@@ -46,9 +46,9 @@ describe('🏢 Location System Tests', () => {
         });
     });
 
-    describe('GET /api/locations/floors/:building - Get Floors by Building', () => {
+    describe('GET /api/locations/floors/:building - ดึงข้อมูลชั้นตามอาคาร', () => {
 
-        it('should get all floors for a building', async () => {
+        it('ควรดึงชั้นทั้งหมดของอาคาร', async () => {
             const res = await request(app)
                 .get(`/api/locations/floors/${encodeURIComponent('อาคาร 1')}`);
 
@@ -60,7 +60,7 @@ describe('🏢 Location System Tests', () => {
             expect(res.body.data).to.include('2');
         });
 
-        it('should return empty array for non-existent building', async () => {
+        it('ควรคืนค่า array ว่างสำหรับอาคารที่ไม่มีอยู่', async () => {
             const res = await request(app)
                 .get(`/api/locations/floors/${encodeURIComponent('อาคารไม่มี')}`);
 
@@ -70,9 +70,9 @@ describe('🏢 Location System Tests', () => {
         });
     });
 
-    describe('GET /api/locations/rooms/:building/:floor - Get Rooms', () => {
+    describe('GET /api/locations/rooms/:building/:floor - ดึงข้อมูลห้อง', () => {
 
-        it('should get all rooms for building and floor', async () => {
+        it('ควรดึงห้องทั้งหมดของอาคารและชั้น', async () => {
             const res = await request(app)
                 .get(`/api/locations/rooms/${encodeURIComponent('อาคาร 1')}/1`);
 
@@ -84,7 +84,7 @@ describe('🏢 Location System Tests', () => {
             expect(res.body.data).to.include('102');
         });
 
-        it('should return empty array for non-existent floor', async () => {
+        it('ควรคืนค่า array ว่างสำหรับชั้นที่ไม่มีอยู่', async () => {
             const res = await request(app)
                 .get(`/api/locations/rooms/${encodeURIComponent('อาคาร 1')}/99`);
 
@@ -93,7 +93,7 @@ describe('🏢 Location System Tests', () => {
             expect(res.body.data).to.have.lengthOf(0);
         });
 
-        it('should filter out empty rooms', async () => {
+        it('ควรกรองห้องที่ว่างออก', async () => {
             // สร้าง location ที่ไม่มีห้อง
             await Location.create({
                 building: 'อาคาร 3',
@@ -110,9 +110,9 @@ describe('🏢 Location System Tests', () => {
         });
     });
 
-    describe('POST /api/locations - Create Location', () => {
+    describe('POST /api/locations - สร้างตำแหน่งที่ตั้งใหม่', () => {
 
-        it('should create a new location successfully', async () => {
+        it('ควรสร้างตำแหน่งที่ตั้งใหม่สำเร็จ', async () => {
             const locationData = {
                 building: 'อาคารใหม่',
                 floor: '5',
@@ -131,7 +131,7 @@ describe('🏢 Location System Tests', () => {
             expect(res.body.data).to.have.property('room', locationData.room);
         });
 
-        it('should create location without room', async () => {
+        it('ควรสร้างตำแหน่งที่ตั้งโดยไม่มีห้อง', async () => {
             const res = await request(app)
                 .post('/api/locations')
                 .send({
@@ -143,7 +143,7 @@ describe('🏢 Location System Tests', () => {
             expect(res.body.data).to.have.property('room', '');
         });
 
-        it('should fail when building is missing', async () => {
+        it('ควรล้มเหลวเมื่อไม่มีชื่ออาคาร', async () => {
             const res = await request(app)
                 .post('/api/locations')
                 .send({
@@ -155,7 +155,7 @@ describe('🏢 Location System Tests', () => {
             expect(res.body).to.have.property('error');
         });
 
-        it('should fail when floor is missing', async () => {
+        it('ควรล้มเหลวเมื่อไม่มีชั้น', async () => {
             const res = await request(app)
                 .post('/api/locations')
                 .send({

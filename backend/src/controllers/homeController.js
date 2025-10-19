@@ -14,7 +14,7 @@ function genStatusId() {
 // 📋 GET: ดึงรายการเรื่องร้องเรียนทั้งหมด (มี Filter)
 exports.getComplaints = async (req, res) => {
   try {
-    const { status, q, category, page = 1, limit = 20 } = req.query;
+    const { status, q, category, priority, page = 1, limit = 20 } = req.query; // เพิ่ม priority
     const filter = {};
 
     // Filter by status
@@ -24,7 +24,12 @@ exports.getComplaints = async (req, res) => {
 
     // Filter by category (รองรับ single category)
     if (category) {
-      filter.categories = category; // ใช้ categories แทน category
+      filter.categories = category;
+    }
+
+    //Filter by priority (รองรับ single priority)
+    if (priority) {
+      filter.priority = priority;
     }
 
     // Search (title, description, location)
@@ -218,7 +223,7 @@ exports.createComplaint = async (req, res) => {
 // ✏️ PUT: แก้ไขเรื่องร้องเรียน
 exports.updateComplaint = async (req, res) => {
   try {
-    const { status, action, set } = req.body;
+    const { status, action, set, priority } = req.body;
     
     const complaint = await Complaint.findOne({ 
       complaint_id: req.params.id 
@@ -244,7 +249,6 @@ exports.updateComplaint = async (req, res) => {
       if (status === 'เสร็จสิ้น') {
         complaint.completed_date = now;
         
-        // คำนวณระยะเวลาที่ใช้
         const timeDiff = now - complaint.datetime_reported;
         const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -252,10 +256,41 @@ exports.updateComplaint = async (req, res) => {
       }
     }
 
-    // อัพเดท Likes/Dislikes/Views
-    if (action === 'like') complaint.likes++;
-    if (action === 'dislike') complaint.dislikes++;
-    if (action === 'view') complaint.views++;
+    // ✅ แก้ส่วนนี้ - ใช้ Atomic Operations
+    if (action) {
+      let updateOperation = {};
+      
+      if (action === 'like') {
+        updateOperation = { $inc: { likes: 1 } };
+      } else if (action === 'dislike') {
+        updateOperation = { $inc: { dislikes: 1 } };
+      } else if (action === 'view') {
+        updateOperation = { $inc: { views: 1 } };
+      }
+
+      if (Object.keys(updateOperation).length > 0) {
+        // ใช้ findOneAndUpdate แทน save() เพื่อให้เป็น atomic operation
+        const updatedComplaint = await Complaint.findOneAndUpdate(
+          { complaint_id: req.params.id },
+          updateOperation,
+          { new: true } // return updated document
+        );
+
+        return res.json({
+          success: true,
+          message: 'อัพเดทเรื่องร้องเรียนสำเร็จ',
+          data: updatedComplaint
+        });
+      }
+    }
+
+    // อัพเดท priority
+    if (priority) {
+      const validPriorities = ['low', 'medium', 'high', 'urgent'];
+      if (validPriorities.includes(priority)) {
+        complaint.priority = priority;
+      }
+    }
 
     // อัพเดทฟิลด์อื่นๆ
     if (set && typeof set === 'object') {
