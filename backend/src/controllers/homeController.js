@@ -48,7 +48,7 @@ exports.getComplaints = async (req, res) => {
     // Pagination
     const skip = (page - 1) * limit;
     const total = await Complaint.countDocuments(filter);
-    
+
     const complaints = await Complaint.find(filter)
       .sort({ datetime_reported: -1 })
       .skip(skip)
@@ -66,9 +66,9 @@ exports.getComplaints = async (req, res) => {
     });
   } catch (err) {
     console.error('Get Complaints Error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' 
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูล'
     });
   }
 };
@@ -76,26 +76,26 @@ exports.getComplaints = async (req, res) => {
 // 📄 GET: ดึงเรื่องร้องเรียนเดียว
 exports.getComplaintById = async (req, res) => {
   try {
-    const complaint = await Complaint.findOne({ 
-      complaint_id: req.params.id 
+    const complaint = await Complaint.findOne({
+      complaint_id: req.params.id
     });
-    
+
     if (!complaint) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'ไม่พบเรื่องร้องเรียนนี้' 
+        error: 'ไม่พบเรื่องร้องเรียนนี้'
       });
     }
-    
+
     res.json({
       success: true,
       data: complaint
     });
   } catch (err) {
     console.error('Get Complaint Error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' 
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูล'
     });
   }
 };
@@ -103,26 +103,26 @@ exports.getComplaintById = async (req, res) => {
 // 🆕 POST: สร้างเรื่องร้องเรียนใหม่ (แก้ไขเพื่อรองรับ multiple categories และ multer)
 exports.createComplaint = async (req, res) => {
   try {
-    const { 
-      title, 
+    const {
+      title,
       categories, // เปลี่ยนจาก category เป็น categories
-      description, 
-      user_id, 
-      location 
+      description,
+      user_id,
+      location
     } = req.body;
 
     // Validation
     if (!title || title.trim() === '') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาระบุหัวข้อ' 
+        error: 'กรุณาระบุหัวข้อ'
       });
     }
 
     if (!location) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาระบุตำแหน่งที่เกิดเหตุ' 
+        error: 'กรุณาระบุตำแหน่งที่เกิดเหตุ'
       });
     }
 
@@ -131,16 +131,16 @@ exports.createComplaint = async (req, res) => {
     try {
       locationObj = typeof location === 'string' ? JSON.parse(location) : location;
     } catch (e) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'รูปแบบข้อมูลตำแหน่งไม่ถูกต้อง' 
+        error: 'รูปแบบข้อมูลตำแหน่งไม่ถูกต้อง'
       });
     }
 
     if (!locationObj.building || !locationObj.floor) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาระบุอาคารและชั้น' 
+        error: 'กรุณาระบุอาคารและชั้น'
       });
     }
 
@@ -153,17 +153,17 @@ exports.createComplaint = async (req, res) => {
           categoriesArray = [categoriesArray];
         }
       } catch (e) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: 'รูปแบบข้อมูลหมวดหมู่ไม่ถูกต้อง' 
+          error: 'รูปแบบข้อมูลหมวดหมู่ไม่ถูกต้อง'
         });
       }
     }
 
     if (categoriesArray.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: 'กรุณาเลือกหมวดหมู่อย่างน้อย 1 หมวดหมู่' 
+        error: 'กรุณาเลือกหมวดหมู่อย่างน้อย 1 หมวดหมู่'
       });
     }
 
@@ -190,10 +190,10 @@ exports.createComplaint = async (req, res) => {
       },
       current_status: 'รอรับเรื่อง',
       status_history: [
-        { 
-          status_id: genStatusId(), 
-          status_name: 'รอรับเรื่อง', 
-          updated_at: now 
+        {
+          status_id: genStatusId(),
+          status_name: 'รอรับเรื่อง',
+          updated_at: now
         }
       ],
       likes: 0,
@@ -204,7 +204,7 @@ exports.createComplaint = async (req, res) => {
     });
 
     await newComplaint.save();
-    
+
     res.status(201).json({
       success: true,
       message: 'สร้างเรื่องร้องเรียนสำเร็จ',
@@ -212,10 +212,10 @@ exports.createComplaint = async (req, res) => {
     });
   } catch (err) {
     console.error('Create Complaint Error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: 'เกิดข้อผิดพลาดในการสร้างเรื่องร้องเรียน',
-      details: err.message 
+      details: err.message
     });
   }
 };
@@ -224,31 +224,49 @@ exports.createComplaint = async (req, res) => {
 exports.updateComplaint = async (req, res) => {
   try {
     const { status, action, set, priority } = req.body;
-    
-    const complaint = await Complaint.findOne({ 
-      complaint_id: req.params.id 
+
+    const complaint = await Complaint.findOne({
+      complaint_id: req.params.id
     });
-    
+
     if (!complaint) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'ไม่พบเรื่องร้องเรียนนี้' 
+        error: 'ไม่พบเรื่องร้องเรียนนี้'
       });
     }
 
     // อัพเดท Status
     if (status) {
+      const allowedTransitions = {
+        'รอรับเรื่อง': ['กำลังดำเนินการ', 'ยกเลิก'],
+        'กำลังดำเนินการ': ['เสร็จสิ้น', 'ยกเลิก'],
+        'เสร็จสิ้น': [],
+        'ยกเลิก': []
+      };
+
+      const currentStatus = complaint.current_status;
+      const allowed = allowedTransitions[currentStatus] || [];
+
+      if (!allowed.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          error: `ไม่สามารถเปลี่ยนสถานะจาก "${currentStatus}" เป็น "${status}" ได้`,
+          allowed_transitions: allowed
+        });
+      }
+
       const now = new Date();
       complaint.current_status = status;
       complaint.status_history.push({
-        status_id: genStatusId(),
+        status_id: 'S' + Date.now().toString().slice(-7),
         status_name: status,
         updated_at: now
       });
-      
+
       if (status === 'เสร็จสิ้น') {
         complaint.completed_date = now;
-        
+
         const timeDiff = now - complaint.datetime_reported;
         const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -256,10 +274,10 @@ exports.updateComplaint = async (req, res) => {
       }
     }
 
-    // ✅ แก้ส่วนนี้ - ใช้ Atomic Operations
+    // แก้ส่วนนี้ - ใช้ Atomic Operations
     if (action) {
       let updateOperation = {};
-      
+
       if (action === 'like') {
         updateOperation = { $inc: { likes: 1 } };
       } else if (action === 'dislike') {
@@ -316,26 +334,26 @@ exports.updateComplaint = async (req, res) => {
 // 🗑️ DELETE: ลบเรื่องร้องเรียน
 exports.deleteComplaint = async (req, res) => {
   try {
-    const result = await Complaint.deleteOne({ 
-      complaint_id: req.params.id 
+    const result = await Complaint.deleteOne({
+      complaint_id: req.params.id
     });
-    
+
     if (result.deletedCount === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'ไม่พบเรื่องร้องเรียนนี้' 
+        error: 'ไม่พบเรื่องร้องเรียนนี้'
       });
     }
-    
-    res.json({ 
+
+    res.json({
       success: true,
-      message: 'ลบเรื่องร้องเรียนสำเร็จ' 
+      message: 'ลบเรื่องร้องเรียนสำเร็จ'
     });
   } catch (err) {
     console.error('Delete Complaint Error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'เกิดข้อผิดพลาดในการลบ' 
+      error: 'เกิดข้อผิดพลาดในการลบ'
     });
   }
 };

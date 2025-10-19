@@ -12,6 +12,8 @@ const complaintRoutes = require('./src/routes/homeRoutes');
 const locationRoutes = require('./src/routes/locationRoutes');
 const categoryRoutes = require('./src/routes/categoryRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
+const commentRoutes = require('./src/routes/commentRoutes');
+const assignmentRoutes = require('./src/routes/assignmentRoutes');
 
 const Complaint = require('./src/models/homeModel');
 
@@ -61,8 +63,10 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/assignments', assignmentRoutes);
 
-// Health check
+// ใช้สำหรับตรวจสอบสถานะเซิร์ฟเวอร์
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

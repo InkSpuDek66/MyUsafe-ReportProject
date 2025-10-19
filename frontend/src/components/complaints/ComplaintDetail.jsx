@@ -1,8 +1,7 @@
-// frontend/src/pages/ComplaintDetail/ComplaintDetail.jsx
-// หน้าแสดงรายละเอียดเรื่องร้องเรียน
+// frontend/src/components/complaints/ComplaintDetail.jsx
+// Component สำหรับแสดงรายละเอียดเรื่องร้องเรียน
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-// import { motion } from "framer-motion";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   MapPin,
@@ -15,24 +14,48 @@ import {
   Eye,
   Image as ImageIcon,
   Video,
+  Edit,
+  UserPlus,
+  Trash2
 } from "lucide-react";
 import { io } from "socket.io-client";
+import StatusBadge from './StatusBadge';
+import PriorityBadge from './PriorityBadge';
+import StatusTimeline from './StatusTimeline';
+import CommentSection from './CommentSection';
+import StatusUpdateModal from './StatusUpdateModal';
+import AssignmentModal from './AssignmentModal';
+import { complaintAPI } from '../../services/complaintAPI';
 
 const socket = io("http://localhost:5000");
 
 export default function ComplaintDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+
+  // Mock user data (จะเปลี่ยนเป็นจริงหลัง Auth เสร็จ)
+  const currentUser = {
+    user_id: localStorage.getItem('user_id') || 'U0000001',
+    user_role: localStorage.getItem('user_role') || 'reporter'
+  };
+
+  const isStaffOrAdmin = ['staff', 'admin'].includes(currentUser.user_role);
+  const isOwner = data?.user_id === currentUser.user_id;
 
   const fetchComplaint = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/complaints/${id}`);
-      const json = await res.json();
-      setData(json);
-      setLoading(false);
+      setLoading(true);
+      const response = await complaintAPI.getById(id);
+      setData(response.data);
     } catch (err) {
       console.error("❌ Error loading complaint:", err);
+      alert('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,14 +63,39 @@ export default function ComplaintDetail() {
     if (!id) return;
     fetchComplaint();
 
+    // Socket.IO for real-time views
     socket.emit("view_complaint", id);
-    socket.on("update_views", (data) => {
-      if (data.id === id) {
-        setData((prev) => ({ ...prev, views: data.views }));
+    socket.on("update_views", (socketData) => {
+      if (socketData.id === id) {
+        setData((prev) => ({ ...prev, views: socketData.views }));
       }
     });
     return () => socket.off("update_views");
   }, [id]);
+
+  const handleStatusUpdate = async (complaintId, updateData) => {
+    try {
+      await complaintAPI.updateStatus(complaintId, updateData.status, updateData.comment);
+      alert('อัปเดตสถานะสำเร็จ');
+      await fetchComplaint(); // Reload
+    } catch (error) {
+      console.error('Update status error:', error);
+      throw error;
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('ต้องการลบเรื่องร้องเรียนนี้หรือไม่?')) return;
+
+    try {
+      await complaintAPI.delete(id);
+      alert('ลบเรื่องร้องเรียนสำเร็จ');
+      navigate('/my-complaints');
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('เกิดข้อผิดพลาดในการลบ');
+    }
+  };
 
   if (loading) {
     return (
@@ -67,28 +115,16 @@ export default function ComplaintDetail() {
     );
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "รอดำเนินการ":
-        return "text-yellow-600 bg-yellow-100";
-      case "กำลังดำเนินการ":
-        return "text-blue-600 bg-blue-100";
-      case "เสร็จสิ้น":
-        return "text-green-600 bg-green-100";
-      default:
-        return "text-gray-600 bg-gray-100";
-    }
-  };
-
   const attachments = Array.isArray(data.attachments)
     ? data.attachments
     : data.attachment
-    ? [data.attachment]
-    : [];
+      ? [data.attachment]
+      : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 p-6">
       <div className="max-w-5xl mx-auto">
+        {/* Back Button */}
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-[#55C388] hover:underline mb-6"
@@ -96,22 +132,16 @@ export default function ComplaintDetail() {
           <ArrowLeft size={18} /> กลับหน้าหลัก
         </Link>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-white border border-green-100 rounded-3xl shadow-xl overflow-hidden"
-        >
-          {/* 🔹 ส่วนแสดงไฟล์แนบ (ภาพ/วิดีโอ) */}
-          <div className="w-full bg-gray-50 p-4 flex gap-4 overflow-x-auto rounded-t-3xl scrollbar-thin scrollbar-thumb-green-200">
+        <div className="bg-white border border-green-100 rounded-3xl shadow-xl overflow-hidden">
+          {/* Attachments Section */}
+          <div className="w-full bg-gray-50 p-4 flex gap-4 overflow-x-auto rounded-t-3xl">
             {attachments.length > 0 ? (
               attachments.map((file, index) => {
                 const isVideo = file.endsWith(".mp4") || file.endsWith(".mov");
                 return (
-                  <motion.div
+                  <div
                     key={index}
                     className="min-w-[250px] bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition"
-                    whileHover={{ scale: 1.03 }}
                   >
                     {isVideo ? (
                       <video
@@ -137,7 +167,7 @@ export default function ComplaintDetail() {
                         </>
                       )}
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })
             ) : (
@@ -148,27 +178,80 @@ export default function ComplaintDetail() {
             )}
           </div>
 
-          {/* 🔹 เนื้อหา */}
+          {/* Content */}
           <div className="p-8">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-3xl font-bold text-[#55C388]">
-                {data.title}
-              </h1>
-              <div className="flex items-center gap-1 text-gray-500">
-                <Eye size={18} />
-                <span className="text-sm">{data.views || 0}</span>
+            {/* Header with Actions */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-[#55C388] mb-2">
+                  {data.title}
+                </h1>
+                <div className="flex items-center gap-2 mb-3">
+                  <StatusBadge status={data.current_status} />
+                  <PriorityBadge priority={data.priority} />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                {isStaffOrAdmin && (
+                  <>
+                    <button
+                      onClick={() => setStatusModalOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      title="อัปเดตสถานะ"
+                    >
+                      <Edit size={18} />
+                      อัปเดตสถานะ
+                    </button>
+                    <button
+                      onClick={() => setAssignModalOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      title="มอบหมายงาน"
+                    >
+                      <UserPlus size={18} />
+                      มอบหมาย
+                    </button>
+                  </>
+                )}
+                {(isOwner || currentUser.user_role === 'admin') && (
+                  <button
+                    onClick={handleDelete}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    title="ลบ"
+                  >
+                    <Trash2 size={18} />
+                    ลบ
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Categories */}
+            {data.categories && data.categories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {data.categories.map((cat, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                  >
+                    {cat}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <p className="text-gray-700 mb-5 leading-relaxed">
               {data.description}
             </p>
 
-            {/* 🔹 ข้อมูลทั่วไป */}
-            <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600">
+            {/* Info Grid */}
+            <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600 mb-6">
               <div className="flex items-center gap-2">
                 <MapPin className="text-[#55C388]" size={18} />
-                <span>สถานที่: {data.location}</span>
+                <span>
+                  สถานที่: {data.location?.building || data.location} {data.location?.floor && `ชั้น ${data.location.floor}`} {data.location?.room && `ห้อง ${data.location.room}`}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="text-[#55C388]" size={18} />
@@ -181,57 +264,55 @@ export default function ComplaintDetail() {
                 <User className="text-[#55C388]" size={18} />
                 <span>ผู้แจ้ง: {data.user_id}</span>
               </div>
-              <div
-                className={`flex items-center gap-2 px-3 py-1 rounded-full font-medium ${getStatusColor(
-                  data.current_status
-                )}`}
-              >
-                <CheckCircle size={18} />
-                <span>{data.current_status}</span>
+              <div className="flex items-center gap-2">
+                <Eye className="text-[#55C388]" size={18} />
+                <span>จำนวนผู้เข้าชม: {data.views || 0}</span>
               </div>
+              {data.assigned_to && (
+                <div className="flex items-center gap-2">
+                  <UserPlus className="text-[#55C388]" size={18} />
+                  <span>เจ้าหน้าที่: {data.assigned_to}</span>
+                </div>
+              )}
             </div>
 
-            {/* 🔹 ประวัติสถานะ */}
+            {/* Status Timeline */}
             <div className="mt-8 border-t border-green-100 pt-6">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-3">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
                 <FileText className="text-[#55C388]" size={20} /> ประวัติสถานะ
               </h3>
+              <StatusTimeline history={data.status_history} />
+            </div>
 
-              <div className="relative border-l-4 border-[#55C388]/30 ml-3">
-                {data.status_history?.length > 0 ? (
-                  data.status_history.map((s, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -15 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="ml-5 mb-5 relative"
-                    >
-                      <div className="w-3 h-3 bg-[#55C388] rounded-full absolute -left-1.5 top-1.5 shadow-md" />
-                      <div className="bg-green-50 p-3 rounded-lg border border-green-100 shadow-sm">
-                        <p className="font-medium text-gray-700">
-                          {s.status_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(s.updated_at).toLocaleString("th-TH")}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-sm ml-4">
-                    ยังไม่มีข้อมูลสถานะเพิ่มเติม
-                  </p>
-                )}
-              </div>
+            {/* Comments Section */}
+            <div className="mt-8 border-t border-green-100 pt-6">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
+                <FileText className="text-[#55C388]" size={20} /> ความคิดเห็น
+              </h3>
+              <CommentSection complaintId={data.complaint_id} />
             </div>
           </div>
-        </motion.div>
+        </div>
 
         <footer className="text-center text-gray-400 text-sm mt-10">
-          © 2025 ระบบรายงานปัญหามหาวิทยาลัย — Powered by Traffy Style 💚
+          © 2025 ระบบรายงานปัญหามหาวิทยาลัย
         </footer>
       </div>
+
+      {/* Modals */}
+      <StatusUpdateModal
+        isOpen={statusModalOpen}
+        onClose={() => setStatusModalOpen(false)}
+        complaint={data}
+        onUpdate={handleStatusUpdate}
+      />
+
+      <AssignmentModal
+        isOpen={assignModalOpen}
+        onClose={() => setAssignModalOpen(false)}
+        complaintId={data?.complaint_id}
+        onAssign={fetchComplaint}
+      />
     </div>
   );
 }

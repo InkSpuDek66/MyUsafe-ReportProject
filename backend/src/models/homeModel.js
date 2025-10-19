@@ -31,7 +31,7 @@ const complaintSchema = new mongoose.Schema({
     type: [String],
     required: true,
     validate: {
-      validator: function(arr) {
+      validator: function (arr) {
         return arr && arr.length > 0;
       },
       message: 'ต้องมีอย่างน้อย 1 หมวดหมู่'
@@ -46,11 +46,24 @@ const complaintSchema = new mongoose.Schema({
     default: Date.now
   },
   attachments: [String], // Array ของ URL รูปภาพ (สูงสุด 5 รูป)
-  
+
   user_id: {
     type: String,
     required: true,
     index: true
+  },
+  assigned_to: {
+    type: String, // user_id ของเจ้าหน้าที่
+    default: null,
+    index: true
+  },
+  assigned_at: {
+    type: Date,
+    default: null
+  },
+  assigned_by: {
+    type: String, // user_id ของคนที่มอบหมาย
+    default: null
   },
   
   // Location (แยกเป็น object)
@@ -68,8 +81,8 @@ const complaintSchema = new mongoose.Schema({
       default: ''
     }
   },
-  
-    priority: {
+
+  priority: {
     type: String,
     enum: ['low', 'medium', 'high', 'urgent'],
     default: 'low',
@@ -82,9 +95,9 @@ const complaintSchema = new mongoose.Schema({
     default: 'รอรับเรื่อง',
     index: true
   },
-  
+
   status_history: [statusSchema],
-  
+
   likes: {
     type: Number,
     default: 0
@@ -97,7 +110,7 @@ const complaintSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  
+
   time_used: {
     type: String,
     default: '-'

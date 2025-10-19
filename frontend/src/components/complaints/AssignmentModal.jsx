@@ -1,9 +1,10 @@
 // frontend/src/components/complaints/AssignmentModal.jsx
-// Component สำหรับมอบหมายงานให้เจ้าหน้าที่
+// Modal สำหรับมอบหมายงานเรื่องร้องเรียนให้เจ้าหน้าที่
 import { useState, useEffect } from 'react';
 import { X, Search, User } from 'lucide-react';
+import assignmentAPI from '../../services/assignmentAPI';
 
-const AssignmentModal = ({ isOpen, onClose, onAssign, complaintId }) => {
+const AssignmentModal = ({ isOpen, onClose, complaintId, onAssign }) => {
     const [staff, setStaff] = useState([]);
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -17,16 +18,21 @@ const AssignmentModal = ({ isOpen, onClose, onAssign, complaintId }) => {
 
     const fetchStaff = async () => {
         try {
-            // TODO: Replace with actual API
-            const response = await fetch('http://localhost:5000/api/users?role=staff', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            const data = await response.json();
-            setStaff(data);
+            // TODO: ต้องรอ Person 1 ทำ User API เสร็จก่อน
+            // ตอนนี้ใช้ Mock data
+            const mockStaff = [
+                { id: 'STAFF001', name: 'สมชาย ใจดี', email: 'somchai@example.com', role: 'staff' },
+                { id: 'STAFF002', name: 'สมหญิง รักงาน', email: 'somying@example.com', role: 'staff' },
+                { id: 'STAFF003', name: 'วิทยา ขยัน', email: 'wittaya@example.com', role: 'staff' }
+            ];
+            setStaff(mockStaff);
+
+            // จะเปลี่ยนเป็นแบบนี้เมื่อ User API เสร็จ:
+            // const response = await axios.get('/api/users?role=staff');
+            // setStaff(response.data.data);
         } catch (error) {
             console.error('Error fetching staff:', error);
+            alert('เกิดข้อผิดพลาดในการดึงข้อมูลเจ้าหน้าที่');
         }
     };
 
@@ -40,11 +46,21 @@ const AssignmentModal = ({ isOpen, onClose, onAssign, complaintId }) => {
 
         try {
             setLoading(true);
-            await onAssign(complaintId, selectedStaff.id);
+
+            // Get current user info (mock - จะเปลี่ยนเป็นจริงหลัง Auth เสร็จ)
+            const assignedBy = localStorage.getItem('user_id') || 'ADMIN001';
+
+            await assignmentAPI.assign(complaintId, {
+                assigned_to: selectedStaff.id,
+                assigned_by: assignedBy
+            });
+
+            alert('มอบหมายงานสำเร็จ');
+            onAssign(); // Refresh complaint data
             onClose();
         } catch (error) {
             console.error('Error assigning:', error);
-            alert('เกิดข้อผิดพลาดในการมอบหมายงาน');
+            alert(error.response?.data?.error || 'เกิดข้อผิดพลาดในการมอบหมายงาน');
         } finally {
             setLoading(false);
         }
@@ -63,6 +79,7 @@ const AssignmentModal = ({ isOpen, onClose, onAssign, complaintId }) => {
                     <button
                         onClick={onClose}
                         className="text-gray-400 hover:text-gray-600"
+                        disabled={loading}
                     >
                         <X size={24} />
                     </button>
@@ -86,7 +103,7 @@ const AssignmentModal = ({ isOpen, onClose, onAssign, complaintId }) => {
                 <div className="flex-1 overflow-y-auto p-4">
                     {filteredStaff.length === 0 ? (
                         <p className="text-center text-gray-500 py-8">
-                            ไม่พบเจ้าหน้าที่
+                            {searchQuery ? 'ไม่พบเจ้าหน้าที่ที่ค้นหา' : 'ไม่พบเจ้าหน้าที่'}
                         </p>
                     ) : (
                         <div className="space-y-2">
@@ -94,11 +111,10 @@ const AssignmentModal = ({ isOpen, onClose, onAssign, complaintId }) => {
                                 <button
                                     key={s.id}
                                     onClick={() => setSelectedStaff(s)}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                                        selectedStaff?.id === s.id
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${selectedStaff?.id === s.id
                                             ? 'border-[#55C388] bg-green-50'
                                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex-shrink-0">
                                         <div className="w-10 h-10 rounded-full bg-[#55C388]/10 flex items-center justify-center">
@@ -109,6 +125,13 @@ const AssignmentModal = ({ isOpen, onClose, onAssign, complaintId }) => {
                                         <p className="font-medium text-gray-900">{s.name}</p>
                                         <p className="text-sm text-gray-600">{s.email}</p>
                                     </div>
+                                    {selectedStaff?.id === s.id && (
+                                        <div className="w-5 h-5 rounded-full bg-[#55C388] flex items-center justify-center">
+                                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
                                 </button>
                             ))}
                         </div>

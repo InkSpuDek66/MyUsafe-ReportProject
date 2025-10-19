@@ -363,6 +363,14 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
         });
 
         it('ควรอัปเดตสถานะเป็น เสร็จสิ้น และตั้งค่าวันที่เสร็จสิ้น', async () => {
+            // Step 1: เปลี่ยนเป็น "กำลังดำเนินการ" ก่อน
+            await request(app)
+                .put(`/api/complaints/${complaintId}`)
+                .send({
+                    status: 'กำลังดำเนินการ'
+                });
+
+            // Step 2: จึงค่อยเปลี่ยนเป็น "เสร็จสิ้น"
             const res = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
