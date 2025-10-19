@@ -1,8 +1,6 @@
-// frontend/src/pages/ComplaintDetail/ComplaintDetail.jsx
-// หน้าแสดงรายละเอียดเรื่องร้องเรียน
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-// import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   MapPin,
@@ -11,10 +9,11 @@ import {
   CheckCircle,
   FileText,
   AlertTriangle,
-  Loader2,
   Eye,
-  Image as ImageIcon,
-  Video,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Tag,
 } from "lucide-react";
 import { io } from "socket.io-client";
 
@@ -24,66 +23,89 @@ export default function ComplaintDetail() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [previewMedia, setPreviewMedia] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // ✅ หมวดหมู่หลัก (เหมือนใน Home.jsx)
+  const categories = [
+    { id: "flood", name: "น้ำท่วม", icon: "💧" },
+    { id: "electrical", name: "ไฟฟ้า", icon: "⚡" },
+    { id: "computer", name: "คอมพิวเตอร์/เว็บไซต์", icon: "💻" },
+    { id: "plumbing", name: "ประปา/ท่อน้ำ", icon: "🚰" },
+    { id: "facilities", name: "สิ่งอำนวยความสะดวก", icon: "🏢" },
+    { id: "cleanliness", name: "ความสะอาด", icon: "🧹" },
+    { id: "safety", name: "ความปลอดภัย", icon: "🚨" },
+    { id: "other", name: "อื่นๆ", icon: "📝" },
+  ];
 
   const fetchComplaint = async () => {
     try {
       const res = await fetch(`http://localhost:5000/api/complaints/${id}`);
       const json = await res.json();
-      setData(json);
-      setLoading(false);
+      setData(json.data || json);
     } catch (err) {
       console.error("❌ Error loading complaint:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     if (!id) return;
     fetchComplaint();
-
     socket.emit("view_complaint", id);
-    socket.on("update_views", (data) => {
-      if (data.id === id) {
-        setData((prev) => ({ ...prev, views: data.views }));
-      }
+    socket.on("update_views", (d) => {
+      if (d.id === id) setData((prev) => ({ ...prev, views: d.views }));
     });
     return () => socket.off("update_views");
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-gray-500">
-        <Loader2 className="animate-spin text-[#55C388] mb-2" size={32} />
-        กำลังโหลดข้อมูล...
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-gray-400">
-        <AlertTriangle size={40} className="mb-2 text-yellow-500" />
-        ไม่พบข้อมูลเรื่องร้องเรียน
-      </div>
-    );
-  }
-
   const getStatusColor = (status) => {
     switch (status) {
-      case "รอดำเนินการ":
-        return "text-yellow-600 bg-yellow-100";
+      case "รอรับเรื่อง":
+        return "bg-yellow-100 text-yellow-700";
+      case "ดำเนินการ":
       case "กำลังดำเนินการ":
-        return "text-blue-600 bg-blue-100";
+        return "bg-blue-100 text-blue-700";
       case "เสร็จสิ้น":
-        return "text-green-600 bg-green-100";
+        return "bg-green-100 text-green-700";
       default:
-        return "text-gray-600 bg-gray-100";
+        return "bg-gray-100 text-gray-600";
     }
   };
 
-  const attachments = Array.isArray(data.attachments)
-    ? data.attachments
-    : data.attachment
-    ? [data.attachment]
+  const nextMedia = () => {
+    if (!data?.attachments?.length) return;
+    setCurrentIndex((prev) => (prev + 1) % data.attachments.length);
+  };
+
+  const prevMedia = () => {
+    if (!data?.attachments?.length) return;
+    setCurrentIndex(
+      (prev) => (prev - 1 + data.attachments.length) % data.attachments.length
+    );
+  };
+
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-screen text-[#55C388]">
+        กำลังโหลดข้อมูล...
+      </div>
+    );
+
+  if (!data)
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-400">
+        <AlertTriangle className="text-yellow-500 mr-2" /> ไม่พบข้อมูลเรื่องร้องเรียน
+      </div>
+    );
+
+  const attachments = data.attachments || [];
+  const currentFile = attachments[currentIndex];
+  const cates = Array.isArray(data.categories)
+    ? data.categories
+    : data.categories
+    ? [data.categories]
     : [];
 
   return (
@@ -100,61 +122,72 @@ export default function ComplaintDetail() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="bg-white border border-green-100 rounded-3xl shadow-xl overflow-hidden"
+          className="bg-white border border-green-100 rounded-3xl shadow-lg overflow-hidden"
         >
-          {/* 🔹 ส่วนแสดงไฟล์แนบ (ภาพ/วิดีโอ) */}
-          <div className="w-full bg-gray-50 p-4 flex gap-4 overflow-x-auto rounded-t-3xl scrollbar-thin scrollbar-thumb-green-200">
+          {/* ✅ ตัวเลื่อนภาพ/วิดีโอ */}
+          <div className="relative bg-gray-50 flex justify-center items-center h-96">
             {attachments.length > 0 ? (
-              attachments.map((file, index) => {
-                const isVideo = file.endsWith(".mp4") || file.endsWith(".mov");
-                return (
-                  <motion.div
-                    key={index}
-                    className="min-w-[250px] bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition"
-                    whileHover={{ scale: 1.03 }}
-                  >
-                    {isVideo ? (
-                      <video
-                        src={file}
-                        controls
-                        className="w-full h-64 object-cover"
-                      />
-                    ) : (
-                      <img
-                        src={file}
-                        alt={`attachment-${index}`}
-                        className="w-full h-64 object-cover"
-                      />
-                    )}
-                    <div className="flex items-center justify-center gap-2 p-2 text-gray-500 text-sm">
-                      {isVideo ? (
-                        <>
-                          <Video size={16} /> วิดีโอ
-                        </>
-                      ) : (
-                        <>
-                          <ImageIcon size={16} /> ภาพ
-                        </>
-                      )}
+              <>
+                {currentFile.match(/\.(mp4|webm|ogg)$/i) ? (
+                  <video
+                    src={`http://localhost:5000${currentFile}`}
+                    controls
+                    className="rounded-xl w-full h-full object-contain cursor-pointer"
+                  />
+                ) : (
+                  <img
+                    src={`http://localhost:5000${currentFile}`}
+                    alt={`attachment-${currentIndex}`}
+                    onClick={() =>
+                      setPreviewMedia(`http://localhost:5000${currentFile}`)
+                    }
+                    className="rounded-xl w-full h-full object-contain cursor-pointer"
+                  />
+                )}
+
+                {attachments.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevMedia}
+                      className="absolute left-4 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                    <button
+                      onClick={nextMedia}
+                      className="absolute right-4 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
+                    <div className="absolute bottom-3 flex gap-1 justify-center w-full">
+                      {attachments.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-2 h-2 rounded-full ${
+                            i === currentIndex
+                              ? "bg-[#55C388]"
+                              : "bg-white/50"
+                          }`}
+                        />
+                      ))}
                     </div>
-                  </motion.div>
-                );
-              })
+                  </>
+                )}
+              </>
             ) : (
-              <div className="w-full flex flex-col items-center justify-center py-10 text-gray-400">
-                <ImageIcon size={40} className="mb-2 text-gray-300" />
-                ไม่มีไฟล์แนบ
-              </div>
+              <img
+                src="/MyUSafe_mini_none-bg_LOGO1.png"
+                alt="default"
+                className="w-full h-full object-contain bg-gray-50"
+              />
             )}
           </div>
 
-          {/* 🔹 เนื้อหา */}
+          {/* ✅ เนื้อหาหลัก */}
           <div className="p-8">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-3xl font-bold text-[#55C388]">
-                {data.title}
-              </h1>
-              <div className="flex items-center gap-1 text-gray-500">
+            <div className="flex justify-between items-center mb-4">
+              <h1 className="text-3xl font-bold text-[#55C388]">{data.title}</h1>
+              <div className="flex items-center text-gray-500 gap-1">
                 <Eye size={18} />
                 <span className="text-sm">{data.views || 0}</span>
               </div>
@@ -164,25 +197,51 @@ export default function ComplaintDetail() {
               {data.description}
             </p>
 
-            {/* 🔹 ข้อมูลทั่วไป */}
-            <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600">
+            {/* ✅ หมวดหมู่ */}
+            {cates.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {cates.map((cid, i) => {
+                  const cat = categories.find((c) => c.id === cid) || {};
+                  return (
+                    <span
+                      key={i}
+                      className="px-3 py-1 text-sm rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30 flex items-center gap-1"
+                    >
+                      {cat.icon} {cat.name || cid}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ✅ ข้อมูลทั่วไป */}
+            <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <MapPin className="text-[#55C388]" size={18} />
-                <span>สถานที่: {data.location}</span>
+                <span>
+                  สถานที่:{" "}
+                  {data.location
+                    ? `${data.location.building || ""} ${
+                        data.location.floor || ""
+                      } ${data.location.room || ""}`
+                    : "-"}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="text-[#55C388]" size={18} />
                 <span>
                   วันที่แจ้ง:{" "}
-                  {new Date(data.datetime_reported).toLocaleString("th-TH")}
+                  {data.datetime_reported
+                    ? new Date(data.datetime_reported).toLocaleString("th-TH")
+                    : "-"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <User className="text-[#55C388]" size={18} />
-                <span>ผู้แจ้ง: {data.user_id}</span>
+                <span>ผู้แจ้ง: {data.user_id || "-"}</span>
               </div>
               <div
-                className={`flex items-center gap-2 px-3 py-1 rounded-full font-medium ${getStatusColor(
+                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full font-medium ${getStatusColor(
                   data.current_status
                 )}`}
               >
@@ -191,14 +250,14 @@ export default function ComplaintDetail() {
               </div>
             </div>
 
-            {/* 🔹 ประวัติสถานะ */}
+            {/* ✅ ประวัติสถานะ */}
             <div className="mt-8 border-t border-green-100 pt-6">
               <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-3">
                 <FileText className="text-[#55C388]" size={20} /> ประวัติสถานะ
               </h3>
 
               <div className="relative border-l-4 border-[#55C388]/30 ml-3">
-                {data.status_history?.length > 0 ? (
+                {data.status_history && data.status_history.length > 0 ? (
                   data.status_history.map((s, i) => (
                     <motion.div
                       key={i}
@@ -227,11 +286,36 @@ export default function ComplaintDetail() {
             </div>
           </div>
         </motion.div>
-
-        <footer className="text-center text-gray-400 text-sm mt-10">
-          © 2025 ระบบรายงานปัญหามหาวิทยาลัย — Powered by Traffy Style 💚
-        </footer>
       </div>
+
+      {/* ✅ Popup แสดงรูปเต็มจอ */}
+      {previewMedia && (
+        <div
+          className="fixed inset-0 bg-black/80 flex justify-center items-center z-50"
+          onClick={() => setPreviewMedia(null)}
+        >
+          <button
+            className="absolute top-5 right-5 text-white"
+            onClick={() => setPreviewMedia(null)}
+          >
+            <X size={30} />
+          </button>
+          {previewMedia.match(/\.(mp4|webm|ogg)$/i) ? (
+            <video
+              src={previewMedia}
+              controls
+              autoPlay
+              className="max-w-4xl max-h-[90vh] rounded-xl"
+            />
+          ) : (
+            <img
+              src={previewMedia}
+              alt="preview"
+              className="max-w-4xl max-h-[90vh] rounded-xl object-contain"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
