@@ -216,14 +216,15 @@ exports.createComplaint = async (req, res) => {
 };
 
 // ✏️ PUT: แก้ไขเรื่องร้องเรียน
+// ✏️ PUT: แก้ไขเรื่องร้องเรียน (อัปเดตสถานะ + บันทึกผู้เปลี่ยน)
 exports.updateComplaint = async (req, res) => {
   try {
-    const { status, action, set } = req.body;
-    
+    const { status, action, set, updated_by } = req.body;
+
     const complaint = await Complaint.findOne({ 
       complaint_id: req.params.id 
     });
-    
+
     if (!complaint) {
       return res.status(404).json({ 
         success: false,
@@ -231,20 +232,21 @@ exports.updateComplaint = async (req, res) => {
       });
     }
 
-    // อัพเดท Status
+    // ✅ อัปเดตสถานะ
     if (status) {
       const now = new Date();
       complaint.current_status = status;
+
       complaint.status_history.push({
-        status_id: genStatusId(),
+        status_id: 'S' + Date.now().toString().slice(-7),
         status_name: status,
-        updated_at: now
+        updated_at: now,
+        updated_by: updated_by || 'system' // ← เพิ่มบันทึกชื่อผู้เปลี่ยน
       });
-      
+
+      // ✅ หากเปลี่ยนเป็นเสร็จสิ้น
       if (status === 'เสร็จสิ้น') {
         complaint.completed_date = now;
-        
-        // คำนวณระยะเวลาที่ใช้
         const timeDiff = now - complaint.datetime_reported;
         const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -252,28 +254,86 @@ exports.updateComplaint = async (req, res) => {
       }
     }
 
-    // อัพเดท Likes/Dislikes/Views
+    // ✅ อัปเดต Likes / Dislikes / Views
     if (action === 'like') complaint.likes++;
     if (action === 'dislike') complaint.dislikes++;
     if (action === 'view') complaint.views++;
 
-    // อัพเดทฟิลด์อื่นๆ
+    // ✅ อัปเดตฟิลด์อื่น (เช่นแก้ไขข้อมูล)
     if (set && typeof set === 'object') {
       Object.assign(complaint, set);
     }
 
     await complaint.save();
-    
+
     res.json({
       success: true,
-      message: 'อัพเดทเรื่องร้องเรียนสำเร็จ',
+      message: 'อัปเดตเรื่องร้องเรียนสำเร็จ',
       data: complaint
     });
   } catch (err) {
     console.error('Update Complaint Error:', err);
     res.status(500).json({ 
       success: false,
-      error: 'เกิดข้อผิดพลาดในการอัพเดท' 
+      error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' 
+    });
+  }
+};
+
+// ✅ PUT: เปลี่ยนสถานะของเรื่องร้องเรียน (Person 3)
+exports.updateComplaintStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { new_status, updated_by } = req.body;
+
+    // ตรวจสอบสถานะที่ส่งมา
+    const allowedStatuses = ['รอรับเรื่อง', 'กำลังดำเนินการ', 'เสร็จสิ้น'];
+    if (!allowedStatuses.includes(new_status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'สถานะไม่ถูกต้อง',
+      });
+    }
+
+    const complaint = await Complaint.findOne({ complaint_id: id });
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        error: 'ไม่พบเรื่องร้องเรียนนี้',
+      });
+    }
+
+    const now = new Date();
+
+    complaint.current_status = new_status;
+    complaint.status_history.push({
+      status_id: 'S' + Date.now().toString().slice(-7),
+      status_name: new_status,
+      updated_at: now,
+      updated_by: updated_by || 'ไม่ระบุ',
+    });
+
+    if (new_status === 'เสร็จสิ้น') {
+      complaint.completed_date = now;
+      const diff = now - complaint.datetime_reported;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      complaint.time_used = `${days} วัน ${hours} ชั่วโมง`;
+    }
+
+    await complaint.save();
+
+    res.json({
+      success: true,
+      message: 'อัปเดตสถานะสำเร็จ',
+      data: complaint,
+    });
+  } catch (err) {
+    console.error('updateComplaintStatus Error:', err);
+    res.status(500).json({
+      success: false,
+      error: 'เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะ',
+      details: err.message,
     });
   }
 };
@@ -304,3 +364,4 @@ exports.deleteComplaint = async (req, res) => {
     });
   }
 };
+

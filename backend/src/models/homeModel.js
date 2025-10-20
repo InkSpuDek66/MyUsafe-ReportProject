@@ -11,6 +11,11 @@ const statusSchema = new mongoose.Schema({
   updated_at: {
     type: Date,
     default: Date.now
+  },
+  // ✅ เพิ่มฟิลด์นี้
+  updated_by: {
+    type: String,
+    default: 'system'
   }
 });
 
@@ -19,19 +24,18 @@ const complaintSchema = new mongoose.Schema({
     type: String,
     unique: true,
     required: true,
-    index: true // ใช้ index: true เพียงอันเดียว แทนการใช้ schema.index() ซ้ำ
+    index: true
   },
   title: {
     type: String,
     required: true,
     trim: true
   },
-  // เปลี่ยนจาก single category เป็น array ของ categories
   categories: {
     type: [String],
     required: true,
     validate: {
-      validator: function(arr) {
+      validator: function (arr) {
         return arr && arr.length > 0;
       },
       message: 'ต้องมีอย่างน้อย 1 หมวดหมู่'
@@ -45,15 +49,14 @@ const complaintSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  attachments: [String], // Array ของ URL รูปภาพ (สูงสุด 5 รูป)
-  
+  attachments: [String],
+
   user_id: {
     type: String,
     required: true,
     index: true
   },
-  
-  // Location (แยกเป็น object)
+
   location: {
     building: {
       type: String,
@@ -68,16 +71,17 @@ const complaintSchema = new mongoose.Schema({
       default: ''
     }
   },
-  
+
   current_status: {
     type: String,
     enum: ['รอรับเรื่อง', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ยกเลิก'],
     default: 'รอรับเรื่อง',
     index: true
   },
-  
+
+  // ✅ ใช้ statusSchema ที่เพิ่ม updated_by แล้ว
   status_history: [statusSchema],
-  
+
   likes: {
     type: Number,
     default: 0
@@ -90,7 +94,7 @@ const complaintSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  
+
   time_used: {
     type: String,
     default: '-'
