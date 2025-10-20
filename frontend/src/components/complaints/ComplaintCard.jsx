@@ -119,7 +119,7 @@ const ComplaintCard = ({ complaint }) => {
                     {complaint.description}
                 </p>
 
-                {/* Location - ⭐ แก้ตรงนี้ */}
+                {/* Location */}
                 <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                     <MapPin size={16} className="text-[#55C388]" />
                     <span className="truncate">
