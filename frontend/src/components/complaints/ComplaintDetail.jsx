@@ -185,7 +185,7 @@ export default function ComplaintDetail() {
           <div className="p-4 sm:p-8">
             {/* Header with Actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3 sm:gap-0">
-              <div className="flex-1">
+              <div className="flex-1 w-full min-w-0">
                 <h1 className="text-2xl sm:text-3xl font-bold text-[#55C388] mb-2 break-words">
                   {data.title}
                 </h1>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle } from 'lucide-react';
+import { complaintAPI } from '../../services/complaintAPI';
 import ComplaintList from '../../components/complaints/ComplaintList';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
@@ -18,31 +19,33 @@ const MyComplaints = () => {
     const fetchMyComplaints = async () => {
         try {
             setLoading(true);
-            // TODO: Replace with actual API call
-            const response = await fetch('http://localhost:5000/api/complaints/my-complaints', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            const data = await response.json();
-            setComplaints(data);
+            const response = await complaintAPI.getMyComplaints();
+
+            // ตรวจสอบว่าได้ array กลับมา
+            if (Array.isArray(response.data)) {
+                setComplaints(response.data);
+            } else {
+                setComplaints([]);
+            }
         } catch (error) {
             console.error('Error fetching my complaints:', error);
+            setComplaints([]); // สำคัญ: set เป็น array เปล่าเมื่อ error
+            alert('ไม่สามารถโหลดข้อมูลได้');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">
+                        <h1 className="text-3xl font-bold ">
                             เรื่องร้องเรียนของฉัน
                         </h1>
-                        <p className="text-gray-600 mt-2">
+                        <p className="text-gray-400 mt-2">
                             รายการเรื่องร้องเรียนทั้งหมดที่คุณได้แจ้ง
                         </p>
                     </div>
@@ -59,7 +62,7 @@ const MyComplaints = () => {
                 {loading ? (
                     <LoadingSpinner size="lg" />
                 ) : (
-                    <ComplaintList 
+                    <ComplaintList
                         complaints={complaints}
                         loading={loading}
                         showFilters={true}

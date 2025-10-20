@@ -6,6 +6,7 @@ const complaintController = require('../controllers/homeController');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const Complaint = require('../models/homeModel'); // ⭐ เพิ่มบรรทัดนี้
 
 // สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
 const uploadDir = 'uploads';
@@ -13,7 +14,7 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ Setup Multer
+// Setup Multer
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
@@ -25,18 +26,17 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    // ✅ รองรับทั้งรูปภาพและวิดีโอ
     const allowedMimeTypes = [
-        'image/jpeg', 
-        'image/jpg', 
-        'image/png', 
-        'image/gif', 
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif',
         'image/webp',
         'video/mp4',
-        'video/quicktime', // .mov
-        'video/x-msvideo'  // .avi
+        'video/quicktime',
+        'video/x-msvideo'
     ];
-    
+
     if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
@@ -46,17 +46,15 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
     storage: storage,
-    limits: { 
-        fileSize: 20 * 1024 * 1024, // 20MB
-        files: 5 // จำกัดสูงสุด 5 ไฟล์
+    limits: {
+        fileSize: 20 * 1024 * 1024,
+        files: 5
     },
     fileFilter: fileFilter
 });
 
-// Middleware สำหรับจัดการ multer errors
 const handleMulterError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-        // Multer-specific errors
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
                 success: false,
@@ -80,7 +78,6 @@ const handleMulterError = (err, req, res, next) => {
             error: `Multer Error: ${err.message}`
         });
     } else if (err) {
-        // Other errors (เช่น fileFilter errors)
         return res.status(400).json({
             success: false,
             error: err.message || 'เกิดข้อผิดพลาดในการอัพโหลดไฟล์'
@@ -89,18 +86,48 @@ const handleMulterError = (err, req, res, next) => {
     next();
 };
 
-// Routes
-router.get('/', complaintController.getComplaints);
-router.get('/:id', complaintController.getComplaintById);
+// ================= ROUTES =================
+// ⭐ ย้าย specific routes มาไว้ก่อน dynamic routes
 
-// POST route with multer middleware and error handler
-router.post('/', 
-    upload.array('images', 5), 
+// GET all complaints (with filters)
+router.get('/', complaintController.getComplaints);
+
+// Specific route - ต้องอยู่ก่อน /:id
+router.get('/my-complaints', async (req, res) => {
+    try {
+        // TODO: ใช้ user_id จาก authentication
+        const userId = req.user?.user_id || 'U0000001'; // mock for now
+
+        const complaints = await Complaint.find({ user_id: userId })
+            .sort({ datetime_reported: -1 });
+
+        res.json({
+            success: true,
+            data: complaints
+        });
+    } catch (error) {
+        console.error('Get my complaints error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// POST - Create new complaint
+router.post('/',
+    upload.array('images', 5),
     handleMulterError,
     complaintController.createComplaint
 );
 
+// ⭐ Dynamic route - ต้องอยู่หลัง specific routes
+router.get('/:id', complaintController.getComplaintById);
+
+// PUT - Update complaint
 router.put('/:id', complaintController.updateComplaint);
+
+// DELETE - Delete complaint
 router.delete('/:id', complaintController.deleteComplaint);
 
 module.exports = router;

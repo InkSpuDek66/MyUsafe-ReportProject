@@ -23,6 +23,27 @@ const ComplaintCard = ({ complaint }) => {
         });
     };
 
+    // ⭐ Helper function สำหรับแสดง location
+    const formatLocation = (location) => {
+        if (!location) return 'ไม่ระบุ';
+
+        // ถ้า location เป็น string (old format)
+        if (typeof location === 'string') {
+            return location;
+        }
+
+        // ถ้า location เป็น object (new format)
+        if (typeof location === 'object') {
+            const parts = [];
+            if (location.building) parts.push(location.building);
+            if (location.floor) parts.push(location.floor);
+            if (location.room) parts.push(`ห้อง ${location.room}`);
+            return parts.length > 0 ? parts.join(' ') : 'ไม่ระบุ';
+        }
+
+        return 'ไม่ระบุ';
+    };
+
     // Category icons mapping
     const categoryIcons = {
         'flood': '💧',
@@ -36,11 +57,11 @@ const ComplaintCard = ({ complaint }) => {
     };
 
     // Get categories array (support both old and new format)
-    const categories = Array.isArray(complaint.categories) 
-        ? complaint.categories 
-        : complaint.category 
-        ? [complaint.category] 
-        : [];
+    const categories = Array.isArray(complaint.categories)
+        ? complaint.categories
+        : complaint.category
+            ? [complaint.category]
+            : [];
 
     return (
         <div
@@ -51,8 +72,8 @@ const ComplaintCard = ({ complaint }) => {
             <div className="h-48 overflow-hidden bg-gray-100">
                 <img
                     src={
-                        complaint.attachment || 
-                        complaint.images?.[0] || 
+                        complaint.attachment ||
+                        complaint.images?.[0] ||
                         '/MyUSafe_mini_none-bg_LOGO1.png'
                     }
                     alt={complaint.title}
@@ -98,11 +119,11 @@ const ComplaintCard = ({ complaint }) => {
                     {complaint.description}
                 </p>
 
-                {/* Location */}
+                {/* Location - ⭐ แก้ตรงนี้ */}
                 <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                     <MapPin size={16} className="text-[#55C388]" />
                     <span className="truncate">
-                        {complaint.location || 'ไม่ระบุ'}
+                        {formatLocation(complaint.location)}
                     </span>
                 </div>
 
@@ -112,7 +133,7 @@ const ComplaintCard = ({ complaint }) => {
                         <Clock size={14} className="text-[#55C388]" />
                         <span>{formatDate(complaint.datetime_reported || complaint.created_at)}</span>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                         {complaint.views !== undefined && (
                             <div className="flex items-center gap-1">
