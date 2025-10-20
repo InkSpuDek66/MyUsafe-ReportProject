@@ -23,7 +23,7 @@ const ComplaintCard = ({ complaint }) => {
         });
     };
 
-    // ⭐ Helper function สำหรับแสดง location
+    // Helper function สำหรับแสดง location
     const formatLocation = (location) => {
         if (!location) return 'ไม่ระบุ';
 
@@ -44,16 +44,39 @@ const ComplaintCard = ({ complaint }) => {
         return 'ไม่ระบุ';
     };
 
-    // Category icons mapping
+    // Helper function สำหรับเลือกภาพที่จะแสดง
+    const getDisplayImage = () => {
+        // ลำดับความสำคัญ: attachments[0] > images[0] > attachment > default logo
+        
+        // 1. ตรวจสอบ attachments (จากฐานข้อมูลจริง)
+        if (complaint.attachments && Array.isArray(complaint.attachments) && complaint.attachments.length > 0) {
+            return `http://localhost:5000${complaint.attachments[0]}`;
+        }
+        
+        // 2. ตรวจสอบ images (format อื่น)
+        if (complaint.images && Array.isArray(complaint.images) && complaint.images.length > 0) {
+            return complaint.images[0];
+        }
+        
+        // 3. ตรวจสอบ attachment (format เดี่ยว)
+        if (complaint.attachment) {
+            return complaint.attachment;
+        }
+        
+        // 4. Default logo
+        return '/MyUSafe_mini_none-bg_LOGO1.png';
+    };
+
+    // Category icons mapping พร้อมชื่อภาษาไทย
     const categoryIcons = {
-        'flood': '💧',
-        'electrical': '⚡',
-        'computer': '💻',
-        'plumbing': '🚰',
-        'facilities': '🏢',
-        'cleanliness': '🧹',
-        'safety': '🚨',
-        'other': '📝'
+        'flood': { icon: '💧', name: 'น้ำท่วม' },
+        'electrical': { icon: '⚡', name: 'ไฟฟ้า' },
+        'computer': { icon: '💻', name: 'คอมพิวเตอร์' },
+        'plumbing': { icon: '🚰', name: 'ประปา' },
+        'facilities': { icon: '🏢', name: 'สิ่งอำนวยความสะดวก' },
+        'cleanliness': { icon: '🧹', name: 'ความสะอาด' },
+        'safety': { icon: '🚨', name: 'ความปลอดภัย' },
+        'other': { icon: '📝', name: 'อื่นๆ' }
     };
 
     // Get categories array (support both old and new format)
@@ -68,17 +91,63 @@ const ComplaintCard = ({ complaint }) => {
             onClick={handleClick}
             className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-[#55C388] group"
         >
-            {/* Image Section */}
-            <div className="h-48 overflow-hidden bg-gray-100">
-                <img
-                    src={
-                        complaint.attachment ||
-                        complaint.images?.[0] ||
-                        '/MyUSafe_mini_none-bg_LOGO1.png'
+            {/* Image/Video Section */}
+            <div className="h-48 overflow-hidden bg-gray-100 relative">
+                {(() => {
+                    const mediaUrl = getDisplayImage();
+                    const isDefaultLogo = mediaUrl === '/MyUSafe_mini_none-bg_LOGO1.png';
+                    const isVideo = !isDefaultLogo && mediaUrl.match(/\.(mp4|mov|avi|webm)$/i);
+                    
+                    if (isVideo) {
+                        return (
+                            <>
+                                <video
+                                    src={mediaUrl}
+                                    className="w-full h-full object-cover"
+                                    muted
+                                    preload="metadata"
+                                    onError={(e) => {
+                                        console.error('Video load error:', mediaUrl);
+                                        e.target.style.display = 'none';
+                                        const fallback = e.target.parentElement.querySelector('.fallback-image');
+                                        if (fallback) fallback.style.display = 'flex';
+                                    }}
+                                />
+                                <div 
+                                    className="fallback-image w-full h-full hidden items-center justify-center bg-gray-200"
+                                    style={{ display: 'none' }}
+                                >
+                                    <img 
+                                        src="/MyUSafe_mini_none-bg_LOGO1.png" 
+                                        alt="Default" 
+                                        className="w-full h-full object-contain p-8"
+                                    />
+                                </div>
+                                {/* Video Play Icon Overlay */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
+                                    <div className="bg-black/60 rounded-full p-3 backdrop-blur-sm shadow-lg">
+                                        <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </>
+                        );
                     }
-                    alt={complaint.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
+                    
+                    return (
+                        <img
+                            src={mediaUrl}
+                            alt={complaint.title}
+                            className={`w-full h-full ${isDefaultLogo ? 'object-contain p-8' : 'object-cover group-hover:scale-110 transition-transform duration-500'}`}
+                            onError={(e) => {
+                                console.error('Image load error:', mediaUrl);
+                                e.target.src = '/MyUSafe_mini_none-bg_LOGO1.png';
+                                e.target.className = 'w-full h-full object-contain p-8';
+                            }}
+                        />
+                    );
+                })()}
             </div>
 
             {/* Content Section */}
@@ -92,20 +161,23 @@ const ComplaintCard = ({ complaint }) => {
                 {/* Categories Tags */}
                 {categories.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
-                        {categories.map((cat, index) => (
-                            <span
-                                key={index}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium"
-                            >
-                                <span>{categoryIcons[cat] || '📝'}</span>
-                                <span>{cat}</span>
-                            </span>
-                        ))}
+                        {categories.map((cat, index) => {
+                            const categoryInfo = categoryIcons[cat] || { icon: '📝', name: cat };
+                            return (
+                                <span
+                                    key={index}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium"
+                                >
+                                    <span>{categoryInfo.icon}</span>
+                                    <span>{categoryInfo.name}</span>
+                                </span>
+                            );
+                        })}
                     </div>
                 )}
 
                 {/* Title */}
-                <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-1 group-hover:text-[#55C388] transition-colors">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-1 group-hover:text-[#55C388] transition-colors break-words whitespace-pre-wrap">
                     {complaint.title}
                 </h3>
 
@@ -115,7 +187,7 @@ const ComplaintCard = ({ complaint }) => {
                 </p>
 
                 {/* Description */}
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2 break-words whitespace-pre-wrap">
                     {complaint.description}
                 </p>
 
