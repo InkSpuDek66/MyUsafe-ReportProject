@@ -14,6 +14,7 @@ import Home from './pages/Home/Home'
 import ComplaintDetail from './components/complaints/ComplaintDetail';
 import MyComplaints from './pages/user/MyComplaints';
 import CreateComplaint from './pages/user/CreateComplaint';
+import Reports from "./pages/admin/Reports";
 
 function App() {
   return (
@@ -30,7 +31,8 @@ function App() {
         <Route path="/complaints/new" element={<CreateComplaint />} />
         <Route path="/my-complaints" element={<MyComplaints />} />
         <Route path="/complaint/:id" element={<ComplaintDetail />} />
-
+        {/* หน้า Reports สำหรับ Admin */}
+        <Route path="/admin/reports" element={<Reports />} />
         {/* เพิ่ม routes อื่นๆ ตามต้องการ */}
         {/* <Route path="/..." element={<... />} /> */}
       </Routes>

@@ -19,6 +19,7 @@ const navigation = [
     { name: 'Projects', href: '#', current: false },
     { name: 'Calendar', href: '#', current: false },
     { name: 'Reports', href: '/complaints/new', current: false },
+    { name: 'Admin Reports', href: '/admin/reports', current: false },
 ]
 const userNavigation = [
     { name: 'Loging', href: '/login' },
