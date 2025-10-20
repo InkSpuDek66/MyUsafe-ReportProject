@@ -182,40 +182,6 @@ export default function Reports() {
         รายงานและสถิติเรื่องร้องเรียน
       </h1>
 
-      {/* ✅ Filter */}
-      <div className="flex flex-wrap justify-center items-center gap-3 mb-8">
-        {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilterStatus(s)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
-              filterStatus === s
-                ? "bg-[#55C388] text-white border-[#55C388]"
-                : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-
-        {/* ปุ่มเลือกหมวดหมู่ */}
-        <button
-          onClick={() => setShowCategoryMenu(!showCategoryMenu)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#55C388] text-white rounded-lg shadow hover:bg-[#43A874] transition"
-        >
-          <FunnelIcon className="h-5 w-5" /> หมวดหมู่
-        </button>
-
-        <button
-          onClick={() => {
-            setFilterStatus("ทั้งหมด");
-            setSelectedCategories([]);
-          }}
-          className="px-4 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874] transition flex items-center gap-1"
-        >
-          <ArrowPathIcon className="h-4 w-4" /> รีเซ็ต
-        </button>
-      </div>
 
       {/* ✅ หมวดหมู่ */}
       {showCategoryMenu && (
@@ -224,11 +190,10 @@ export default function Reports() {
             <button
               key={cat.id}
               onClick={() => toggleCategory(cat.id)}
-              className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${
-                selectedCategories.includes(cat.id)
+              className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${selectedCategories.includes(cat.id)
                   ? "bg-[#55C388] text-white border-[#55C388]"
                   : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
-              }`}
+                }`}
             >
               <span>{cat.icon}</span> {cat.name}
             </button>
@@ -365,6 +330,40 @@ export default function Reports() {
             </PieChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* ✅ Filter */}
+      <div className="flex flex-wrap justify-center items-center gap-3 mb-8">
+        {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น"].map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${filterStatus === s
+                ? "bg-[#55C388] text-white border-[#55C388]"
+                : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
+              }`}
+          >
+            {s}
+          </button>
+        ))}
+
+        {/* ปุ่มเลือกหมวดหมู่ */}
+        <button
+          onClick={() => setShowCategoryMenu(!showCategoryMenu)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#55C388] text-white rounded-lg shadow hover:bg-[#43A874] transition"
+        >
+          <FunnelIcon className="h-5 w-5" /> หมวดหมู่
+        </button>
+
+        <button
+          onClick={() => {
+            setFilterStatus("ทั้งหมด");
+            setSelectedCategories([]);
+          }}
+          className="px-4 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874] transition flex items-center gap-1"
+        >
+          <ArrowPathIcon className="h-4 w-4" /> รีเซ็ต
+        </button>
       </div>
 
       {/* ✅ Export + Table */}
