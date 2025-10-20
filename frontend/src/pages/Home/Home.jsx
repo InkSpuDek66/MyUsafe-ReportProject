@@ -152,6 +152,15 @@ export default function Home() {
     },
   ];
 
+  // ✅ ฟังก์ชันเลือกไฟล์รูปภาพแรกที่ไม่ใช่วิดีโอ
+  const findFirstImage = (attachments = []) => {
+    const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+    const found = attachments.find((file) =>
+      imageExts.some((ext) => file.toLowerCase().endsWith(ext))
+    );
+    return found || attachments[0];
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto min-h-screen">
       <h1 className="text-3xl font-extrabold text-center mb-8 text-[#55C388] drop-shadow-md">
@@ -288,10 +297,10 @@ export default function Home() {
                 }`
               : "ไม่ระบุ";
 
-            const imageUrl =
-              c.attachments && c.attachments.length > 0
-                ? `${API}${c.attachments[0]}`
-                : "/MyUSafe_mini_none-bg_LOGO1.png";
+            const imageFile = findFirstImage(c.attachments || []);
+            const imageUrl = imageFile
+              ? `${API}${imageFile}`
+              : "/MyUSafe_mini_none-bg_LOGO1.png";
 
             const cates = Array.isArray(c.categories)
               ? c.categories
