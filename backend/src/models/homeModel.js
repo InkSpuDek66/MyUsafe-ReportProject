@@ -11,6 +11,11 @@ const statusSchema = new mongoose.Schema({
   updated_at: {
     type: Date,
     default: Date.now
+  },
+  // ✅ เพิ่มฟิลด์นี้
+  updated_by: {
+    type: String,
+    default: 'system'
   }
 });
 
@@ -19,14 +24,13 @@ const complaintSchema = new mongoose.Schema({
     type: String,
     unique: true,
     required: true,
-    index: true // ใช้ index: true เพียงอันเดียว แทนการใช้ schema.index() ซ้ำ
+    index: true
   },
   title: {
     type: String,
     required: true,
     trim: true
   },
-  // เปลี่ยนจาก single category เป็น array ของ categories
   categories: {
     type: [String],
     required: true,

@@ -1,5 +1,5 @@
 cd backend
-npm install express mongoose cors socket.io
+npm install express mongoose cors socket.io bcryptjs
 npm install multer  # สำหรับ upload ไฟล์
 ## 📦 ติดตั้ง Testing Dependencies
 npm install -D mocha chai supertest

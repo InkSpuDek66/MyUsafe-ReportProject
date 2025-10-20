@@ -27,7 +27,7 @@ const commentSchema = new mongoose.Schema({
         required: true,
         trim: true,
         minlength: 1,
-        maxlength: 1000
+        maxlength: 2500 // กำหนดความยาวสูงสุดของความคิดเห็น
     },
     images: {
         type: [String], // URLs ของรูปภาพแนบ (optional)

@@ -3,6 +3,9 @@
 const Comment = require('../models/commentModel');
 const Complaint = require('../models/homeModel');
 
+// ความยาวสูงสุดของความคิดเห็น
+const MAX_COMMENT_LENGTH = 2500;
+
 // GET: ดึงความคิดเห็นทั้งหมดของเรื่องร้องเรียน
 exports.getCommentsByComplaint = async (req, res) => {
     try {
@@ -48,6 +51,15 @@ exports.addComment = async (req, res) => {
             });
         }
 
+        // เพิ่ม validation ความยาว
+        if (comment.length > MAX_COMMENT_LENGTH) {
+            return res.status(400).json({
+                success: false,
+                error: `ความคิดเห็นต้องไม่เกิน ${MAX_COMMENT_LENGTH} ตัวอักษร (ปัจจุบัน: ${comment.length})`,
+                details: `ความยาวปัจจุบัน: ${comment.length} ตัวอักษร, เกินไป: ${comment.length - MAX_COMMENT_LENGTH} ตัวอักษร`
+            });
+        }
+
         if (!user_id || !user_name) {
             return res.status(400).json({
                 success: false,
@@ -85,6 +97,16 @@ exports.addComment = async (req, res) => {
         });
     } catch (err) {
         console.error('Add Comment Error:', err);
+        
+        // ปรับปรุง error handling
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                error: 'ข้อมูลไม่ถูกต้อง',
+                details: Object.values(err.errors).map(e => e.message).join(', ')
+            });
+        }
+        
         res.status(500).json({
             success: false,
             error: 'เกิดข้อผิดพลาดในการเพิ่มความคิดเห็น',
@@ -103,6 +125,14 @@ exports.updateComment = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'กรุณาระบุความคิดเห็น'
+            });
+        }
+
+        // เพิ่ม validation ความยาว
+        if (comment.length > MAX_COMMENT_LENGTH) {
+            return res.status(400).json({
+                success: false,
+                error: `ความคิดเห็นต้องไม่เกิน ${MAX_COMMENT_LENGTH} ตัวอักษร (ปัจจุบัน: ${comment.length})`
             });
         }
 

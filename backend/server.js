@@ -6,6 +6,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const path = require('path');
+const dotenv = require('dotenv');
+const bcrypt = require('bcryptjs');
+
+// Load environment variables
+dotenv.config();
 
 // Import Routes
 const complaintRoutes = require('./src/routes/homeRoutes');
@@ -15,7 +20,9 @@ const uploadRoutes = require('./src/routes/uploadRoutes');
 const commentRoutes = require('./src/routes/commentRoutes');
 const assignmentRoutes = require('./src/routes/assignmentRoutes');
 
+// Import Models
 const Complaint = require('./src/models/homeModel');
+// const User = require('./src/models/User');
 
 const app = express();
 const server = http.createServer(app);
@@ -26,18 +33,15 @@ const io = new Server(server, {
   },
 });
 
-const PORT = process.env.PORT || 5000;
-
 // ================= MongoDB Connect ==================
 if (process.env.NODE_ENV !== 'test' && mongoose.connection.readyState === 0) {
   mongoose
-    .connect('mongodb://localhost:27017/MyUSafe_db')
+    .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/MyUSafe_db')
     .then(() => console.log('🟢 Connected to MongoDB'))
     .catch((err) => console.error('🔴 MongoDB connection error:', err));
 }
 
 // ================= Middleware ===================
-// CORS - ต้องอยู่ก่อน middleware อื่นๆ
 app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true,
@@ -45,7 +49,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body Parser - เพิ่ม limit สูงขึ้นเพื่อรองรับไฟล์ขนาดใหญ่
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -66,14 +69,39 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/assignments', assignmentRoutes);
 
-// ใช้สำหรับตรวจสอบสถานะเซิร์ฟเวอร์
+// Simple user register/login test routes พักก่อนนน พี่อยากให้น้องพักผ่อน
+// app.post('/register', async (req, res) => {
+//   try {
+//     const user = new User(req.body);
+//     await user.save();
+//     res.json({ message: 'User created', user });
+//   } catch (err) {
+//     res.status(400).json({ error: err.message });
+//   }
+// });
+
+// app.post('/login', async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(400).json({ message: 'Invalid password' });
+
+//     res.json({ message: 'Login success', user });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
+// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ================= Error Handling ===================
-// 404 Handler
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: 'Route not found',
@@ -81,21 +109,18 @@ app.use((req, res, next) => {
   });
 });
 
-// Global Error Handler
 app.use((err, req, res, next) => {
   console.error('❌ Global Error Handler:');
   console.error('Error:', err.message);
   console.error('Stack:', err.stack);
-  
-  // Multer errors
+
   if (err.name === 'MulterError') {
     return res.status(400).json({
       success: false,
       error: `Upload Error: ${err.message}`
     });
   }
-  
-  // Mongoose validation errors
+
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -103,12 +128,10 @@ app.use((err, req, res, next) => {
       details: Object.values(err.errors).map(e => e.message)
     });
   }
-  
-  // Default error
+
   res.status(err.status || 500).json({
     success: false,
     error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 
@@ -125,7 +148,7 @@ io.on('connection', (socket) => {
     if (viewedMap.has(key)) return;
 
     viewedMap.set(key, true);
-    
+
     try {
       const complaint = await Complaint.findOne({ complaint_id: complaintId });
       if (!complaint) return;
@@ -147,6 +170,8 @@ io.on('connection', (socket) => {
 });
 
 // ================= Start Server ===================
+const PORT = process.env.PORT || 5000;
+
 if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);

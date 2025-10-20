@@ -1,23 +1,7 @@
-// frontend/src/components/complaints/ComplaintDetail.jsx
-// Component สำหรับแสดงรายละเอียดเรื่องร้องเรียน
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  MapPin,
-  Clock,
-  User,
-  CheckCircle,
-  FileText,
-  AlertTriangle,
-  Loader2,
-  Eye,
-  Image as ImageIcon,
-  Video,
-  Edit,
-  UserPlus,
-  Trash2
-} from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, MapPin, Clock, User, CheckCircle, FileText, AlertTriangle, Eye, X, ChevronLeft, ChevronRight, Edit, UserPlus, Trash2, Loader2} from "lucide-react";
 import { io } from "socket.io-client";
 import StatusBadge from './StatusBadge';
 import PriorityBadge from './PriorityBadge';
@@ -27,7 +11,7 @@ import StatusUpdateModal from './StatusUpdateModal';
 import AssignmentModal from './AssignmentModal';
 import { complaintAPI } from '../../services/complaintAPI';
 
-const API_BASE_URL = 'http://localhost:5000'
+const API_BASE_URL = 'http://localhost:5000';
 const socket = io("http://localhost:5000");
 
 export default function ComplaintDetail() {
@@ -37,6 +21,10 @@ export default function ComplaintDetail() {
   const [loading, setLoading] = useState(true);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  
+  // สำหรับ Image Carousel
+  const [previewMedia, setPreviewMedia] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Mock user data (จะเปลี่ยนเป็นจริงหลัง Auth เสร็จ)
   const currentUser = {
@@ -46,6 +34,18 @@ export default function ComplaintDetail() {
 
   const isStaffOrAdmin = ['staff', 'admin'].includes(currentUser.user_role);
   const isOwner = data?.user_id === currentUser.user_id;
+
+  // หมวดหมู่
+  const categories = [
+    { id: "flood", name: "น้ำท่วม", icon: "💧" },
+    { id: "electrical", name: "ไฟฟ้า", icon: "⚡" },
+    { id: "computer", name: "คอมพิวเตอร์/เว็บไซต์", icon: "💻" },
+    { id: "plumbing", name: "ประปา/ท่อน้ำ", icon: "🚰" },
+    { id: "facilities", name: "สิ่งอำนวยความสะดวก", icon: "🏢" },
+    { id: "cleanliness", name: "ความสะอาด", icon: "🧹" },
+    { id: "safety", name: "ความปลอดภัย", icon: "🚨" },
+    { id: "other", name: "อื่นๆ", icon: "📝" },
+  ];
 
   const fetchComplaint = async () => {
     try {
@@ -78,7 +78,7 @@ export default function ComplaintDetail() {
     try {
       await complaintAPI.updateStatus(complaintId, updateData.status, updateData.comment);
       alert('อัปเดตสถานะสำเร็จ');
-      await fetchComplaint(); // Reload
+      await fetchComplaint();
     } catch (error) {
       console.error('Update status error:', error);
       throw error;
@@ -96,6 +96,19 @@ export default function ComplaintDetail() {
       console.error('Delete error:', error);
       alert('เกิดข้อผิดพลาดในการลบ');
     }
+  };
+
+  // ฟังก์ชันสำหรับ Image Carousel
+  const nextMedia = () => {
+    if (!attachments.length) return;
+    setCurrentIndex((prev) => (prev + 1) % attachments.length);
+  };
+
+  const prevMedia = () => {
+    if (!attachments.length) return;
+    setCurrentIndex(
+      (prev) => (prev - 1 + attachments.length) % attachments.length
+    );
   };
 
   if (loading) {
@@ -116,12 +129,20 @@ export default function ComplaintDetail() {
     );
   }
 
+  // จัดการ attachments
   const attachments = Array.isArray(data.attachments)
-  ? data.attachments.map(file => {
-      return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
-    })
-  : data.attachment
-    ? [data.attachment.startsWith('http') ? data.attachment : `${API_BASE_URL}${data.attachment}`]
+    ? data.attachments.map(file => {
+        return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
+      })
+    : data.attachment
+      ? [data.attachment.startsWith('http') ? data.attachment : `${API_BASE_URL}${data.attachment}`]
+      : [];
+
+  const currentFile = attachments[currentIndex];
+  const cates = Array.isArray(data.categories)
+    ? data.categories
+    : data.categories
+    ? [data.categories]
     : [];
 
   return (
@@ -135,49 +156,66 @@ export default function ComplaintDetail() {
           <ArrowLeft size={18} /> กลับหน้าหลัก
         </Link>
 
-        <div className="bg-white border border-green-100 rounded-3xl shadow-xl overflow-hidden">
-          {/* Attachments Section */}
-          <div className="w-full bg-gray-50 p-4 flex flex-wrap sm:flex-nowrap gap-4 overflow-x-auto rounded-t-3xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white border border-green-100 rounded-3xl shadow-xl overflow-hidden"
+        >
+          {/* ✅ Image Carousel Section */}
+          <div className="relative bg-gray-50 flex justify-center items-center h-96">
             {attachments.length > 0 ? (
-              attachments.map((file, index) => {
-                const isVideo = file.endsWith(".mp4") || file.endsWith(".mov");
-                return (
-                  <div
-                    key={index}
-                    className="w-full sm:w-[250px] bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition"
-                  >
-                    {isVideo ? (
-                      <video
-                        src={file}
-                        controls
-                        className="w-full h-56 sm:h-64 object-cover"
-                      />
-                    ) : (
-                      <img
-                        src={file}
-                        alt={`attachment-${index}`}
-                        className="w-full h-56 sm:h-64 object-cover"
-                      />
-                    )}
-                    <div className="flex items-center justify-center gap-2 p-2 text-gray-500 text-sm">
-                      {isVideo ? (
-                        <>
-                          <Video size={16} /> วิดีโอ
-                        </>
-                      ) : (
-                        <>
-                          <ImageIcon size={16} /> ภาพ
-                        </>
-                      )}
+              <>
+                {currentFile.match(/\.(mp4|webm|ogg)$/i) ? (
+                  <video
+                    src={currentFile}
+                    controls
+                    className="rounded-xl w-full h-full object-contain cursor-pointer"
+                  />
+                ) : (
+                  <img
+                    src={currentFile}
+                    alt={`attachment-${currentIndex}`}
+                    onClick={() => setPreviewMedia(currentFile)}
+                    className="rounded-xl w-full h-full object-contain cursor-pointer"
+                  />
+                )}
+
+                {attachments.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevMedia}
+                      className="absolute left-4 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                    <button
+                      onClick={nextMedia}
+                      className="absolute right-4 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
+                    <div className="absolute bottom-3 flex gap-1 justify-center w-full">
+                      {attachments.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-2 h-2 rounded-full ${
+                            i === currentIndex
+                              ? "bg-[#55C388]"
+                              : "bg-white/50"
+                          }`}
+                        />
+                      ))}
                     </div>
-                  </div>
-                );
-              })
+                  </>
+                )}
+              </>
             ) : (
-              <div className="w-full flex flex-col items-center justify-center py-10 text-gray-400">
-                <ImageIcon size={40} className="mb-2 text-gray-300" />
-                ไม่มีไฟล์แนบ
-              </div>
+              <img
+                src="/MyUSafe_mini_none-bg_LOGO1.png"
+                alt="default"
+                className="w-full h-full object-contain bg-gray-50"
+              />
             )}
           </div>
 
@@ -231,16 +269,19 @@ export default function ComplaintDetail() {
             </div>
 
             {/* Categories */}
-            {data.categories && data.categories.length > 0 && (
+            {cates.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {data.categories.map((cat, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                  >
-                    {cat}
-                  </span>
-                ))}
+                {cates.map((cid, i) => {
+                  const cat = categories.find((c) => c.id === cid) || {};
+                  return (
+                    <span
+                      key={i}
+                      className="px-3 py-1 text-sm rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30 flex items-center gap-1"
+                    >
+                      {cat.icon} {cat.name || cid}
+                    </span>
+                  );
+                })}
               </div>
             )}
 
@@ -254,21 +295,26 @@ export default function ComplaintDetail() {
               <div className="flex items-center gap-2">
                 <MapPin className="text-[#55C388]" size={18} />
                 <span>
-                  สถานที่: {data.location?.building || data.location}{" "}
-                  {data.location?.floor && `ชั้น ${data.location.floor}`}{" "}
-                  {data.location?.room && `ห้อง ${data.location.room}`}
+                  สถานที่:{" "}
+                  {data.location
+                    ? `${data.location.building || ""} ${
+                        data.location.floor || ""
+                      } ${data.location.room || ""}`
+                    : "-"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="text-[#55C388]" size={18} />
                 <span>
                   วันที่แจ้ง:{" "}
-                  {new Date(data.datetime_reported).toLocaleString("th-TH")}
+                  {data.datetime_reported
+                    ? new Date(data.datetime_reported).toLocaleString("th-TH")
+                    : "-"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <User className="text-[#55C388]" size={18} />
-                <span>ผู้แจ้ง: {data.user_id}</span>
+                <span>ผู้แจ้ง: {data.user_id || "-"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Eye className="text-[#55C388]" size={18} />
@@ -298,7 +344,7 @@ export default function ComplaintDetail() {
               <CommentSection complaintId={data.complaint_id} />
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <footer className="text-center text-gray-400 text-xs sm:text-sm mt-10">
           © 2025 ระบบรายงานปัญหามหาวิทยาลัย
@@ -319,7 +365,35 @@ export default function ComplaintDetail() {
         complaintId={data?.complaint_id}
         onAssign={fetchComplaint}
       />
+
+      {/* ✅ Preview Media Modal */}
+      {previewMedia && (
+        <div
+          className="fixed inset-0 bg-black/80 flex justify-center items-center z-50"
+          onClick={() => setPreviewMedia(null)}
+        >
+          <button
+            className="absolute top-5 right-5 text-white"
+            onClick={() => setPreviewMedia(null)}
+          >
+            <X size={30} />
+          </button>
+          {previewMedia.match(/\.(mp4|webm|ogg)$/i) ? (
+            <video
+              src={previewMedia}
+              controls
+              autoPlay
+              className="max-w-4xl max-h-[90vh] rounded-xl"
+            />
+          ) : (
+            <img
+              src={previewMedia}
+              alt="preview"
+              className="max-w-4xl max-h-[90vh] rounded-xl object-contain"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
-
 }

@@ -12,6 +12,7 @@
     "test:report": "mocha tests/**/*.test.js --require tests/setup.js --timeout 10000 --exit --reporter mochawesome --reporter-options reportDir=test-reports,reportFilename=test-report"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",

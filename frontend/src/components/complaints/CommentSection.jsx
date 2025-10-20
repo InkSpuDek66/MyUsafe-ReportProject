@@ -1,5 +1,5 @@
 // frontend/src/components/complaints/CommentSection.jsx
-// Component สำหรับแสดงและจัดการความคิดเห็นของเรื่องร้องเรียน (Responsive Fixed)
+// Component สำหรับแสดงและจัดการความคิดเห็นของเรื่องร้องเรียน (Responsive Fixed + Validation)
 import { useState, useEffect } from 'react';
 import { Send, User, Edit2, Trash2 } from 'lucide-react';
 import commentAPI from '../../services/commentAPI';
@@ -11,17 +11,23 @@ const CommentSection = ({ complaintId }) => {
     const [fetchLoading, setFetchLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
     const [editText, setEditText] = useState('');
+    
+    // ⭐ เพิ่ม constant สำหรับความยาวสูงสุด
+    const MAX_COMMENT_LENGTH = 2500;
 
+    // ⭐ ต้องมีส่วนนี้!
     const currentUser = {
         user_id: localStorage.getItem('user_id') || 'U0000001',
         user_name: localStorage.getItem('user_name') || 'Test User',
         user_role: localStorage.getItem('user_role') || 'reporter'
     };
 
+    // ⭐ useEffect สำหรับดึงความคิดเห็น
     useEffect(() => {
         fetchComments();
     }, [complaintId]);
 
+    // ⭐ ฟังก์ชันดึงความคิดเห็น
     const fetchComments = async () => {
         try {
             setFetchLoading(true);
@@ -39,6 +45,12 @@ const CommentSection = ({ complaintId }) => {
         e.preventDefault();
         if (!newComment.trim()) return;
 
+        // ⭐ เพิ่ม validation ความยาว
+        if (newComment.length > MAX_COMMENT_LENGTH) {
+            alert(`ความคิดเห็นต้องไม่เกิน ${MAX_COMMENT_LENGTH} ตัวอักษร (ปัจจุบัน: ${newComment.length})`);
+            return;
+        }
+
         try {
             setLoading(true);
             await commentAPI.add({
@@ -52,7 +64,12 @@ const CommentSection = ({ complaintId }) => {
             await fetchComments();
         } catch (error) {
             console.error('Error adding comment:', error);
-            alert('เกิดข้อผิดพลาดในการเพิ่มความคิดเห็น');
+            
+            // ⭐ แสดง error message ที่ชัดเจนขึ้น
+            const errorMsg = error.response?.data?.error || 
+                            error.response?.data?.details ||
+                            'เกิดข้อผิดพลาดในการเพิ่มความคิดเห็น';
+            alert(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -60,6 +77,12 @@ const CommentSection = ({ complaintId }) => {
 
     const handleEdit = async (commentId) => {
         if (!editText.trim()) return;
+
+        // ⭐ เพิ่ม validation ความยาวสำหรับการแก้ไข
+        if (editText.length > MAX_COMMENT_LENGTH) {
+            alert(`ความคิดเห็นต้องไม่เกิน ${MAX_COMMENT_LENGTH} ตัวอักษร (ปัจจุบัน: ${editText.length})`);
+            return;
+        }
 
         try {
             await commentAPI.update(commentId, {
@@ -109,23 +132,43 @@ const CommentSection = ({ complaintId }) => {
         <div className="space-y-4 w-full max-w-full">
             {/* Comment Form */}
             <form onSubmit={handleSubmit} className="bg-gray-50 rounded-lg p-3 sm:p-4 w-full">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    เพิ่มความคิดเห็น
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                        เพิ่มความคิดเห็น
+                    </label>
+                    {/* ⭐ เพิ่ม Character Counter */}
+                    <span className={`text-xs ${
+                        newComment.length > MAX_COMMENT_LENGTH 
+                            ? 'text-red-600 font-semibold' 
+                            : 'text-gray-500'
+                    }`}>
+                        {newComment.length} / {MAX_COMMENT_LENGTH}
+                    </span>
+                </div>
                 <div className="flex flex-col gap-2">
                     <textarea
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
+                        maxLength={MAX_COMMENT_LENGTH + 100}
                         placeholder="พิมพ์ความคิดเห็นของคุณ..."
                         rows={3}
-                        className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent resize-none text-sm"
+                        className={`w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent resize-none text-sm ${
+                            newComment.length > MAX_COMMENT_LENGTH 
+                                ? 'border-red-500 bg-red-50' 
+                                : 'border-gray-300'
+                        }`}
                         disabled={loading}
                     />
                 </div>
+                {newComment.length > MAX_COMMENT_LENGTH && (
+                    <p className="text-xs text-red-600 mt-1">
+                        ⚠️ ความคิดเห็นยาวเกินไป กรุณาลดความยาวลง {newComment.length - MAX_COMMENT_LENGTH} ตัวอักษร
+                    </p>
+                )}
                 <div className="flex justify-end mt-2">
                     <button
                         type="submit"
-                        disabled={loading || !newComment.trim()}
+                        disabled={loading || !newComment.trim() || newComment.length > MAX_COMMENT_LENGTH}
                         className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874] disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
                     >
                         <Send size={14} className="sm:size-4" />
@@ -154,7 +197,6 @@ const CommentSection = ({ complaintId }) => {
                                 key={comment._id}
                                 className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 w-full max-w-full"
                             >
-                                {/* User Info */}
                                 <div className="flex items-start gap-2 sm:gap-3 w-full">
                                     <div className="flex-shrink-0">
                                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#55C388]/10 flex items-center justify-center">
@@ -163,7 +205,6 @@ const CommentSection = ({ complaintId }) => {
                                     </div>
 
                                     <div className="flex-1 min-w-0 overflow-hidden">
-                                        {/* Header */}
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-1">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">
@@ -203,19 +244,39 @@ const CommentSection = ({ complaintId }) => {
                                             </div>
                                         </div>
 
-                                        {/* Comment Content */}
                                         {isEditing ? (
                                             <div className="space-y-2 w-full">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-xs text-gray-600">แก้ไขความคิดเห็น</span>
+                                                    <span className={`text-xs ${
+                                                        editText.length > MAX_COMMENT_LENGTH 
+                                                            ? 'text-red-600 font-semibold' 
+                                                            : 'text-gray-500'
+                                                    }`}>
+                                                        {editText.length} / {MAX_COMMENT_LENGTH}
+                                                    </span>
+                                                </div>
                                                 <textarea
                                                     value={editText}
                                                     onChange={(e) => setEditText(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent resize-none text-sm"
+                                                    maxLength={MAX_COMMENT_LENGTH + 100}
+                                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent resize-none text-sm ${
+                                                        editText.length > MAX_COMMENT_LENGTH 
+                                                            ? 'border-red-500 bg-red-50' 
+                                                            : 'border-gray-300'
+                                                    }`}
                                                     rows={3}
                                                 />
+                                                {editText.length > MAX_COMMENT_LENGTH && (
+                                                    <p className="text-xs text-red-600">
+                                                        ⚠️ เกินความยาว {editText.length - MAX_COMMENT_LENGTH} ตัวอักษร
+                                                    </p>
+                                                )}
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={() => handleEdit(comment._id)}
-                                                        className="px-3 py-1 bg-[#55C388] text-white rounded text-sm hover:bg-[#43A874]"
+                                                        disabled={editText.length > MAX_COMMENT_LENGTH}
+                                                        className="px-3 py-1 bg-[#55C388] text-white rounded text-sm hover:bg-[#43A874] disabled:bg-gray-400 disabled:cursor-not-allowed"
                                                     >
                                                         บันทึก
                                                     </button>
