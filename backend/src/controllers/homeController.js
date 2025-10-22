@@ -14,7 +14,7 @@ function genStatusId() {
 // 📋 GET: ดึงรายการเรื่องร้องเรียนทั้งหมด (มี Filter)
 exports.getComplaints = async (req, res) => {
   try {
-    const { status, q, category, priority } = req.query; // เอา page, limit ออก
+    const { status, q, category, priority, page = 1, limit = 20 } = req.query; // เพิ่ม priority
     const filter = {};
 
     // Filter by status
@@ -27,7 +27,7 @@ exports.getComplaints = async (req, res) => {
       filter.categories = category;
     }
 
-    // Filter by priority (รองรับ single priority)
+    //Filter by priority (รองรับ single priority)
     if (priority) {
       filter.priority = priority;
     }
@@ -45,13 +45,24 @@ exports.getComplaints = async (req, res) => {
       ];
     }
 
-    // ดึงข้อมูลทั้งหมด (ไม่จำกัดจำนวน)
+    // Pagination
+    const skip = (page - 1) * limit;
+    const total = await Complaint.countDocuments(filter);
+
     const complaints = await Complaint.find(filter)
-      .sort({ datetime_reported: -1 });
+      .sort({ datetime_reported: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
     res.json({
       success: true,
-      data: complaints
+      data: complaints,
+      pagination: {
+        current_page: parseInt(page),
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: parseInt(limit)
+      }
     });
   } catch (err) {
     console.error('Get Complaints Error:', err);
@@ -61,7 +72,6 @@ exports.getComplaints = async (req, res) => {
     });
   }
 };
-
 
 // 📄 GET: ดึงเรื่องร้องเรียนเดียว
 exports.getComplaintById = async (req, res) => {
@@ -210,10 +220,11 @@ exports.createComplaint = async (req, res) => {
   }
 };
 
+// ✏️ PUT: แก้ไขเรื่องร้องเรียน
 // ✏️ PUT: แก้ไขเรื่องร้องเรียน (อัปเดตสถานะ + บันทึกผู้เปลี่ยน)
 exports.updateComplaint = async (req, res) => {
   try {
-    const { status, action, set, priority, updated_by } = req.body;
+    const { status, action, set, priority } = req.body;
 
     const complaint = await Complaint.findOne({
       complaint_id: req.params.id
@@ -253,7 +264,7 @@ exports.updateComplaint = async (req, res) => {
         status_id: 'S' + Date.now().toString().slice(-7),
         status_name: status,
         updated_at: now,
-        updated_by: updated_by || 'system'
+        updated_by: updated_by || 'system' // ← เพิ่มบันทึกชื่อผู้เปลี่ยน
       });
 
       if (status === 'เสร็จสิ้น') {
@@ -266,7 +277,7 @@ exports.updateComplaint = async (req, res) => {
       }
     }
 
-    // ใช้ action เพื่ออัปเดต likes, dislikes, views
+    // แก้ส่วนนี้ - ใช้ Atomic Operations
     if (action) {
       let updateOperation = {};
 
@@ -302,7 +313,7 @@ exports.updateComplaint = async (req, res) => {
       }
     }
 
-    // อัพเดท fields อื่นๆ จาก set
+    // ✅ อัปเดตฟิลด์อื่น (เช่นแก้ไขข้อมูล)
     if (set && typeof set === 'object') {
       Object.assign(complaint, set);
     }
@@ -316,9 +327,9 @@ exports.updateComplaint = async (req, res) => {
     });
   } catch (err) {
     console.error('Update Complaint Error:', err);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล'
+      error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' 
     });
   }
 };

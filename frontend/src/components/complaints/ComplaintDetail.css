@@ -11,6 +11,7 @@ body {
 }
 
 /* Specific for comment text */
+.comment-text,
 .text-gray-700 {
   word-break: break-all !important;
   overflow-wrap: anywhere !important;

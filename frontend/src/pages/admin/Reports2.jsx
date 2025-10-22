@@ -8,9 +8,8 @@ import {
   ChartPieIcon,
   FunnelIcon,
   ArrowPathIcon,
-  PresentationChartLineIcon,
-  FireIcon,
-  ArrowDownTrayIcon,
+  UserGroupIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/solid";
 import {
   BarChart,
@@ -23,8 +22,6 @@ import {
   PieChart,
   Pie,
   Legend,
-  LineChart,
-  Line,
   CartesianGrid,
 } from "recharts";
 import * as XLSX from "xlsx";
@@ -101,79 +98,25 @@ export default function Reports() {
     เสร็จสิ้น: "#10B981",
   };
 
+  const staffPerformance = [
+    { name: "เจ้าหน้าที่เอ", assigned: 12, resolved: 10, avgTime: 5 },
+    { name: "เจ้าหน้าที่บี", assigned: 9, resolved: 7, avgTime: 8 },
+    { name: "เจ้าหน้าที่ซี", assigned: 7, resolved: 5, avgTime: 10 },
+    { name: "เจ้าหน้าที่ดี", assigned: 5, resolved: 5, avgTime: 4 },
+  ];
+
   const statusColor = (s) => {
-    if (s === "รอรับเรื่อง") return "bg-yellow-100 text-yellow-800";
-    if (s === "กำลังดำเนินการ") return "bg-blue-100 text-blue-800";
+    if (s === "รอรับเรื่อง") return "bg-red-100 text-red-800";
+    if (s === "กำลังดำเนินการ") return "bg-yellow-100 text-yellow-800";
     if (s === "เสร็จสิ้น") return "bg-green-100 text-green-800";
     return "bg-gray-100 text-gray-700";
   };
 
-  // ✅ แนวโน้มรายวัน
-  const trendData = useMemo(() => {
-    const map = {};
-    complaints.forEach((c) => {
-      const date = new Date(c.datetime_reported).toLocaleDateString("th-TH");
-      map[date] = (map[date] || 0) + 1;
-    });
-    return Object.keys(map).map((d) => ({ date: d, count: map[d] }));
-  }, [complaints]);
-
-  // ✅ หมวดหมู่ยอดนิยม
-  const categoryStats = useMemo(() => {
-    const map = {};
-    complaints.forEach((c) => {
-      (c.categories || []).forEach((cat) => {
-        map[cat] = (map[cat] || 0) + 1;
-      });
-    });
-    return Object.keys(map).map((key) => ({
-      name: categories.find((c) => c.id === key)?.name || key,
-      value: map[key],
-    }));
-  }, [complaints]);
-
-  // ✅ Export
-  const exportData = (type) => {
-    const dataToExport = filteredComplaints.map((c) => ({
-      ID: c.complaint_id,
-      หัวข้อ: c.title,
-      หมวดหมู่: (c.categories || []).join(", "),
-      สถานะ: c.current_status,
-      วันที่แจ้ง: new Date(c.datetime_reported).toLocaleString("th-TH"),
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
+  const exportToExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(filteredComplaints);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Complaints");
-
-    if (type === "csv")
-      XLSX.writeFile(wb, "complaints_report.csv", { bookType: "csv" });
-    else XLSX.writeFile(wb, "complaints_report.xlsx");
-  };
-
-  // ✅ เปลี่ยนสถานะ
-  const handleStatusChange = async (id, newStatus) => {
-    if (!confirm(`ยืนยันเปลี่ยนสถานะเป็น "${newStatus}" ?`)) return;
-    try {
-      const res = await fetch(`${API}/api/complaints/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          new_status: newStatus,
-          updated_by: "Admin001",
-        }),
-      });
-
-      if (res.ok) {
-        alert("✅ เปลี่ยนสถานะเรียบร้อยแล้ว");
-        loadData();
-      } else {
-        alert("❌ เปลี่ยนสถานะไม่สำเร็จ");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะ");
-    }
+    XLSX.utils.book_append_sheet(wb, ws, "Reports");
+    XLSX.writeFile(wb, "complaints_report.xlsx");
   };
 
   return (
@@ -182,18 +125,49 @@ export default function Reports() {
         รายงานและสถิติเรื่องร้องเรียน
       </h1>
 
+      {/* ✅ Filter */}
+      <div className="flex flex-wrap justify-center items-center gap-3 mb-8">
+        <FunnelIcon className="h-6 w-6 text-[#55C388]" />
+        {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น"].map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
+              filterStatus === s
+                ? "bg-[#55C388] text-white border-[#55C388]"
+                : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
+            }`}
+          >
+            {s}
+          </button>
+        ))}
 
-      {/* ✅ หมวดหมู่ */}
+        <button
+          onClick={() => setShowCategoryMenu(!showCategoryMenu)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#55C388] text-white rounded-lg shadow hover:bg-[#43A874] transition"
+        >
+          <FunnelIcon className="h-5 w-5" /> หมวดหมู่
+        </button>
+
+        <button
+          onClick={exportToExcel}
+          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+        >
+          <DocumentArrowDownIcon className="h-5 w-5" /> Export Excel
+        </button>
+      </div>
+
       {showCategoryMenu && (
         <div className="flex flex-wrap justify-center gap-3 mb-6 bg-white border border-green-200 rounded-2xl p-4 shadow-md">
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => toggleCategory(cat.id)}
-              className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${selectedCategories.includes(cat.id)
+              className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${
+                selectedCategories.includes(cat.id)
                   ? "bg-[#55C388] text-white border-[#55C388]"
                   : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
-                }`}
+              }`}
             >
               <span>{cat.icon}</span> {cat.name}
             </button>
@@ -201,7 +175,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* ✅ สรุป */}
+      {/* ✅ Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
           {
@@ -249,7 +223,7 @@ export default function Reports() {
         ))}
       </div>
 
-      {/* ✅ กราฟหลัก */}
+      {/* ✅ Charts */}
       <div className="grid md:grid-cols-2 gap-6 mb-10">
         <div className="bg-white p-4 rounded-xl shadow border border-green-100">
           <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -275,7 +249,13 @@ export default function Reports() {
           </h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={chartData} dataKey="count" nameKey="name" outerRadius={80} label>
+              <Pie
+                data={chartData}
+                dataKey="count"
+                nameKey="name"
+                outerRadius={80}
+                label
+              >
                 {chartData.map((entry, i) => (
                   <Cell key={i} fill={colors[entry.name]} />
                 ))}
@@ -287,105 +267,11 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* ✅ Analytics */}
-      <div className="grid md:grid-cols-2 gap-6 mb-10">
-        <div className="bg-white p-4 rounded-xl shadow border border-green-100">
-          <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <PresentationChartLineIcon className="h-5 w-5 text-[#55C388]" /> แนวโน้มจำนวนเรื่องร้องเรียนรายวัน
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#55C388" strokeWidth={3} dot />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl shadow border border-green-100">
-          <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <FireIcon className="h-5 w-5 text-[#55C388]" /> หมวดหมู่ที่ถูกร้องเรียนมากที่สุด
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie data={categoryStats} dataKey="value" nameKey="name" outerRadius={80} label>
-                {categoryStats.map((entry, i) => (
-                  <Cell
-                    key={i}
-                    fill={[
-                      "#55C388",
-                      "#3B82F6",
-                      "#FBBF24",
-                      "#10B981",
-                      "#EC4899",
-                      "#8B5CF6",
-                    ][i % 6]}
-                  />
-                ))}
-              </Pie>
-              <Legend />
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ✅ Filter */}
-      <div className="flex flex-wrap justify-center items-center gap-3 mb-8">
-        {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilterStatus(s)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${filterStatus === s
-                ? "bg-[#55C388] text-white border-[#55C388]"
-                : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
-              }`}
-          >
-            {s}
-          </button>
-        ))}
-
-        {/* ปุ่มเลือกหมวดหมู่ */}
-        <button
-          onClick={() => setShowCategoryMenu(!showCategoryMenu)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#55C388] text-white rounded-lg shadow hover:bg-[#43A874] transition"
-        >
-          <FunnelIcon className="h-5 w-5" /> หมวดหมู่
-        </button>
-
-        <button
-          onClick={() => {
-            setFilterStatus("ทั้งหมด");
-            setSelectedCategories([]);
-          }}
-          className="px-4 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874] transition flex items-center gap-1"
-        >
-          <ArrowPathIcon className="h-4 w-4" /> รีเซ็ต
-        </button>
-      </div>
-
-      {/* ✅ Export + Table */}
+      {/* ✅ ตารางรายการเรื่องร้องเรียน */}
       <div className="bg-white rounded-2xl shadow border border-green-100 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-[#55C388]">รายการเรื่องร้องเรียน</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => exportData("csv")}
-              className="flex items-center gap-2 px-3 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874]"
-            >
-              <ArrowDownTrayIcon className="h-5 w-5" /> CSV
-            </button>
-            <button
-              onClick={() => exportData("xlsx")}
-              className="flex items-center gap-2 px-3 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874]"
-            >
-              <ArrowDownTrayIcon className="h-5 w-5" /> Excel
-            </button>
-          </div>
-        </div>
-
+        <h2 className="text-xl font-bold text-[#55C388] mb-4">
+          รายการเรื่องร้องเรียน
+        </h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left border-collapse">
             <thead className="bg-green-50 border-b border-green-100">
@@ -405,31 +291,17 @@ export default function Reports() {
                   <td className="px-4 py-2">
                     <div className="flex flex-wrap gap-1">
                       {(c.categories || []).map((cat, i) => (
-                        <span
-                          key={i}
-                          className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800"
-                        >
+                        <span key={i} className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
                           {cat}
                         </span>
                       ))}
                     </div>
                   </td>
-
-                  {/* ✅ เปลี่ยนสถานะ */}
                   <td className="px-4 py-2">
-                    <select
-                      value={c.current_status}
-                      onChange={(e) => handleStatusChange(c.complaint_id, e.target.value)}
-                      className={`px-2 py-1 rounded-full text-xs font-semibold border cursor-pointer ${statusColor(
-                        c.current_status
-                      )}`}
-                    >
-                      <option value="รอรับเรื่อง">รอรับเรื่อง</option>
-                      <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
-                      <option value="เสร็จสิ้น">เสร็จสิ้น</option>
-                    </select>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColor(c.current_status)}`}>
+                      {c.current_status}
+                    </span>
                   </td>
-
                   <td className="px-4 py-2 text-gray-500">
                     {new Date(c.datetime_reported).toLocaleString("th-TH")}
                   </td>
@@ -438,6 +310,26 @@ export default function Reports() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* ✅ Staff Performance Metrics */}
+      <div className="bg-white rounded-2xl shadow border border-green-100 p-6 mt-10">
+        <h2 className="text-xl font-bold text-[#55C388] mb-4 flex items-center gap-2">
+          <UserGroupIcon className="h-6 w-6 text-[#55C388]" /> สถิติการทำงานของเจ้าหน้าที่
+        </h2>
+
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={staffPerformance}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="assigned" fill="#60A5FA" name="รับเรื่องทั้งหมด" />
+            <Bar dataKey="resolved" fill="#10B981" name="แก้ไขสำเร็จ" />
+            <Bar dataKey="avgTime" fill="#FBBF24" name="เวลาเฉลี่ย (ชม.)" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
