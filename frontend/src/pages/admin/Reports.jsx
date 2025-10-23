@@ -29,13 +29,53 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 
+/**
+ * Reports.jsx
+ * - Tooltip ของแนวโน้มรายวันเป็นตัวอักษรสีดำ (CustomTooltip)
+ * - Pie chart หมวดหมู่ใช้สีไม่ซ้ำ
+ * - ตารางมีฟิลเตอร์ + ปุ่มดาวน์โหลด CSV/XLSX
+ * - ตาราง: ปุ่มเปลี่ยนสถานะตามเงื่อนไข:
+ *    รอรับเรื่อง -> [กำลังดำเนินการ, ยกเลิก]
+ *    กำลังดำเนินการ -> [เสร็จสิ้น, ยกเลิก]
+ *    เสร็จสิ้น / ยกเลิก -> ไม่มีปุ่ม
+ *
+ * หมายเหตุ: endpoint เปลี่ยนสถานะจะเรียก PATCH `${API}/api/complaints/${id}/status`
+ * โดยส่ง body { status: "newStatus", updated_by: "Admin001" }
+ */
+
+// Custom tooltip ที่บังคับสีตัวอักษรเป็นดำเสมอ
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid rgba(0,0,0,0.12)",
+          padding: "8px 10px",
+          borderRadius: 8,
+          color: "#000",
+          fontSize: 13,
+          fontWeight: 600,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+        }}
+      >
+        <div style={{ marginBottom: 4 }}>{`วันที่: ${label}`}</div>
+        <div>{`จำนวน: ${payload[0].value} เรื่อง`}</div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function Reports() {
   const [complaints, setComplaints] = useState([]);
   const [filterStatus, setFilterStatus] = useState("ทั้งหมด");
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const categories = [
     { id: "flood", name: "น้ำท่วม", icon: "💧" },
     { id: "electrical", name: "ไฟฟ้า", icon: "⚡" },
@@ -47,6 +87,7 @@ export default function Reports() {
     { id: "other", name: "อื่นๆ", icon: "📝" },
   ];
 
+  // โหลดข้อมูล
   const loadData = async () => {
     try {
       const res = await fetch(`${API}/api/complaints`);
@@ -68,71 +109,161 @@ export default function Reports() {
     );
   };
 
+  // ฟิลเตอร์ + ค้นหา
   const filteredComplaints = useMemo(() => {
-    return complaints.filter((c) => {
-      if (filterStatus !== "ทั้งหมด" && c.current_status !== filterStatus)
-        return false;
-      if (selectedCategories.length > 0) {
-        const cates = Array.isArray(c.categories) ? c.categories : [];
-        if (!selectedCategories.some((id) => cates.includes(id))) return false;
-      }
-      return true;
-    });
-  }, [complaints, filterStatus, selectedCategories]);
+    return complaints
+      .filter((c) => {
+        if (filterStatus !== "ทั้งหมด" && c.current_status !== filterStatus)
+          return false;
+        if (selectedCategories.length > 0) {
+          const cates = Array.isArray(c.categories) ? c.categories : [];
+          if (!selectedCategories.some((id) => cates.includes(id))) return false;
+        }
+        if (searchQuery && searchQuery.trim() !== "") {
+          const q = searchQuery.trim().toLowerCase();
+          const inTitle = (c.title || "").toLowerCase().includes(q);
+          const inId = (c.complaint_id || "").toLowerCase().includes(q);
+          const inCategory = (c.categories || []).join(" ").toLowerCase().includes(q);
+          return inTitle || inId || inCategory;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.datetime_reported) - new Date(a.datetime_reported));
+  }, [complaints, filterStatus, selectedCategories, searchQuery]);
 
+// Pagination
+const indexOfLastItem = currentPage * itemsPerPage;
+const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+const currentItems = itemsPerPage === -1 
+  ? filteredComplaints 
+  : filteredComplaints.slice(indexOfFirstItem, indexOfLastItem);
+const totalPages = itemsPerPage === -1 
+  ? 1 
+  : Math.ceil(filteredComplaints.length / itemsPerPage);
+
+// Reset to page 1 when filters change
+useEffect(() => {
+  setCurrentPage(1);
+}, [filterStatus, selectedCategories, searchQuery]);
+
+  // สรุปจำนวน
   const counts = useMemo(() => {
     const total = complaints.length;
     const waiting = complaints.filter((c) => c.current_status === "รอรับเรื่อง").length;
     const processing = complaints.filter((c) => c.current_status === "กำลังดำเนินการ").length;
     const done = complaints.filter((c) => c.current_status === "เสร็จสิ้น").length;
+    const canceled = complaints.filter((c) => c.current_status === "ยกเลิก").length;
     const percentCompleted = total ? Math.round((done / total) * 100) : 0;
-    return { total, waiting, processing, done, percentCompleted };
+    return { total, waiting, processing, done, canceled, percentCompleted };
   }, [complaints]);
 
   const chartData = [
     { name: "รอรับเรื่อง", count: counts.waiting },
     { name: "กำลังดำเนินการ", count: counts.processing },
     { name: "เสร็จสิ้น", count: counts.done },
+    { name: "ยกเลิก", count: counts.canceled },
   ];
 
-  const colors = {
-    รอรับเรื่อง: "#FBBF24",
-    กำลังดำเนินการ: "#3B82F6",
-    เสร็จสิ้น: "#10B981",
+  const statusColorsMap = {
+    "รอรับเรื่อง": "#FBBF24",
+    "กำลังดำเนินการ": "#3B82F6",
+    "เสร็จสิ้น": "#10B981",
+    "ยกเลิก": "#d63939ff",
   };
 
-  const statusColor = (s) => {
-    if (s === "รอรับเรื่อง") return "bg-yellow-100 text-yellow-800";
-    if (s === "กำลังดำเนินการ") return "bg-blue-100 text-blue-800";
-    if (s === "เสร็จสิ้น") return "bg-green-100 text-green-800";
-    return "bg-gray-100 text-gray-700";
+  const statusBadgeClass = (s) => {
+    // แสดงพื้นหลังอ่อนตามสถานะ แต่ข้อความเป็นดำ (override)
+    if (s === "รอรับเรื่อง") return "bg-yellow-100 text-black";
+    if (s === "กำลังดำเนินการ") return "bg-blue-100 text-black";
+    if (s === "เสร็จสิ้น") return "bg-green-100 text-black";
+    if (s === "ยกเลิก") return "bg-gray-200 text-black";
+    return "bg-gray-100 text-black";
   };
 
-  // ✅ แนวโน้มรายวัน
+  // แนวโน้มรายวัน
   const trendData = useMemo(() => {
     const map = {};
     complaints.forEach((c) => {
-      const date = new Date(c.datetime_reported).toLocaleDateString("th-TH");
+      const d = new Date(c.datetime_reported);
+      if (isNaN(d)) return;
+      // ใช้รูปแบบวันที่แบบไทย
+      const date = d.toLocaleDateString("th-TH");
       map[date] = (map[date] || 0) + 1;
     });
-    return Object.keys(map).map((d) => ({ date: d, count: map[d] }));
-  }, [complaints]);
-
-  // ✅ หมวดหมู่ยอดนิยม
-  const categoryStats = useMemo(() => {
-    const map = {};
-    complaints.forEach((c) => {
-      (c.categories || []).forEach((cat) => {
-        map[cat] = (map[cat] || 0) + 1;
+    // แปลงเป็น array เรียงจากต้น -> ปลาย (เพื่อให้กราฟไล่ตามเวลา)
+    const arr = Object.keys(map)
+      .map((k) => ({ date: k, count: map[k] }))
+      .sort((a, b) => {
+        // แปลงกลับเป็น Date เพื่อเรียง
+        const da = new Date(a.date);
+        const db = new Date(b.date);
+        return da - db;
       });
-    });
-    return Object.keys(map).map((key) => ({
-      name: categories.find((c) => c.id === key)?.name || key,
-      value: map[key],
-    }));
+    return arr;
   }, [complaints]);
 
-  // ✅ Export
+  // หมวดหมู่ยอดนิยม
+const categoryStats = useMemo(() => {
+  const map = {};
+  complaints.forEach((c) => {
+    (c.categories || []).forEach((cat) => {
+      map[cat] = (map[cat] || 0) + 1;
+    });
+  });
+
+  return Object.keys(map).map((key) => {
+    const match = categories.find((c) => c.id === key);
+    return {
+      name: match ? match.name : key, // ✅ ถ้ามี name ใช้ชื่อไทย, ถ้าไม่มีก็ใช้ id เดิม
+      value: map[key],
+    };
+  });
+}, [complaints, categories]);
+
+
+  // สีหมวดหมู่ไม่ซ้ำ
+  const categoryColors = [
+    "#FF6B6B", // แดง
+    "#4ECDC4", // เขียวฟ้า
+    "#FFD93D", // เหลือง
+    "#1A535C", // เขียวน้ำเงินเข้ม
+    "#FF9F1C", // ส้ม
+    "#6A4C93", // ม่วง
+    "#00A896", // เขียวมิ้นต์
+    "#F15BB5", // ชมพู
+    "#2E8BFF", // น้ำเงิน
+    "#8BDBE6", // ฟ้าอ่อน
+  ];
+
+  // เปลี่ยนสถานะ (เรียก API) — ใช้ PATCH /api/complaints/:id/status { status, updated_by }
+  const handleStatusChange = async (id, newStatus) => {
+    if (!confirm(`ยืนยันเปลี่ยนสถานะเป็น "${newStatus}" ?`)) return;
+    try {
+      const res = await fetch(`${API}/api/complaints/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: newStatus,
+          updated_by: "Admin001",
+        }),
+      });
+
+      if (res.ok) {
+        // reload data
+        await loadData();
+        alert("เปลี่ยนสถานะเรียบร้อยแล้ว");
+      } else {
+        const txt = await res.text();
+        console.error("Failed to change status:", txt);
+        alert("เปลี่ยนสถานะไม่สำเร็จ");
+      }
+    } catch (err) {
+      console.error("Error changing status:", err);
+      alert("เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะ");
+    }
+  };
+
+  // Export CSV / XLSX
   const exportData = (type) => {
     const dataToExport = filteredComplaints.map((c) => ({
       ID: c.complaint_id,
@@ -146,62 +277,20 @@ export default function Reports() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Complaints");
 
-    if (type === "csv")
+    if (type === "csv") {
       XLSX.writeFile(wb, "complaints_report.csv", { bookType: "csv" });
-    else XLSX.writeFile(wb, "complaints_report.xlsx");
-  };
-
-  // ✅ เปลี่ยนสถานะ
-  const handleStatusChange = async (id, newStatus) => {
-    if (!confirm(`ยืนยันเปลี่ยนสถานะเป็น "${newStatus}" ?`)) return;
-    try {
-      const res = await fetch(`${API}/api/complaints/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          new_status: newStatus,
-          updated_by: "Admin001",
-        }),
-      });
-
-      if (res.ok) {
-        alert("✅ เปลี่ยนสถานะเรียบร้อยแล้ว");
-        loadData();
-      } else {
-        alert("❌ เปลี่ยนสถานะไม่สำเร็จ");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะ");
+    } else {
+      XLSX.writeFile(wb, "complaints_report.xlsx");
     }
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen">
+    <div className="p-6 max-w-7xl mx-auto min-h-screen" style={{ color: "#000" }}>
       <h1 className="text-3xl font-extrabold text-center mb-8 text-[#55C388] drop-shadow-md">
         รายงานและสถิติเรื่องร้องเรียน
       </h1>
 
-
-      {/* ✅ หมวดหมู่ */}
-      {showCategoryMenu && (
-        <div className="flex flex-wrap justify-center gap-3 mb-6 bg-white border border-green-200 rounded-2xl p-4 shadow-md">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => toggleCategory(cat.id)}
-              className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${selectedCategories.includes(cat.id)
-                  ? "bg-[#55C388] text-white border-[#55C388]"
-                  : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
-                }`}
-            >
-              <span>{cat.icon}</span> {cat.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* ✅ สรุป */}
+      {/* สรุป (cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
           {
@@ -249,145 +338,218 @@ export default function Reports() {
         ))}
       </div>
 
-      {/* ✅ กราฟหลัก */}
+      {/* กราฟหลัก (Bar & Pie) */}
       <div className="grid md:grid-cols-2 gap-6 mb-10">
+        {/* Bar: จำนวนเรื่องร้องเรียนแต่ละสถานะ */}
         <div className="bg-white p-4 rounded-xl shadow border border-green-100">
           <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <ChartBarIcon className="h-5 w-5 text-[#55C388]" /> จำนวนเรื่องร้องเรียนแต่ละสถานะ
+            <ChartBarIcon className="h-5 w-5 text-[#55C388]" />
+            จำนวนเรื่องร้องเรียนแต่ละสถานะ
           </h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={chartData}>
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" stroke="#000" tick={{ fill: "#000" }} />
+              <YAxis stroke="#000" tick={{ fill: "#000" }} allowDecimals={false} />
+              <Tooltip contentStyle={{ color: "#000" }} />
               <Bar dataKey="count">
                 {chartData.map((entry, i) => (
-                  <Cell key={i} fill={colors[entry.name]} />
+                  <Cell key={i} fill={statusColorsMap[entry.name] || "#ccc"} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
+        {/* Pie: สัดส่วนสถานะ */}
         <div className="bg-white p-4 rounded-xl shadow border border-green-100">
           <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <ChartPieIcon className="h-5 w-5 text-[#55C388]" /> สัดส่วนสถานะเรื่องร้องเรียน
+            <ChartPieIcon className="h-5 w-5 text-[#55C388]" />
+            สัดส่วนสถานะเรื่องร้องเรียน
           </h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={chartData} dataKey="count" nameKey="name" outerRadius={80} label>
+              <Pie
+                data={chartData}
+                dataKey="count"
+                nameKey="name"
+                outerRadius={80}
+                label={(entry) => `${entry.name} (${entry.count})`}
+              >
                 {chartData.map((entry, i) => (
-                  <Cell key={i} fill={colors[entry.name]} />
+                  <Cell key={i} fill={statusColorsMap[entry.name] || "#ccc"} />
                 ))}
               </Pie>
               <Legend />
-              <Tooltip />
+              <Tooltip contentStyle={{ color: "#000" }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* ✅ Analytics */}
+      {/* Analytics: แนวโน้มรายวัน + หมวดหมู่ยอดนิยม */}
       <div className="grid md:grid-cols-2 gap-6 mb-10">
+        {/* แนวโน้มรายวัน */}
         <div className="bg-white p-4 rounded-xl shadow border border-green-100">
           <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <PresentationChartLineIcon className="h-5 w-5 text-[#55C388]" /> แนวโน้มจำนวนเรื่องร้องเรียนรายวัน
+            <PresentationChartLineIcon className="h-5 w-5 text-[#55C388]" />
+            แนวโน้มจำนวนเรื่องร้องเรียนรายวัน
           </h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#55C388" strokeWidth={3} dot />
+              <XAxis dataKey="date" stroke="#000" tick={{ fill: "#000" }} />
+              <YAxis stroke="#000" tick={{ fill: "#000" }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke="#55C388"
+                strokeWidth={3}
+                dot={{ r: 5, fill: "#55C388", strokeWidth: 2 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
+        {/* หมวดหมู่ยอดนิยม */}
         <div className="bg-white p-4 rounded-xl shadow border border-green-100">
           <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <FireIcon className="h-5 w-5 text-[#55C388]" /> หมวดหมู่ที่ถูกร้องเรียนมากที่สุด
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie data={categoryStats} dataKey="value" nameKey="name" outerRadius={80} label>
-                {categoryStats.map((entry, i) => (
-                  <Cell
-                    key={i}
-                    fill={[
-                      "#55C388",
-                      "#3B82F6",
-                      "#FBBF24",
-                      "#10B981",
-                      "#EC4899",
-                      "#8B5CF6",
-                    ][i % 6]}
-                  />
+              <Pie
+                data={categoryStats}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={80}
+                label={(entry) => `${entry.name} (${entry.value})`}
+              >
+                {categoryStats.map((_, i) => (
+                  <Cell key={i} fill={categoryColors[i % categoryColors.length]} />
                 ))}
               </Pie>
               <Legend />
-              <Tooltip />
+              <Tooltip contentStyle={{ color: "#000" }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* ✅ Filter */}
-      <div className="flex flex-wrap justify-center items-center gap-3 mb-8">
-        {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilterStatus(s)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${filterStatus === s
-                ? "bg-[#55C388] text-white border-[#55C388]"
-                : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
+      {/* Filter + Export + Table */}
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น", "ยกเลิก"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilterStatus(s)}
+              className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
+                filterStatus === s
+                  ? "bg-[#55C388] text-white border-[#55C388]"
+                  : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
               }`}
+            >
+              {s}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setShowCategoryMenu(!showCategoryMenu)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#55C388] text-white rounded-lg shadow hover:bg-[#43A874] transition"
           >
-            {s}
+            <FunnelIcon className="h-5 w-5" /> หมวดหมู่
           </button>
-        ))}
 
-        {/* ปุ่มเลือกหมวดหมู่ */}
-        <button
-          onClick={() => setShowCategoryMenu(!showCategoryMenu)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#55C388] text-white rounded-lg shadow hover:bg-[#43A874] transition"
-        >
-          <FunnelIcon className="h-5 w-5" /> หมวดหมู่
-        </button>
+          <button
+            onClick={() => {
+              setFilterStatus("ทั้งหมด");
+              setSelectedCategories([]);
+              setSearchQuery("");
+            }}
+            className="px-4 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874] transition flex items-center gap-1"
+          >
+            <ArrowPathIcon className="h-4 w-4" /> รีเซ็ต
+          </button>
 
-        <button
-          onClick={() => {
-            setFilterStatus("ทั้งหมด");
-            setSelectedCategories([]);
-          }}
-          className="px-4 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874] transition flex items-center gap-1"
-        >
-          <ArrowPathIcon className="h-4 w-4" /> รีเซ็ต
-        </button>
+          {/* Search box */}
+          <div className="ml-auto flex items-center gap-2">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ค้นหา ID/หัวข้อ/หมวดหมู่"
+              className="px-3 py-2 border rounded-lg text-sm"
+              style={{ color: "#55C388" }}
+            />
+          </div>
+        </div>
+                  {/* หมวดหมู่เลือกแบบป๊อปอัพ */}
+      {showCategoryMenu && (
+        <div className="flex flex-wrap justify-center gap-3 mb-6 bg-white border border-green-200 rounded-2xl p-4 shadow-md">
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => toggleCategory(cat.id)}
+              className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${
+                selectedCategories.includes(cat.id)
+                  ? "bg-[#55C388] text-white border-[#55C388]"
+                  : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
+              }`}
+            >
+              <span>{cat.icon}</span> {cat.name}
+            </button>
+          ))}
+        </div>
+      )}
+      
+        <div className="flex justify-between items-center gap-3">
+  {/* Dropdown แสดงจำนวนต่อหน้า */}
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-gray-600 ">แสดง</span>
+    <select
+      value={itemsPerPage}
+      onChange={(e) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1);
+      }}
+      className="px-3 py-2 border border-green-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#55C388] text-[#55C388]"
+    >
+      <option value={10}>10</option>
+      <option value={25}>25</option>
+      <option value={50}>50</option>
+      <option value={100}>100</option>
+      <option value={-1}>ทั้งหมด</option>
+    </select>
+    <span className="text-sm text-gray-600">รายการ</span>
+  </div>
+
+    {/* ปุ่มดาวน์โหลด */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => exportData("csv")}
+            className="flex items-center gap-2 px-3 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874]"
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" /> CSV
+          </button>
+          <button
+            onClick={() => exportData("xlsx")}
+            className="flex items-center gap-2 px-3 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874]"
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" /> Excel
+          </button>
+        </div>
       </div>
+    </div>
 
-      {/* ✅ Export + Table */}
+      {/* Table */}
       <div className="bg-white rounded-2xl shadow border border-green-100 p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-[#55C388]">รายการเรื่องร้องเรียน</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => exportData("csv")}
-              className="flex items-center gap-2 px-3 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874]"
-            >
-              <ArrowDownTrayIcon className="h-5 w-5" /> CSV
-            </button>
-            <button
-              onClick={() => exportData("xlsx")}
-              className="flex items-center gap-2 px-3 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874]"
-            >
-              <ArrowDownTrayIcon className="h-5 w-5" /> Excel
-            </button>
-          </div>
+          <div className="text-sm text-gray-600">ทั้งหมด {filteredComplaints.length} รายการ</div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border-collapse">
+          <table className="w-full text-sm text-left border-collapse" style={{ color: "#000" }}>
             <thead className="bg-green-50 border-b border-green-100">
               <tr>
                 <th className="px-4 py-2">ID</th>
@@ -395,19 +557,25 @@ export default function Reports() {
                 <th className="px-4 py-2">หมวดหมู่</th>
                 <th className="px-4 py-2">สถานะ</th>
                 <th className="px-4 py-2">วันที่แจ้ง</th>
+                <th className="px-4 py-2">จัดการ</th>
               </tr>
             </thead>
             <tbody>
-              {filteredComplaints.map((c) => (
+              {currentItems.map((c) => (
                 <tr key={c.complaint_id} className="border-b hover:bg-green-50 transition">
-                  <td className="px-4 py-2">{c.complaint_id}</td>
-                  <td className="px-4 py-2 font-medium text-gray-700">{c.title}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 align-top">{c.complaint_id}</td>
+                  <td className="px-4 py-2 align-top font-medium">{c.title}</td>
+                  <td className="px-4 py-2 align-top">
                     <div className="flex flex-wrap gap-1">
                       {(c.categories || []).map((cat, i) => (
                         <span
                           key={i}
-                          className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800"
+                          className="px-2 py-1 text-xs rounded-full"
+                          style={{
+                            background: "#F0FDF4",
+                            color: "#064E3B",
+                            border: "1px solid rgba(0,0,0,0.04)",
+                          }}
                         >
                           {cat}
                         </span>
@@ -415,29 +583,126 @@ export default function Reports() {
                     </div>
                   </td>
 
-                  {/* ✅ เปลี่ยนสถานะ */}
-                  <td className="px-4 py-2">
-                    <select
-                      value={c.current_status}
-                      onChange={(e) => handleStatusChange(c.complaint_id, e.target.value)}
-                      className={`px-2 py-1 rounded-full text-xs font-semibold border cursor-pointer ${statusColor(
+                  <td className="px-4 py-2 align-top">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(
                         c.current_status
                       )}`}
+                      style={{ border: "1px solid rgba(0,0,0,0.06)" }}
                     >
-                      <option value="รอรับเรื่อง">รอรับเรื่อง</option>
-                      <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
-                      <option value="เสร็จสิ้น">เสร็จสิ้น</option>
-                    </select>
+                      {c.current_status}
+                    </span>
                   </td>
 
-                  <td className="px-4 py-2 text-gray-500">
-                    {new Date(c.datetime_reported).toLocaleString("th-TH")}
+                  <td className="px-4 py-2 align-top">
+                    <div style={{ color: "#000" }}>
+                      {new Date(c.datetime_reported).toLocaleString("th-TH")}
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-2 align-top">
+                    {/* การจัดการสถานะตามเงื่อนไข */}
+                    {c.current_status === "รอรับเรื่อง" && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleStatusChange(c.complaint_id, "กำลังดำเนินการ")}
+                          className="px-2 py-1 bg-blue-600 text-white rounded-md text-sm"
+                        >
+                          กำลังดำเนินการ
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(c.complaint_id, "ยกเลิก")}
+                          className="px-2 py-1 bg-red-600 text-white rounded-md text-sm"
+                        >
+                          ยกเลิก
+                        </button>
+                      </div>
+                    )}
+
+                    {c.current_status === "กำลังดำเนินการ" && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleStatusChange(c.complaint_id, "เสร็จสิ้น")}
+                          className="px-2 py-1 bg-green-600 text-white rounded-md text-sm"
+                        >
+                          เสร็จสิ้น
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(c.complaint_id, "ยกเลิก")}
+                          className="px-2 py-1 bg-red-600 text-white rounded-md text-sm"
+                        >
+                          ยกเลิก
+                        </button>
+                      </div>
+                    )}
+
+                    {(c.current_status === "เสร็จสิ้น" || c.current_status === "ยกเลิก") && (
+                      <div className="text-sm text-gray-600">-</div>
+                    )}
                   </td>
                 </tr>
               ))}
+
+              {currentItems.map.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-gray-600">
+                    ไม่พบรายการ
+                  </td>
+                </tr>
+              )}
             </tbody>
-          </table>
+          </table>          
         </div>
+        {/* Pagination Controls */}
+{itemsPerPage !== -1 && totalPages > 1 && (
+  <div className="flex justify-between items-center mt-4 pt-4 border-t border-green-100">
+    <div className="text-sm text-gray-600">
+      แสดง {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredComplaints.length)} จาก {filteredComplaints.length} รายการ
+    </div>
+    
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+        disabled={currentPage === 1}
+        className={`px-3 py-1 rounded-lg text-sm ${
+          currentPage === 1
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-[#55C388] text-white hover:bg-[#43A874]'
+        }`}
+      >
+        ก่อนหน้า
+      </button>
+      
+      <div className="flex gap-1">
+        {[...Array(totalPages)].map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrentPage(i + 1)}
+            className={`px-3 py-1 rounded-lg text-sm ${
+              currentPage === i + 1
+                ? 'bg-[#55C388] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+      
+      <button
+        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+        disabled={currentPage === totalPages}
+        className={`px-3 py-1 rounded-lg text-sm ${
+          currentPage === totalPages
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-[#55C388] text-white hover:bg-[#43A874]'
+        }`}
+      >
+        ถัดไป
+      </button>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );
