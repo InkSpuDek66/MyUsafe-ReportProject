@@ -1,3 +1,4 @@
+// frontend/src/components/common/Header/Header.jsx
 export default function Header({name}) {
     return (
         <header className="relative bg-white after:content-[''] after:pointer-events-none after:absolute after:inset-x-0 after:inset-y-0 after:border-y-0 after:border-gray-200 shadow-md">

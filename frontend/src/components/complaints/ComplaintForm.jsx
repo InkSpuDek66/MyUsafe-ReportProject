@@ -1,402 +1,395 @@
-import { useState, useCallback } from 'react';
+// frontend/src/components/complaints/ComplaintForm.jsx
+// Component สำหรับฟอร์มสร้างเรื่องร้องเรียนใหม่
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { XCircleIcon, PhotoIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
-import axios from 'axios';
+import { ArrowLeft, Send, AlertCircle, Check } from 'lucide-react';
+import LocationSelector from './LocationSelector';
+import ImageUploader from './ImageUploader';
+import { complaintAPI } from '../../services/complaintAPI';
 
 const ComplaintForm = () => {
-    const { register, handleSubmit, formState: { errors }, setValue } = useForm();
+    const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm();
     const [files, setFiles] = useState([]);
-    const [previewUrls, setPreviewUrls] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [selectedFloor, setSelectedFloor] = useState("");
-    const [dragActive, setDragActive] = useState(false);
+    const [submitError, setSubmitError] = useState('');
+    const [selectedCategories, setSelectedCategories] = useState([]); // State สำหรับ multiple categories
     const navigate = useNavigate();
 
-    // Mock categories data
+    // Mock categories data (ในอนาคตจะดึงจาก API)
     const categories = [
-        { id: 'flood', name: 'น้ำท่วม' },
-        { id: 'electrical', name: 'ไฟฟ้า' },
-        { id: 'computer', name: 'คอมพิวเตอร์/เว็บไซต์' },
-        { id: 'other', name: 'อื่นๆ' }
+        { id: 'flood', name: 'น้ำท่วม', icon: '💧' },
+        { id: 'electrical', name: 'ไฟฟ้า', icon: '⚡' },
+        { id: 'computer', name: 'คอมพิวเตอร์/เว็บไซต์', icon: '💻' },
+        { id: 'plumbing', name: 'ประปา/ท่อน้ำ', icon: '🚰' },
+        { id: 'facilities', name: 'สิ่งอำนวยความสะดวก', icon: '🏢' },
+        { id: 'cleanliness', name: 'ความสะอาด', icon: '🧹' },
+        { id: 'safety', name: 'ความปลอดภัย', icon: '🚨' },
+        { id: 'other', name: 'อื่นๆ', icon: '📝' }
     ];
 
-    // Mock buildings data
-    const buildings = [
-        { id: '1', name: 'อาคาร 1' },
-        { id: '2', name: 'อาคาร 2' },
-        { id: '3', name: 'อาคาร 3' }
-    ];
-
-    // Mock data for rooms and floors
-    const [floors] = useState([
-        "ชั้น 1", "ชั้น 2", "ชั้น 3", "ชั้น 4", "ชั้น 5"
-    ]);
-    
-    const [rooms] = useState({
-        "ชั้น 1": ["101", "102", "103", "104"],
-        "ชั้น 2": ["201", "202", "203", "204"],
-        "ชั้น 3": ["301", "302", "303", "304"],
-        "ชั้น 4": ["401", "402", "403", "404"],
-        "ชั้น 5": ["501", "502", "503", "504"]
-    });
+    // Handle category selection (toggle)
+    const handleCategoryToggle = (categoryId) => {
+        setSelectedCategories(prev => {
+            if (prev.includes(categoryId)) {
+                // ถ้าเลือกไว้แล้ว ให้ลบออก
+                return prev.filter(id => id !== categoryId);
+            } else {
+                // ถ้ายังไม่เลือก ให้เพิ่มเข้าไป
+                return [...prev, categoryId];
+            }
+        });
+    };
 
     const onSubmit = async (data) => {
+        // Validate categories
+        if (selectedCategories.length === 0) {
+            setSubmitError('กรุณาเลือกหมวดหมู่อย่างน้อย 1 หมวดหมู่');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
         try {
             setLoading(true);
-            const formData = new FormData();
+            setSubmitError('');
 
-            formData.append('title', data.title);
-            formData.append('description', data.description);
-            formData.append('category', data.category);
-            formData.append('location', JSON.stringify({
+            console.log('📤 Submitting complaint...');
+            console.log('🔹 Form Data:', {
+                title: data.title,
+                description: data.description?.substring(0, 50) + '...',
                 building: data.building,
                 floor: data.floor,
                 room: data.room
-            }));
+            });
+            console.log('🔹 Selected Categories:', selectedCategories);
+            console.log('🔹 Files Count:', files.length);
 
-            files.forEach(file => {
+            const formData = new FormData();
+
+            // Append text fields
+            formData.append('title', data.title);
+            formData.append('description', data.description || '');
+
+            // Append categories as JSON string
+            const categoriesJSON = JSON.stringify(selectedCategories);
+            formData.append('categories', categoriesJSON);
+            console.log('✅ Categories JSON:', categoriesJSON);
+
+            // Append location as JSON string
+            const locationData = {
+                building: data.building, // ✅ ตอนนี้จะเป็น 'อาคาร 1' แล้ว (ไม่ใช่ '1')
+                floor: data.floor,
+                room: data.room || ''
+            };
+            const locationJSON = JSON.stringify(locationData);
+            formData.append('location', locationJSON);
+            console.log('✅ Location JSON:', locationJSON);
+
+            // Append user_id
+            formData.append('user_id', 'U0000001');
+
+            // Append image files
+            files.forEach((file, index) => {
                 formData.append('images', file);
+                console.log(`📎 File ${index + 1}: ${file.name} (${(file.size / 1024).toFixed(2)} KB, ${file.type})`);
             });
 
-            const response = await axios.post('/api/complaints', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            // Log all FormData entries
+            console.log('\n📋 FormData Summary:');
+            let hasFiles = false;
+            for (let pair of formData.entries()) {
+                if (pair[1] instanceof File) {
+                    console.log(`  ✅ ${pair[0]}: [File] ${pair[1].name}`);
+                    hasFiles = true;
+                } else {
+                    console.log(`  ✅ ${pair[0]}: ${pair[1]}`);
+                }
+            }
+            console.log(`  📊 Total Files: ${hasFiles ? files.length : 0}\n`);
 
-            if (response.data.success) {
-                alert('สร้างเรื่องร้องเรียนสำเร็จ');
-                navigate(`/complaints/${response.data.data._id}`);
+            // Call API
+            console.log('🌐 Calling API: POST /api/complaints');
+            const response = await complaintAPI.create(formData);
+
+            console.log('✅ API Response:', response);
+
+            if (response.success) {
+                alert('✅ สร้างเรื่องร้องเรียนสำเร็จ');
+                const complaintId = response.data.complaint_id || response.data._id;
+                console.log('🔄 Navigating to:', `/complaint/${complaintId}`);
+                navigate(`/complaint/${complaintId}`);
+            } else {
+                throw new Error(response.error || 'การสร้างเรื่องร้องเรียนไม่สำเร็จ');
             }
         } catch (error) {
-            console.error('Error submitting complaint:', error);
-            alert(error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล');
+            console.error('\n❌ ========== ERROR DETAILS ==========');
+            console.error('Error Name:', error.name);
+            console.error('Error Message:', error.message);
+
+            let errorMessage = 'เกิดข้อผิดพลาดในการส่งข้อมูล';
+
+            if (error.response) {
+                console.error('📡 Response Error:');
+                console.error('  Status:', error.response.status);
+                console.error('  Data:', error.response.data);
+                console.error('  Headers:', error.response.headers);
+
+                errorMessage = error.response.data?.error ||
+                    error.response.data?.message ||
+                    `Server Error ${error.response.status}`;
+
+                if (error.response.data?.details) {
+                    console.error('  Details:', error.response.data.details);
+                    if (Array.isArray(error.response.data.details)) {
+                        errorMessage += '\n' + error.response.data.details.join('\n');
+                    } else {
+                        errorMessage += '\n' + error.response.data.details;
+                    }
+                }
+            } else if (error.request) {
+                console.error('🔌 No Response - Connection Error:');
+                console.error('  Request was made but no response received');
+                console.error('  Check if backend is running on port 5000');
+                errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้\nกรุณาตรวจสอบว่า Backend กำลังทำงานอยู่';
+            } else {
+                console.error('⚙️ Request Setup Error:', error.message);
+                errorMessage = error.message;
+            }
+
+            console.error('====================================\n');
+
+            setSubmitError(errorMessage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
             setLoading(false);
         }
     };
 
-    const formatFileSize = (bytes) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-    };
-
-    const handleFileChange = (e) => {
-        const newFiles = Array.from(e.target.files);
-        validateAndAddFiles(newFiles);
-    };
-
-    const validateAndAddFiles = (newFiles) => {
-        if (newFiles.length + files.length > 5) {
-            alert('สามารถอัปโหลดได้สูงสุด 5 ไฟล์');
-            return;
-        }
-
-        const validFiles = newFiles.filter(file => {
-            const isImage = file.type.startsWith('image/');
-            const isVideo = file.type.startsWith('video/');
-            const isValidType = isImage || isVideo;
-            const isValidSize = file.size <= 20 * 1024 * 1024; // 20MB
-
-            if (!isValidType) {
-                alert(`ไฟล์ ${file.name} ไม่รองรับ (อนุญาตเฉพาะรูปภาพหรือวิดีโอ)`);
-                return false;
-            }
-            if (!isValidSize) {
-                alert(`ไฟล์ ${file.name} มีขนาดเกิน 20MB (ขนาดปัจจุบัน: ${formatFileSize(file.size)})`);
-                return false;
-            }
-            return true;
-        });
-
-        if (validFiles.length === 0) return;
-
-        setFiles(prev => [...prev, ...validFiles]);
-
-        const newPreviewUrls = validFiles.map(file => ({
-            url: URL.createObjectURL(file),
-            type: file.type.startsWith('image/') ? 'image' : 'video',
-            name: file.name,
-            size: file.size
-        }));
-        
-        setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
-    };
-
-    const removeFile = (index) => {
-        URL.revokeObjectURL(previewUrls[index].url);
-        setFiles(prev => prev.filter((_, i) => i !== index));
-        setPreviewUrls(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const handleFloorChange = (e) => {
-        const floor = e.target.value;
-        setSelectedFloor(floor);
-        setValue('room', '');
-    };
-
-    const handleDrag = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
-        }
-    };
-
-    const handleDrop = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-
-        const droppedFiles = Array.from(e.dataTransfer.files);
-        validateAndAddFiles(droppedFiles);
-    }, [files]);
-
-    const renderFileUpload = () => (
-        <div
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors
-                ${dragActive 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 bg-white'}`}
-        >
-            <div className="space-y-1 text-center">
-                <div className="flex justify-center gap-2 mb-2">
-                    <PhotoIcon className="h-12 w-12 text-gray-400" />
-                    <VideoCameraIcon className="h-12 w-12 text-gray-400" />
-                </div>
-                <div className="flex justify-center text-sm text-gray-600">
-                    <label htmlFor="files" className="relative cursor-pointer rounded-md bg-white font-medium text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 hover:text-blue-500">
-                        <span>กดที่นี่เพื่ออัปโหลดไฟล์</span>
-                        <input
-                            id="files"
-                            type="file"
-                            multiple
-                            accept="image/*,video/*"
-                            onChange={handleFileChange}
-                            className="sr-only"
-                        />
-                    </label>
-                    <p className="pl-1">หรือลากและวางที่นี่</p>
-                </div>
-                <p className="text-xs text-gray-500">
-                    รองรับไฟล์ PNG, JPG, GIF, WebP, MP4, MOV, AVI, MKV, WebM
-                </p>
-                <p className="text-xs text-gray-500 font-semibold">
-                    ขนาดไฟล์สูงสุด 20MB ต่อไฟล์ (สูงสุด 5 ไฟล์)
-                </p>
-            </div>
-        </div>
-    );
-
-    const renderLocationFields = () => (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    อาคาร <span className="text-red-500">*</span>
-                </label>
-                <select
-                    {...register('building', { required: 'กรุณาเลือกอาคาร' })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        errors.building ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                >
-                    <option value="">เลือกอาคาร</option>
-                    {buildings.map(building => (
-                        <option key={building.id} value={building.id}>
-                            {building.name}
-                        </option>
-                    ))}
-                </select>
-                {errors.building && (
-                    <p className="mt-1 text-sm text-red-500">{errors.building.message}</p>
-                )}
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ชั้น <span className="text-red-500">*</span>
-                </label>
-                <select
-                    {...register('floor', { required: 'กรุณาเลือกชั้น' })}
-                    onChange={(e) => {
-                        handleFloorChange(e);
-                        register('floor').onChange(e);
-                    }}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        errors.floor ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                >
-                    <option value="">เลือกชั้น</option>
-                    {floors.map(floor => (
-                        <option key={floor} value={floor}>
-                            {floor}
-                        </option>
-                    ))}
-                </select>
-                {errors.floor && (
-                    <p className="mt-1 text-sm text-red-500">{errors.floor.message}</p>
-                )}
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ห้อง
-                </label>
-                <select
-                    {...register('room')}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300"
-                    disabled={!selectedFloor}
-                >
-                    <option value="">เลือกห้อง</option>
-                    {selectedFloor && rooms[selectedFloor]?.map(room => (
-                        <option key={room} value={room}>
-                            {room}
-                        </option>
-                    ))}
-                </select>
-            </div>
-        </div>
-    );
-
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-                <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-6">แจ้งเรื่องร้องเรียน</h2>
-                    
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="min-h-screen  py-8">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="inline-flex items-center gap-2 hover:text-[#55C388] mb-6 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                    <span className="font-medium">ย้อนกลับ</span>
+                </button>
+
+                {/* Form Container */}
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-[#55C388] to-[#43A874] px-8 py-6">
+                        <h2 className="text-2xl font-bold text-white">
+                            แจ้งเรื่องร้องเรียน
+                        </h2>
+                        <p className="text-white/90 mt-1">
+                            กรุณากรอกข้อมูลให้ครบถ้วนเพื่อให้เราสามารถช่วยเหลือคุณได้อย่างรวดเร็ว
+                        </p>
+                    </div>
+
+                    {/* Error Alert */}
+                    {submitError && (
+                        <div className="mx-8 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                            <div className="flex-1">
+                                <h4 className="font-semibold text-red-900 mb-1">
+                                    เกิดข้อผิดพลาด
+                                </h4>
+                                <p className="text-sm text-red-700">
+                                    {submitError}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setSubmitError('')}
+                                className="text-red-400 hover:text-red-600"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Form */}
+                    <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-8">
                         {/* Title Field */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 หัวข้อเรื่อง <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
-                                {...register('title', { 
+                                {...register('title', {
                                     required: 'กรุณากรอกหัวข้อเรื่อง',
-                                    minLength: { value: 5, message: 'หัวข้อต้องมีความยาวอย่างน้อย 5 ตัวอักษร' }
+                                    minLength: {
+                                        value: 5,
+                                        message: 'หัวข้อต้องมีความยาวอย่างน้อย 5 ตัวอักษร'
+                                    },
+                                    maxLength: {
+                                        value: 100,
+                                        message: 'หัวข้อต้องไม่เกิน 100 ตัวอักษร'
+                                    }
                                 })}
-                                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                    errors.title ? 'border-red-500' : 'border-gray-300'
-                                }`}
-                                placeholder="ระบุหัวข้อเรื่องร้องเรียน"
+                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-600 ${errors.title ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                                placeholder="เช่น: น้ำรั่วในห้องน้ำชั้น 2"
                             />
                             {errors.title && (
-                                <p className="mt-1 text-sm text-red-500">{errors.title.message}</p>
+                                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                                    <AlertCircle size={14} />
+                                    {errors.title.message}
+                                </p>
                             )}
                         </div>
 
-                        {/* Category Field */}
+                        {/* Category Field - Multi-Select */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 หมวดหมู่ <span className="text-red-500">*</span>
+                                <span className="text-xs font-normal text-gray-500 ml-2">
+                                    (เลือกได้มากกว่า 1 หมวดหมู่)
+                                </span>
                             </label>
-                            <select
-                                {...register('category', { required: 'กรุณาเลือกหมวดหมู่' })}
-                                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                    errors.category ? 'border-red-500' : 'border-gray-300'
-                                }`}
-                            >
-                                <option value="">เลือกหมวดหมู่</option>
-                                {categories.map(category => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.category && (
-                                <p className="mt-1 text-sm text-red-500">{errors.category.message}</p>
+
+                            {/* Selected Categories Counter */}
+                            {selectedCategories.length > 0 && (
+                                <div className="mb-3 flex items-center gap-2">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#55C388] text-white">
+                                        เลือกแล้ว {selectedCategories.length} หมวดหมู่
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedCategories([])}
+                                        className="text-xs text-gray-500 hover:text-red-600 underline"
+                                    >
+                                        ล้างทั้งหมด
+                                    </button>
+                                </div>
                             )}
+
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                                {categories.map(category => {
+                                    const isSelected = selectedCategories.includes(category.id);
+
+                                    return (
+                                        <button
+                                            key={category.id}
+                                            type="button"
+                                            onClick={() => handleCategoryToggle(category.id)}
+                                            className={`relative flex flex-col items-center p-2.5 border rounded-lg transition-all hover:border-[#55C388] hover:shadow-sm ${isSelected
+                                                ? 'border-[#55C388] bg-green-50 shadow-sm'
+                                                : 'border-gray-200 bg-white'
+                                                }`}
+                                        >
+                                            {/* Checkmark Badge - เล็กลง */}
+                                            {isSelected && (
+                                                <div className="absolute -top-1.5 -right-1.5 bg-[#55C388] rounded-full p-0.5 shadow-sm">
+                                                    <Check size={10} className="text-white" />
+                                                </div>
+                                            )}
+
+                                            {/* Icon - เล็กลง */}
+                                            <span className="text-2xl mb-1">{category.icon}</span>
+
+                                            {/* Text - เล็กลงและกระชับ */}
+                                            <span className={`text-[10px] text-center font-medium leading-tight ${isSelected ? 'text-[#55C388]' : 'text-gray-700'
+                                                }`}>
+                                                {category.name}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Error message for categories */}
+                            {selectedCategories.length === 0 && submitError && (
+                                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                                    <AlertCircle size={14} />
+                                    กรุณาเลือกหมวดหมู่อย่างน้อย 1 หมวดหมู่
+                                </p>
+                            )}
+
+                            {/* Info text */}
+                            <p className="mt-3 text-xs text-gray-500">
+                                💡 เลือกหมวดหมู่ที่เกี่ยวข้องกับปัญหาของคุณเพื่อให้เจ้าหน้าที่สามารถดำเนินการได้อย่างรวดเร็ว
+                            </p>
                         </div>
 
-                        {/* Location Fields */}
-                        {renderLocationFields()}
+                        {/* Location Selector */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                สถานที่ <span className="text-red-500">*</span>
+                            </label>
+                            <LocationSelector
+                                register={register}
+                                errors={errors}
+                                setValue={setValue}
+                            />
+                        </div>
 
                         {/* Description Field */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 รายละเอียด <span className="text-red-500">*</span>
                             </label>
                             <textarea
-                                {...register('description', { 
+                                {...register('description', {
                                     required: 'กรุณากรอกรายละเอียด',
-                                    minLength: { value: 10, message: 'รายละเอียดต้องมีความยาวอย่างน้อย 10 ตัวอักษร' }
+                                    minLength: {
+                                        value: 10,
+                                        message: 'รายละเอียดต้องมีความยาวอย่างน้อย 10 ตัวอักษร'
+                                    },
+                                    maxLength: {
+                                        value: 5000,
+                                        message: 'รายละเอียดต้องไม่เกิน 5000 ตัวอักษร'
+                                    }
                                 })}
-                                rows={4}
-                                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                    errors.description ? 'border-red-500' : 'border-gray-300'
-                                }`}
-                                placeholder="อธิบายรายละเอียดของปัญหา"
+                                rows={5}
+                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all resize-y text-gray-600 ${errors.description ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                    }`}
+                                placeholder="โปรดอธิบายปัญหาอย่างละเอียด เช่น อาการ, ความรุนแรง, เวลาที่เกิดขึ้น เป็นต้น"
                             />
-                            {errors.description && (
-                                <p className="mt-1 text-sm text-red-500">{errors.description.message}</p>
-                            )}
-                        </div>
-
-                        {/* File Upload */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                ไฟล์แนบ (รูปภาพหรือวิดีโอ รวมสูงสุด 5 ไฟล์)
-                            </label>
-                            {renderFileUpload()}
-
-                            {/* Preview */}
-                            {previewUrls.length > 0 && (
-                                <div className="mt-4 space-y-3">
-                                    <p className="text-sm text-gray-600">
-                                        ไฟล์ที่เลือก ({files.length}/5)
+                            <div className="flex justify-between items-center mt-2">
+                                {errors.description ? (
+                                    <p className="text-sm text-red-600 flex items-center gap-1">
+                                        <AlertCircle size={14} />
+                                        {errors.description.message}
                                     </p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {previewUrls.map((preview, index) => (
-                                            <div key={index} className="relative group border border-gray-200 rounded-lg p-3 bg-gray-50">
-                                                {preview.type === 'image' ? (
-                                                    <img
-                                                        src={preview.url}
-                                                        alt={`Preview ${index + 1}`}
-                                                        className="w-full h-40 object-cover rounded-lg"
-                                                    />
-                                                ) : (
-                                                    <video
-                                                        src={preview.url}
-                                                        controls
-                                                        className="w-full h-40 object-cover rounded-lg"
-                                                    />
-                                                )}
-                                                <div className="mt-2 flex items-center justify-between">
-                                                    <div className="text-xs text-gray-600 truncate flex-1">
-                                                        <p className="font-medium truncate">{preview.name}</p>
-                                                        <p className="text-gray-500">{formatFileSize(preview.size)}</p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeFile(index)}
-                                                        className="ml-2 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
-                                                        title="ลบไฟล์"
-                                                    >
-                                                        <XCircleIcon className="h-6 w-6" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                ) : (
+                                    <p className="text-xs text-gray-500">
+                                        💡 ยิ่งให้รายละเอียดมาก เราจะสามารถช่วยเหลือคุณได้เร็วขึ้น
+                                    </p>
+                                )}
+                                <span className="text-xs text-gray-500">
+                                    {watch('description')?.length || 0} / 5000
+                                </span>
+                            </div>
                         </div>
 
-                        {/* Submit Button */}
-                        <div className="flex justify-end gap-4 pt-4">
+                        {/* Image Uploader */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                ไฟล์แนบ (รูปภาพหรือวิดีโอ)
+                            </label>
+                            <p className="text-xs text-gray-600 mb-3">
+                                📸 เพิ่มรูปภาพหรือวิดีโอเพื่อให้เราเห็นปัญหาได้ชัดเจนยิ่งขึ้น
+                            </p>
+                            <ImageUploader
+                                files={files}
+                                setFiles={setFiles}
+                                maxFiles={5}
+                                maxSize={20 * 1024 * 1024}
+                            />
+                        </div>
+
+                        {/* Divider */}
+                        <div className="border-t border-gray-200"></div>
+
+                        {/* Submit Buttons */}
+                        <div className="flex flex-col sm:flex-row justify-end gap-3">
                             <button
                                 type="button"
                                 onClick={() => navigate(-1)}
-                                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                className="px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-all"
                                 disabled={loading}
                             >
                                 ยกเลิก
@@ -404,20 +397,48 @@ const ComplaintForm = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
+                                className="px-8 py-3 bg-gradient-to-r from-[#55C388] to-[#43A874] text-white rounded-lg font-semibold hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#55C388] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                             >
                                 {loading ? (
-                                    <span className="flex items-center">
-                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <>
+                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
                                         กำลังส่งข้อมูล...
-                                    </span>
-                                ) : 'ส่งเรื่องร้องเรียน'}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send size={18} />
+                                        ส่งเรื่องร้องเรียน
+                                    </>
+                                )}
                             </button>
                         </div>
+
+                        {/* Info Box */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h4 className="font-semibold text-blue-900 mb-2 text-sm">
+                                ℹ️ หมายเหตุ
+                            </h4>
+                            <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                                <li>เรื่องร้องเรียนของคุณจะได้รับการตอบกลับภายใน 1-2 วันทำการ</li>
+                                <li>คุณสามารถติดตามสถานะได้ที่เมนู "เรื่องร้องเรียนของฉัน"</li>
+                                <li>ระดับความสำคัญจะถูกประเมินโดยเจ้าหน้าที่อัตโนมัติ</li>
+                                <li>การเลือกหมวดหมู่ที่ถูกต้องจะช่วยให้เจ้าหน้าที่ดำเนินการได้รวดเร็วขึ้น</li>
+                            </ul>
+                        </div>
                     </form>
+                </div>
+
+                {/* Help Section */}
+                <div className="mt-6 text-center text-sm">
+                    <p>
+                        ต้องการความช่วยเหลือ? ติดต่อเราที่{' '}
+                        <a href="mailto:support@university.ac.th" className="text-[#55C388] hover:underline font-medium">
+                            support@university.ac.th
+                        </a>
+                    </p>
                 </div>
             </div>
         </div>
