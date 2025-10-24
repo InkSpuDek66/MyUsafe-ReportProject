@@ -201,7 +201,6 @@ React Official Documentation. https://react.dev
 Node.js Official Documentation. https://nodejs.org 
 Express.js Guide. https://expressjs.com
 Git Cheat Sheet https://git-scm.com/cheat-sheet 
-MySQL Documentation https://dev.mysql.com/doc 
-Nuxt UI: The Intuitive Vue UI Library https://ui.nuxt.com/
 W3Schools Online Web Tutorials https://www.w3schools.com 
 Mozilla Developer Network (MDN). Web Storage API. https://developer.mozilla.org
+Nuxt UI: The Intuitive Vue UI Library https://ui.nuxt.com/
