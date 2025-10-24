@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 // App.jsx - ตัวจัดการเส้นทางหลักของแอปพลิเคชัน
-import { Routes, Route } from "react-router-dom"; // ลบ BrowserRouter ออก
+import { Routes, Route, useLocation } from "react-router-dom"; // ลบ BrowserRouter ออก
 import './App.css'
 
 // Common Components
@@ -15,17 +15,26 @@ import ComplaintDetail from './components/complaints/ComplaintDetail';
 import MyComplaints from './pages/user/MyComplaints';
 import CreateComplaint from './pages/user/CreateComplaint';
 import Reports from "./pages/admin/Reports";
+import SignUpForm from './components/LoginForm/SignUpForm' 
+
 
 function App() {
+  const location = useLocation();
+  
+  // ✅ ซ่อน Navbar และ Test Buttons ในหน้า login และ signup
+  const hideNavbarAndButtons = ['/login', '/signup'].includes(location.pathname);
+
   return (
     <>
-      {/* มีทุกๆหน้า */}
-      <Navbar />
+      {!hideNavbarAndButtons && <Navbar />}
+      
       <Routes>
         {/* หน้าหลัก */}
         <Route path="/" element={<Home />} />
         {/* หน้า Login */}
         <Route path="/login" element={<LoginForm />} />
+                <Route path="/signup" element={<SignUpForm />} />
+
         
         {/* หน้าเรื่องร้องเรียน */}
         <Route path="/complaints/new" element={<CreateComplaint />} />

@@ -1,7 +1,7 @@
 # ข้อมูลเกี่ยวกับโปรเจค
 ues nvm  --> v22.20.0 || nvm install jod
 
-# โครงสร้างโปรเจค
+# โครงสร้างโปรเจค testJINGJING
 MyUsafe-ReportProject/
 ├── backend/
 │   ├── node_modules/
