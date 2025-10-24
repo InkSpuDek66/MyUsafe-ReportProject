@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; 
+// ⚙️ นำเข้าไอคอนเพื่อใช้แสดงปุ่มเปิด/ปิดรหัสผ่าน
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline"; 
 
 // กำหนด base URL ของ Backend
 const BASE_URL = "http://localhost:5000";
@@ -11,6 +13,8 @@ const LoginForm = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // 🆕 เพิ่ม state สำหรับควบคุมการแสดงรหัสผ่าน
+  const [showPassword, setShowPassword] = useState(false); 
 
   const handleChange = (e) => {
     setFormData({
@@ -63,6 +67,11 @@ const LoginForm = () => {
     navigate("/signup");
   };
 
+  // 🆕 ฟังก์ชันสลับการแสดงรหัสผ่าน
+  const togglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-xl">
@@ -95,14 +104,32 @@ const LoginForm = () => {
             <label className="block text-sm font-medium text-gray-700">
               รหัสผ่าน
             </label>
-            <input
-              type="password"
-              name="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
-            />
+            {/* 🆕 ส่วน Input รหัสผ่านที่ปรับปรุง */}
+            <div className="relative mt-1">
+              <input
+                // ⚙️ สลับประเภทของ input ระหว่าง 'password' กับ 'text'
+                type={showPassword ? "text" : "password"} 
+                name="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                // ⚙️ เพิ่ม padding-right เพื่อไม่ให้ข้อความทับกับไอคอน
+                className="w-full pr-10 pl-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
+              />
+              <button
+                type="button" // 🚫 สำคัญ: ต้องเป็น type="button" เพื่อไม่ให้ trigger การ submit form
+                onClick={togglePasswordVisibility}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-green-600 focus:outline-none"
+              >
+                {/* ⚙️ แสดงไอคอนตาเปิดหรือตาปิดตามสถานะ showPassword */}
+                {showPassword ? (
+                  <EyeSlashIcon className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+            {/* ⬆️ จบส่วน Input รหัสผ่านที่ปรับปรุง */}
           </div>
 
           {error && (
@@ -115,10 +142,10 @@ const LoginForm = () => {
                 type="checkbox"
                 className="h-4 w-4 text-green-600 border-gray-300 rounded"
               />
-              Remember me
+              จำไว้ในระบบ
             </label>
             <a href="#" className="text-green-600 hover:text-green-500">
-              Forgot password?
+             ลืมรหัสผ่าน
             </a>
           </div>
 
@@ -129,14 +156,14 @@ const LoginForm = () => {
               className={`w-1/2 py-2 rounded-md font-semibold text-white transition 
               ${loading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"}`}
             >
-              {loading ? "กำลังเข้าสู่ระบบ..." : "Login"}
+              {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
             </button>
             <button
               type="button"
               onClick={handleSignUp}
               className="w-1/2 py-2 rounded-md border border-green-600 text-green-600 font-semibold hover:bg-green-50 transition"
             >
-              Sign Up
+              สมัครสมาชิก
             </button>
           </div>
         </form>

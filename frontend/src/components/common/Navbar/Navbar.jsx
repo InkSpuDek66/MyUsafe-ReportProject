@@ -9,10 +9,10 @@ import {
   MenuItem,
   MenuItems,
 } from "@headlessui/react";
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+// ✅ เพิ่ม BellIcon สำหรับ Notification และลบ import ที่มีปัญหา
+import { Bars3Icon, XMarkIcon, BellIcon } from "@heroicons/react/24/outline"; 
 import { LogIn } from "lucide-react"; // ไอคอนล็อกอิน
-import Notification from "../../Notification/Notification";
-import "./Navbar.css";
+// ❌ ลบ import Notification และ "./Navbar.css" ที่มีปัญหา
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -20,14 +20,19 @@ function classNames(...classes) {
 
 export default function Navbar() {
   const [token, setToken] = useState(null);
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(null); // role ถูกเก็บใน state แล้ว
   const navigate = useNavigate();
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedRole = localStorage.getItem("role");
     setToken(storedToken);
-    setRole(storedRole);
+    setRole(storedRole); // ตั้งค่า role
+    
+    // *** 🛠️ โค้ดสำหรับ DEBUG: ตรวจสอบค่า role ที่โหลดมา ***
+    console.log("Navbar: Loaded role:", storedRole);
+    // ******************************************************
+
   }, []);
 
   const handleLogout = () => {
@@ -45,40 +50,72 @@ export default function Navbar() {
     { name: "Calendar", href: "#" },
     { name: "Reports", href: "/complaints/new" },
   ];
+  
+  // ⚙️ ตรวจสอบว่าบทบาทผู้ใช้มีสิทธิ์เข้าถึงรายการ 'work' หรือไม่
+  // เงื่อนไขนี้ถูกต้อง: admin หรือ staff เห็น 'work'
+  const canSeeWork = role === 'admin' || role === 'staff';
+
+  // รายการที่ผู้ใช้ทุกคนที่ล็อกอินแล้วควรเห็น (Reporter, Admin, Staff)
+  const baseItems = [
+    { name: "Your profile", href: "#" },
+    { name: "Settings", href: "#" },
+  ];
+  
+  // รายการ 'work' ที่มีเฉพาะ admin/staff
+  const workItem = { name: "work", href: "#" };
+  
+  // รายการสุดท้ายคือ Sign out
+  const signOutItem = { name: "Sign out", onClick: handleLogout };
 
   const userNavigation = token
     ? [
-        { name: "Your profile", href: "#" },
-        { name: "Settings", href: "#" },
-        { name: "Sign out", onClick: handleLogout },
+        // 1. Profile และ Settings (ทุกคนเห็น)
+        ...baseItems,
+        // 2. work (เห็นเฉพาะ admin/staff)
+        ...(canSeeWork ? [workItem] : []),
+        // 3. Sign out (ทุกคนเห็น)
+        signOutItem,
       ]
     : [];
 
   const user = {
-    name: "Tom Cook",
-    email: "tom@example.com",
+    name: "User Name", // เปลี่ยนค่าว่างเป็นชื่อ User ที่กำหนด
+    email: "user@example.com", // เปลี่ยนค่าว่างเป็น Email ที่กำหนด
     imageUrl:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
+  
+  // ⚙️ Component Placeholder สำหรับ Notification (แทนที่การ import ที่มีปัญหา)
+  const NotificationPlaceholder = () => (
+    <button
+        type="button"
+        className="relative p-1 text-gray-700 rounded-full hover:text-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-lime-400"
+    >
+        <span className="sr-only">View notifications</span>
+        <BellIcon className="size-6" aria-hidden="true" />
+        {/* Badge Placeholder */}
+        <span className="absolute top-0 right-0 size-2.5 rounded-full bg-red-600 ring-2 ring-lime-400"></span>
+    </button>
+  );
 
   return (
     <div className="min-h-full">
       <Disclosure as="nav" className="bg-lime-400 shadow">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            {/* ---------------- Left ---------------- */}
+            {/* ---------------- Left - Logo Section ---------------- */}
             <div className="flex items-center">
-              <div className="flex items-center">
-                <a href="#" target="_blank">
-                  <span className="myusafe-logo text-shadow-lg text-shadow-white/10">
-                    <span className="part1">MyU</span>
-                    <span className="part2">Safe</span>
-                    <span className="underline-u"></span>
-                  </span>
+              <div className="flex items-center text-xl font-extrabold">
+                {/* ❌ แทนที่โครงสร้าง myusafe-logo ด้วย Tailwind CSS */}
+                <a href="#" target="_blank" className="flex items-center">
+                  <span className="tracking-tighter text-lime-800">MyU</span>
+                  <span className="tracking-tighter text-gray-900/80">Safe</span>
                 </a>
-                <p className="text_x text-white ml-2">x</p>
+                {/* Separator 'x' */}
+                <p className="text-sm text-white ml-2">x</p> 
+                {/* University Logo */}
                 <a href="https://www.spu.ac.th/" target="_blank" rel="noreferrer">
-                  <img className="h-6 w-auto" src="/New_logo_spu_1.png" alt="Logo_university" />
+                  <img className="h-6 w-auto ml-1" src="/New_logo_spu_1.png" alt="Logo_university" />
                 </a>
               </div>
 
@@ -106,7 +143,7 @@ export default function Navbar() {
             {/* ---------------- Right ---------------- */}
             <div className="hidden lg:flex items-center md:ml-6 gap-3">
               {/* Notification — แสดงเฉพาะตอนล็อกอิน */}
-              {token && <Notification />}
+              {token && <NotificationPlaceholder />}
 
               {/* Login — แสดงเฉพาะตอนยังไม่ล็อกอิน */}
               {!token && (
@@ -141,24 +178,27 @@ export default function Navbar() {
                     transition
                     className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                   >
-                    {userNavigation.map((item) =>
+                    {/* แสดงรายการตาม userNavigation ที่ถูกสร้างตาม role แล้ว */}
+                    {userNavigation.map((item, index) => // 🛠️ เพิ่ม index
                       item.onClick ? (
-                        <MenuItem key={item.name}>
-                          <button
-                            onClick={item.onClick}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5"
-                          >
-                            {item.name}
-                          </button>
+                        // 🛠️ แก้ไข: ใช้ as="button" และย้าย className ไปที่ MenuItem
+                        <MenuItem 
+                          key={item.name + index} 
+                          as="button"
+                          onClick={item.onClick}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5" // ใช้ data-[focus] สำหรับ Headless UI
+                        >
+                          {item.name}
                         </MenuItem>
                       ) : (
-                        <MenuItem key={item.name}>
-                          <Link
-                            to={item.href}
-                            className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5"
-                          >
-                            {item.name}
-                          </Link>
+                        // 🛠️ แก้ไข: ใช้ as={Link} และย้าย className ไปที่ MenuItem
+                        <MenuItem 
+                          key={item.name + index} 
+                          as={Link}
+                          to={item.href}
+                          className="block px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5" // ใช้ data-[focus] สำหรับ Headless UI
+                        >
+                          {item.name}
                         </MenuItem>
                       )
                     )}
@@ -203,10 +243,36 @@ export default function Navbar() {
                     <div className="text-sm font-medium text-gray-700">{user.email}</div>
                   </div>
                   <div className="ml-auto">
-                    <Notification />
+                    {/* Notification บน Mobile */}
+                    <NotificationPlaceholder />
                   </div>
                 </>
               )}
+            </div>
+            
+            <div className="mt-3 space-y-1 px-2">
+                {/* ⚙️ แสดงรายการ Profile/Settings/work บน Mobile ตาม role ที่ถูกกำหนดใน userNavigation แล้ว */}
+                {token && userNavigation.filter(item => item.name !== 'Sign out').map((item, index) => ( // 🛠️ เพิ่ม index
+                    <DisclosureButton
+                        key={item.name + index} // 🛠️ ใช้ item.name + index
+                        as={Link}
+                        to={item.href}
+                        className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-white/5 hover:text-white"
+                    >
+                        {item.name}
+                    </DisclosureButton>
+                ))}
+
+                {/* ปุ่ม Sign Out (Mobile) - แสดงเสมอเมื่อมี token */}
+                {token && (
+                    <DisclosureButton
+                        as="button"
+                        onClick={handleLogout}
+                        className="block w-full text-left rounded-md px-3 py-2 text-base font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                    >
+                        Sign out
+                    </DisclosureButton>
+                )}
             </div>
 
             {/* ปุ่ม Login (มือถือ) */}
@@ -227,4 +293,3 @@ export default function Navbar() {
     </div>
   );
 }
-   

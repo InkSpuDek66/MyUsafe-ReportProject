@@ -9,7 +9,6 @@ require('dotenv').config(); // ✅ โหลด .env ก่อนใช้ค่
 // ✅ Import Routes & Models
 const authRoutes = require('./src/routes/auth'); 
 const complaintRoutes = require('./src/routes/homeRoutes');
-const Complaint = require('./src/models/complaintModel'); 
 
 const app = express();
 const server = http.createServer(app);

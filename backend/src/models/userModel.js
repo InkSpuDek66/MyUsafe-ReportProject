@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs'); // เปลี่ยนจาก 'bcrypt' เป็น 'bcryptjs'
 const userSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'กรุณาใส่ชื่อ-นามสกุล'], trim: true }, 
   email: { 
