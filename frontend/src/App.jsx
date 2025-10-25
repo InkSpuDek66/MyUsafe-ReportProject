@@ -44,7 +44,7 @@ function App() {
         {/* หน้า Admin */}
         <Route path="/admin/reports" element={<Reports />} />
         <Route path="/admin/assignments" element={<Assignments />} />
-        <Route path="/assignments" element={<Assignments />} /> {/* ✅ เพิ่มสำหรับ Staff */}
+        <Route path="/assignments" element={<Assignments />} /> ✅ เพิ่มสำหรับ Staff
       </Routes>
 
       {/* Test Buttons - ลบออกได้เมื่อไม่ใช้แล้ว */}
