@@ -102,14 +102,23 @@ const complaintSchema = new mongoose.Schema({
 
   status_history: [statusSchema],
 
-  likes: {
-    type: Number,
-    default: 0
-  },
-  dislikes: {
-    type: Number,
-    default: 0
-  },
+// ในส่วน complaintSchema เพิ่ม:
+likes: {
+  type: Number,
+  default: 0
+},
+liked_by: [{  // ✅ เพิ่มใหม่
+  type: String,  // user_id
+  default: []
+}],
+dislikes: {
+  type: Number,
+  default: 0
+},
+disliked_by: [{  // ✅ เพิ่มใหม่
+  type: String,  // user_id
+  default: []
+}],
   views: {
     type: Number,
     default: 0

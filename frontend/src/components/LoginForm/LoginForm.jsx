@@ -41,6 +41,7 @@ const LoginForm = () => {
         if (data.token) {
           localStorage.setItem("token", data.token);
           localStorage.setItem("role", data.data.user.role); // ✅ เปลี่ยนเป็น "role"
+          localStorage.setItem("userId", data.data.user._id);
           
           // 🛠️ Debug: ตรวจสอบว่าบันทึกถูกต้อง
           console.log("✅ Saved to localStorage:");

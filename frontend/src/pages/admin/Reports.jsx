@@ -170,7 +170,8 @@ useEffect(() => {
     "เสร็จสิ้น": "#10B981",
     "ยกเลิก": "#d63939ff",
   };
-
+  // กรองเอาเฉพาะสถานะที่มีข้อมูล (count > 0) สำหรับ pie chart
+  const chartDataFiltered = chartData.filter((d) => d.count > 0);
   const statusBadgeClass = (s) => {
     // แสดงพื้นหลังอ่อนตามสถานะ แต่ข้อความเป็นดำ (override)
     if (s === "รอรับเรื่อง") return "bg-yellow-100 text-black";
@@ -367,23 +368,25 @@ const categoryStats = useMemo(() => {
             <ChartPieIcon className="h-5 w-5 text-[#55C388]" />
             สัดส่วนสถานะเรื่องร้องเรียน
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                dataKey="count"
-                nameKey="name"
-                outerRadius={80}
-                label={(entry) => `${entry.name} (${entry.count})`}
-              >
-                {chartData.map((entry, i) => (
-                  <Cell key={i} fill={statusColorsMap[entry.name] || "#ccc"} />
-                ))}
-              </Pie>
-              <Legend />
-              <Tooltip contentStyle={{ color: "#000" }} />
-            </PieChart>
-          </ResponsiveContainer>
+<ResponsiveContainer width="100%" height={250}>
+  <PieChart>
+    <Pie
+      data={chartDataFiltered}  // ✅ เปลี่ยนจาก chartData
+      dataKey="count"
+      nameKey="name"
+      outerRadius={80}
+      label={(entry) => `${entry.name} (${entry.count})`}
+      labelLine={{ stroke: '#666', strokeWidth: 1 }}  // ✅ เพิ่มเส้นโยงที่ชัดเจน
+      paddingAngle={2}  // ✅ เพิ่มระยะห่างระหว่างชิ้น
+    >
+      {chartDataFiltered.map((entry, i) => (  // ✅ เปลี่ยนเป็น chartDataFiltered
+        <Cell key={i} fill={statusColorsMap[entry.name] || "#ccc"} />
+      ))}
+    </Pie>
+    <Legend />
+    <Tooltip contentStyle={{ color: "#000" }} />
+  </PieChart>
+</ResponsiveContainer>
         </div>
       </div>
 

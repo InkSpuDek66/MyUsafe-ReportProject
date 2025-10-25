@@ -13,7 +13,11 @@ import {
     ChevronDownIcon,
     MagnifyingGlassIcon,
 } from "@heroicons/react/24/solid";
-
+// ✅ เพิ่มที่ด้านบนของ component
+const getUserId = () => {
+    // TODO: ดึงจาก token หรือ localStorage
+    return localStorage.getItem('userId') || 'U0000000';
+};
 export default function Home() {
     const [complaints, setComplaints] = useState([]);
     const [filterStatus, setFilterStatus] = useState("ทั้งหมด");
@@ -23,6 +27,7 @@ export default function Home() {
     const [q, setQ] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+     const userId = getUserId(); // ✅ เพิ่มบรรทัดนี้ตรงนี้ - หลัง useState ทั้งหมด
     const navigate = useNavigate();
     const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -110,12 +115,13 @@ export default function Home() {
 
     const sendAction = async (complaint_id, action) => {
         try {
+            const userId = getUserId(); // ✅ เพิ่ม
             await fetch(`${API}/api/complaints/${complaint_id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action }),
+                body: JSON.stringify({ action, user_id: userId }), // ✅ ส่ง user_id ไปด้วย
             });
-            load();
+            load(); // reload ข้อมูลใหม่
         } catch (e) {
             console.error(e);
         }
@@ -224,8 +230,8 @@ export default function Home() {
                                                 setShowStatusMenu(false);
                                             }}
                                             className={`block w-full text-left px-4 py-2 hover:bg-[#55C388]/10 ${filterStatus === s
-                                                    ? "text-[#55C388] font-semibold"
-                                                    : ""
+                                                ? "text-[#55C388] font-semibold"
+                                                : ""
                                                 }`}
                                         >
                                             {s}
@@ -266,8 +272,8 @@ export default function Home() {
                             key={cat.id}
                             onClick={() => toggleCategory(cat.id)}
                             className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${selectedCategories.includes(cat.id)
-                                    ? "bg-[#55C388] text-white border-[#55C388]"
-                                    : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
+                                ? "bg-[#55C388] text-white border-[#55C388]"
+                                : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
                                 }`}
                         >
                             <span>{cat.icon}</span> {cat.name}
@@ -378,19 +384,24 @@ export default function Home() {
                                                     e.stopPropagation();
                                                     sendAction(c.complaint_id, "like");
                                                 }}
-                                                className="hover:text-[#55C388] transition flex items-center gap-1 text-gray-400"
+                                                className={`hover:text-[#55C388] transition flex items-center gap-1 ${c.liked_by?.includes(userId)
+                                                    ? 'text-[#55C388] font-bold' // ✅ เปลี่ยนสีเมื่อกดแล้ว
+                                                    : 'text-gray-400'
+                                                    }`}
                                             >
                                                 <HandThumbUpIcon className="h-4 w-4" /> {c.likes || 0}
                                             </button>
-                                            <button
+                                            <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     sendAction(c.complaint_id, "dislike");
                                                 }}
-                                                className="hover:text-red-500 transition flex items-center gap-1 text-gray-400"
+                                                className={`hover:text-red-500 transition flex items-center gap-1 ${c.disliked_by?.includes(userId)
+                                                    ? 'text-red-500 font-bold' // ✅ เปลี่ยนสีเมื่อกดแล้ว
+                                                    : 'text-gray-400'
+                                                    }`}
                                             >
-                                                <HandThumbDownIcon className="h-4 w-4" />{" "}
-                                                {c.dislikes || 0}
+                                                <HandThumbDownIcon className="h-4 w-4" /> {c.dislikes || 0}
                                             </button>
                                         </div>
                                     </div>

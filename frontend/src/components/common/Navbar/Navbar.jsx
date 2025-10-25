@@ -10,9 +10,10 @@ import {
   MenuItems,
 } from "@headlessui/react";
 // ✅ เพิ่ม BellIcon สำหรับ Notification และลบ import ที่มีปัญหา
-import { Bars3Icon, XMarkIcon, BellIcon } from "@heroicons/react/24/outline"; 
+import { Bars3Icon, XMarkIcon, BellIcon } from "@heroicons/react/24/outline";
 import { LogIn } from "lucide-react"; // ไอคอนล็อกอิน
 // ❌ ลบ import Notification และ "./Navbar.css" ที่มีปัญหา
+import './Navbar.css'
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -28,7 +29,7 @@ export default function Navbar() {
     const storedRole = localStorage.getItem("role");
     setToken(storedToken);
     setRole(storedRole); // ตั้งค่า role
-    
+
     // *** 🛠️ โค้ดสำหรับ DEBUG: ตรวจสอบค่า role ที่โหลดมา ***
     console.log("Navbar: Loaded role:", storedRole);
     // ******************************************************
@@ -38,18 +39,19 @@ export default function Navbar() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    localStorage.removeItem("userId");
     setToken(null);
     setRole(null);
     navigate("/login");
   };
 
-const navigation = [
-  { name: "Dashboard", href: "/", current: true },
-  // ✅ ใช้ conditional spreading เพื่อแสดง Admin Reports เฉพาะ admin
-  ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
-  { name: "Reports", href: "/complaints/new" },
-];
-  
+  const navigation = [
+    { name: "Dashboard", href: "/", current: true },
+    // ✅ ใช้ conditional spreading เพื่อแสดง Admin Reports เฉพาะ admin
+    ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
+    { name: "Reports", href: "/complaints/new" },
+  ];
+
   // ⚙️ ตรวจสอบว่าบทบาทผู้ใช้มีสิทธิ์เข้าถึงรายการ 'work' หรือไม่
   // เงื่อนไขนี้ถูกต้อง: admin หรือ staff เห็น 'work'
   const canSeeWork = role === 'admin' || role === 'staff';
@@ -59,22 +61,22 @@ const navigation = [
     { name: "Your profile", href: "#" },
     { name: "My Complains", href: "/my-complaints" },
   ];
-  
+
   // รายการ 'work' ที่มีเฉพาะ admin/staff
   const workItem = { name: "work", href: "#" };
-  
+
   // รายการสุดท้ายคือ Sign out
   const signOutItem = { name: "Sign out", onClick: handleLogout };
 
   const userNavigation = token
     ? [
-        // 1. Profile และ Settings (ทุกคนเห็น)
-        ...baseItems,
-        // 2. work (เห็นเฉพาะ admin/staff)
-        ...(canSeeWork ? [workItem] : []),
-        // 3. Sign out (ทุกคนเห็น)
-        signOutItem,
-      ]
+      // 1. Profile และ Settings (ทุกคนเห็น)
+      ...baseItems,
+      // 2. work (เห็นเฉพาะ admin/staff)
+      ...(canSeeWork ? [workItem] : []),
+      // 3. Sign out (ทุกคนเห็น)
+      signOutItem,
+    ]
     : [];
 
   const user = {
@@ -83,17 +85,17 @@ const navigation = [
     imageUrl:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
-  
+
   // ⚙️ Component Placeholder สำหรับ Notification (แทนที่การ import ที่มีปัญหา)
   const NotificationPlaceholder = () => (
     <button
-        type="button"
-        className="relative p-1 text-gray-700 rounded-full hover:text-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-lime-400"
+      type="button"
+      className="relative p-1 text-gray-700 rounded-full hover:text-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-lime-400"
     >
-        <span className="sr-only">View notifications</span>
-        <BellIcon className="size-6" aria-hidden="true" />
-        {/* Badge Placeholder */}
-        <span className="absolute top-0 right-0 size-2.5 rounded-full bg-red-600 ring-2 ring-lime-400"></span>
+      <span className="sr-only">View notifications</span>
+      <BellIcon className="size-6" aria-hidden="true" />
+      {/* Badge Placeholder */}
+      <span className="absolute top-0 right-0 size-2.5 rounded-full bg-red-600 ring-2 ring-lime-400"></span>
     </button>
   );
 
@@ -106,12 +108,14 @@ const navigation = [
             <div className="flex items-center">
               <div className="flex items-center text-xl font-extrabold">
                 {/* ❌ แทนที่โครงสร้าง myusafe-logo ด้วย Tailwind CSS */}
-                <a href="#" target="_blank" className="flex items-center">
-                  <span className="tracking-tighter text-lime-800">MyU</span>
-                  <span className="tracking-tighter text-gray-900/80">Safe</span>
+                <a href="#" target="_blank">
+                  <span className="myusafe-logo text-shadow-lg text-shadow-white/10">
+                    <span className="part1">MyU</span><span className="part2">Safe</span>
+                    <span className="underline-u "></span>
+                  </span>
                 </a>
                 {/* Separator 'x' */}
-                <p className="text-sm text-white ml-2">x</p> 
+                <p className="text-sm text-white ml-2">x</p>
                 {/* University Logo */}
                 <a href="https://www.spu.ac.th/" target="_blank" rel="noreferrer">
                   <img className="h-6 w-auto ml-1" src="/New_logo_spu_1.png" alt="Logo_university" />
@@ -181,8 +185,8 @@ const navigation = [
                     {userNavigation.map((item, index) => // 🛠️ เพิ่ม index
                       item.onClick ? (
                         // 🛠️ แก้ไข: ใช้ as="button" และย้าย className ไปที่ MenuItem
-                        <MenuItem 
-                          key={item.name + index} 
+                        <MenuItem
+                          key={item.name + index}
                           as="button"
                           onClick={item.onClick}
                           className="block w-full text-left px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5" // ใช้ data-[focus] สำหรับ Headless UI
@@ -191,8 +195,8 @@ const navigation = [
                         </MenuItem>
                       ) : (
                         // 🛠️ แก้ไข: ใช้ as={Link} และย้าย className ไปที่ MenuItem
-                        <MenuItem 
-                          key={item.name + index} 
+                        <MenuItem
+                          key={item.name + index}
                           as={Link}
                           to={item.href}
                           className="block px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5" // ใช้ data-[focus] สำหรับ Headless UI
@@ -248,30 +252,30 @@ const navigation = [
                 </>
               )}
             </div>
-            
-            <div className="mt-3 space-y-1 px-2">
-                {/* ⚙️ แสดงรายการ Profile/Settings/work บน Mobile ตาม role ที่ถูกกำหนดใน userNavigation แล้ว */}
-                {token && userNavigation.filter(item => item.name !== 'Sign out').map((item, index) => ( // 🛠️ เพิ่ม index
-                    <DisclosureButton
-                        key={item.name + index} // 🛠️ ใช้ item.name + index
-                        as={Link}
-                        to={item.href}
-                        className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-white/5 hover:text-white"
-                    >
-                        {item.name}
-                    </DisclosureButton>
-                ))}
 
-                {/* ปุ่ม Sign Out (Mobile) - แสดงเสมอเมื่อมี token */}
-                {token && (
-                    <DisclosureButton
-                        as="button"
-                        onClick={handleLogout}
-                        className="block w-full text-left rounded-md px-3 py-2 text-base font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                    >
-                        Sign out
-                    </DisclosureButton>
-                )}
+            <div className="mt-3 space-y-1 px-2">
+              {/* ⚙️ แสดงรายการ Profile/Settings/work บน Mobile ตาม role ที่ถูกกำหนดใน userNavigation แล้ว */}
+              {token && userNavigation.filter(item => item.name !== 'Sign out').map((item, index) => ( // 🛠️ เพิ่ม index
+                <DisclosureButton
+                  key={item.name + index} // 🛠️ ใช้ item.name + index
+                  as={Link}
+                  to={item.href}
+                  className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-white/5 hover:text-white"
+                >
+                  {item.name}
+                </DisclosureButton>
+              ))}
+
+              {/* ปุ่ม Sign Out (Mobile) - แสดงเสมอเมื่อมี token */}
+              {token && (
+                <DisclosureButton
+                  as="button"
+                  onClick={handleLogout}
+                  className="block w-full text-left rounded-md px-3 py-2 text-base font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                >
+                  Sign out
+                </DisclosureButton>
+              )}
             </div>
 
             {/* ปุ่ม Login (มือถือ) */}
