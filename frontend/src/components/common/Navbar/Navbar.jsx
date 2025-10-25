@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
   Disclosure,
   DisclosureButton,
@@ -9,10 +9,8 @@ import {
   MenuItem,
   MenuItems,
 } from "@headlessui/react";
-// ✅ เพิ่ม BellIcon สำหรับ Notification และลบ import ที่มีปัญหา
 import { Bars3Icon, XMarkIcon, BellIcon } from "@heroicons/react/24/outline";
-import { LogIn } from "lucide-react"; // ไอคอนล็อกอิน
-// ❌ ลบ import Notification และ "./Navbar.css" ที่มีปัญหา
+import { LogIn } from "lucide-react";
 import './Navbar.css'
 
 function classNames(...classes) {
@@ -21,19 +19,17 @@ function classNames(...classes) {
 
 export default function Navbar() {
   const [token, setToken] = useState(null);
-  const [role, setRole] = useState(null); // role ถูกเก็บใน state แล้ว
+  const [role, setRole] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ เพิ่ม useLocation เพื่อดึง path ปัจจุบัน
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedRole = localStorage.getItem("role");
     setToken(storedToken);
-    setRole(storedRole); // ตั้งค่า role
+    setRole(storedRole);
 
-    // *** 🛠️ โค้ดสำหรับ DEBUG: ตรวจสอบค่า role ที่โหลดมา ***
     console.log("Navbar: Loaded role:", storedRole);
-    // ******************************************************
-
   }, []);
 
   const handleLogout = () => {
@@ -45,50 +41,49 @@ export default function Navbar() {
     navigate("/login");
   };
 
-const navigation = [
-  { name: "Dashboard", href: "/", current: true },
-  // ✅ Admin Reports - เฉพาะ admin
-  ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
-  // ✅ Assignments - เฉพาะ admin และ staff
-  ...(role === 'admin' || role === 'staff' ? [{ name: "Assignments", href: "/admin/assignments" }] : []),
-  { name: "Reports", href: "/complaints/new" },
-];
+  // ✅ ฟังก์ชันตรวจสอบว่า path ปัจจุบันตรงกับ href หรือไม่
+  const isActive = (href) => {
+    if (href === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(href);
+  };
 
-  // ⚙️ ตรวจสอบว่าบทบาทผู้ใช้มีสิทธิ์เข้าถึงรายการ 'work' หรือไม่
-  // เงื่อนไขนี้ถูกต้อง: admin หรือ staff เห็น 'work'
+  const navigation = [
+    { name: "Dashboard", href: "/" },
+    // Admin Reports - เฉพาะ admin
+    ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
+    // Assignments - เฉพาะ admin และ staff
+    ...(role === 'admin' || role === 'staff' ? [{ name: "Assignments", href: "/admin/assignments" }] : []),
+    { name: "Reports", href: "/complaints/new" },
+  ];
+
   const canSeeWork = role === 'admin' || role === 'staff';
 
-  // รายการที่ผู้ใช้ทุกคนที่ล็อกอินแล้วควรเห็น (Reporter, Admin, Staff)
   const baseItems = [
     { name: "Your profile", href: "#" },
     { name: "My Complains", href: "/my-complaints" },
   ];
 
-  // รายการ 'work' ที่มีเฉพาะ admin/staff
-const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เปลี่ยนจาก work เป็น Assignments
+  const workItem = { name: "Assignments", href: "/admin/assignments" };
 
-  // รายการสุดท้ายคือ Sign out
   const signOutItem = { name: "Sign out", onClick: handleLogout };
 
   const userNavigation = token
     ? [
-      // 1. Profile และ Settings (ทุกคนเห็น)
       ...baseItems,
-      // 2. work (เห็นเฉพาะ admin/staff)
       ...(canSeeWork ? [workItem] : []),
-      // 3. Sign out (ทุกคนเห็น)
       signOutItem,
     ]
     : [];
 
   const user = {
-    name: "User Name", // เปลี่ยนค่าว่างเป็นชื่อ User ที่กำหนด
-    email: "user@example.com", // เปลี่ยนค่าว่างเป็น Email ที่กำหนด
+    name: "User Name",
+    email: "user@example.com",
     imageUrl:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  // ⚙️ Component Placeholder สำหรับ Notification (แทนที่การ import ที่มีปัญหา)
   const NotificationPlaceholder = () => (
     <button
       type="button"
@@ -96,7 +91,6 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
     >
       <span className="sr-only">View notifications</span>
       <BellIcon className="size-6" aria-hidden="true" />
-      {/* Badge Placeholder */}
       <span className="absolute top-0 right-0 size-2.5 rounded-full bg-red-600 ring-2 ring-lime-400"></span>
     </button>
   );
@@ -106,25 +100,22 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
       <Disclosure as="nav" className="bg-lime-400 shadow">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            {/* ---------------- Left - Logo Section ---------------- */}
+            {/* Left - Logo Section */}
             <div className="flex items-center">
               <div className="flex items-center text-xl font-extrabold">
-                {/* ❌ แทนที่โครงสร้าง myusafe-logo ด้วย Tailwind CSS */}
                 <a href="#" target="_blank">
                   <span className="myusafe-logo text-shadow-lg text-shadow-white/10">
                     <span className="part1">MyU</span><span className="part2">Safe</span>
                     <span className="underline-u "></span>
                   </span>
                 </a>
-                {/* Separator 'x' */}
                 <p className="text-sm text-white ml-2">x</p>
-                {/* University Logo */}
                 <a href="https://www.spu.ac.th/" target="_blank" rel="noreferrer">
                   <img className="h-6 w-auto ml-1" src="/New_logo_spu_1.png" alt="Logo_university" />
                 </a>
               </div>
 
-              {/* Navigation */}
+              {/* Navigation - Desktop */}
               <div className="hidden lg:block">
                 <div className="ml-10 flex items-baseline space-x-4">
                   {navigation.map((item) => (
@@ -132,10 +123,10 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
                       key={item.name}
                       to={item.href}
                       className={classNames(
-                        item.current
+                        isActive(item.href) // ✅ ใช้ฟังก์ชัน isActive แทน item.current
                           ? "bg-gray-950/50 text-white"
                           : "text-gray-700 hover:bg-white/5 hover:text-white",
-                        "rounded-md px-3 py-2 text-sm font-medium"
+                        "rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
                       )}
                     >
                       {item.name}
@@ -145,12 +136,10 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
               </div>
             </div>
 
-            {/* ---------------- Right ---------------- */}
+            {/* Right */}
             <div className="hidden lg:flex items-center md:ml-6 gap-3">
-              {/* Notification — แสดงเฉพาะตอนล็อกอิน */}
               {token && <NotificationPlaceholder />}
 
-              {/* Login — แสดงเฉพาะตอนยังไม่ล็อกอิน */}
               {!token && (
                 <Link
                   to="/login"
@@ -168,7 +157,6 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
                 </Link>
               )}
 
-              {/* Profile dropdown — แสดงตอนล็อกอิน */}
               {token && (
                 <Menu as="div" className="relative ml-3">
                   <MenuButton className="relative flex max-w-xs items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
@@ -183,25 +171,22 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
                     transition
                     className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                   >
-                    {/* แสดงรายการตาม userNavigation ที่ถูกสร้างตาม role แล้ว */}
-                    {userNavigation.map((item, index) => // 🛠️ เพิ่ม index
+                    {userNavigation.map((item, index) =>
                       item.onClick ? (
-                        // 🛠️ แก้ไข: ใช้ as="button" และย้าย className ไปที่ MenuItem
                         <MenuItem
                           key={item.name + index}
                           as="button"
                           onClick={item.onClick}
-                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5" // ใช้ data-[focus] สำหรับ Headless UI
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5"
                         >
                           {item.name}
                         </MenuItem>
                       ) : (
-                        // 🛠️ แก้ไข: ใช้ as={Link} และย้าย className ไปที่ MenuItem
                         <MenuItem
                           key={item.name + index}
                           as={Link}
                           to={item.href}
-                          className="block px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5" // ใช้ data-[focus] สำหรับ Headless UI
+                          className="block px-4 py-2 text-sm text-gray-300 data-[focus]:bg-gray-700 hover:bg-white/5"
                         >
                           {item.name}
                         </MenuItem>
@@ -231,7 +216,12 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
                 key={item.name}
                 as={Link}
                 to={item.href}
-                className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-white/5 hover:text-white"
+                className={classNames(
+                  isActive(item.href) // ✅ ใช้ isActive สำหรับ Mobile ด้วย
+                    ? "bg-gray-950/50 text-white"
+                    : "text-gray-700 hover:bg-white/5 hover:text-white",
+                  "block rounded-md px-3 py-2 text-base font-medium transition-colors duration-200"
+                )}
               >
                 {item.name}
               </DisclosureButton>
@@ -248,7 +238,6 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
                     <div className="text-sm font-medium text-gray-700">{user.email}</div>
                   </div>
                   <div className="ml-auto">
-                    {/* Notification บน Mobile */}
                     <NotificationPlaceholder />
                   </div>
                 </>
@@ -256,10 +245,9 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
             </div>
 
             <div className="mt-3 space-y-1 px-2">
-              {/* ⚙️ แสดงรายการ Profile/Settings/work บน Mobile ตาม role ที่ถูกกำหนดใน userNavigation แล้ว */}
-              {token && userNavigation.filter(item => item.name !== 'Sign out').map((item, index) => ( // 🛠️ เพิ่ม index
+              {token && userNavigation.filter(item => item.name !== 'Sign out').map((item, index) => (
                 <DisclosureButton
-                  key={item.name + index} // 🛠️ ใช้ item.name + index
+                  key={item.name + index}
                   as={Link}
                   to={item.href}
                   className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-white/5 hover:text-white"
@@ -268,7 +256,6 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
                 </DisclosureButton>
               ))}
 
-              {/* ปุ่ม Sign Out (Mobile) - แสดงเสมอเมื่อมี token */}
               {token && (
                 <DisclosureButton
                   as="button"
@@ -280,7 +267,6 @@ const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เ
               )}
             </div>
 
-            {/* ปุ่ม Login (มือถือ) */}
             {!token && (
               <div className="mt-3 space-y-1 px-2">
                 <Link

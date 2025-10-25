@@ -1,43 +1,39 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Clock, User, CheckCircle, FileText, AlertTriangle, Eye, X, ChevronLeft, ChevronRight, Edit, UserPlus, Trash2, Loader2, ChevronDown, ChevronUp, Image as ImageIcon} from "lucide-react";
+import { ArrowLeft, MapPin, Clock, User, FileText, AlertTriangle, Eye, X, ChevronLeft, ChevronRight, Loader2, CheckCircle, Upload, Trash2 } from "lucide-react";
 import { io } from "socket.io-client";
-import StatusBadge from './StatusBadge';
-import PriorityBadge from './PriorityBadge';
-import StatusTimeline from './StatusTimeline';
-import CommentSection from './CommentSection';
-import StatusUpdateModal from './StatusUpdateModal';
-import AssignmentModal from './AssignmentModal';
+import StatusBadge from '../../components/complaints/StatusBadge';
+import PriorityBadge from '../../components/complaints/PriorityBadge';
+import StatusTimeline from '../../components/complaints/StatusTimeline';
 import { complaintAPI } from '../../services/complaintAPI';
 
-const API_BASE_URL = 'http://localhost:5000';
-const socket = io("http://localhost:5000");
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const socket = io(API_BASE_URL);
 
-export default function ComplaintDetail() {
+export default function AssignmentDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [showResolutionModal, setShowResolutionModal] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  
+  // สำหรับอัปโหลดไฟล์
+  const [resolutionFiles, setResolutionFiles] = useState([]);
+  const [filePreviews, setFilePreviews] = useState([]);
   
   // สำหรับ Image Carousel
   const [previewMedia, setPreviewMedia] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  
-  // ✅ สำหรับแสดง/ซ่อนรูปภาพหลังแก้ไข
-  const [showResolutionMedia, setShowResolutionMedia] = useState(false);
-  const [resolutionMediaIndex, setResolutionMediaIndex] = useState(0);
 
-  // Mock user data
+  // User data
   const currentUser = {
-    user_id: localStorage.getItem('user_id') || 'U0000001',
-    user_role: localStorage.getItem('user_role') || 'reporter'
+    user_id: localStorage.getItem('userId') || localStorage.getItem('user_id') || 'U0000001',
+    user_role: localStorage.getItem('role') || localStorage.getItem('user_role') || 'staff'
   };
 
   const isStaffOrAdmin = ['staff', 'admin'].includes(currentUser.user_role);
-  const isOwner = data?.user_id === currentUser.user_id;
 
   // หมวดหมู่
   const categories = [
@@ -77,31 +73,90 @@ export default function ComplaintDetail() {
     return () => socket.off("update_views");
   }, [id]);
 
-  const handleStatusUpdate = async (complaintId, updateData) => {
+  // จัดการการเลือกไฟล์
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    const totalFiles = resolutionFiles.length + files.length;
+
+    if (totalFiles > 5) {
+      alert('อัปโหลดได้สูงสุด 5 ไฟล์เท่านั้น');
+      return;
+    }
+
+    // ตรวจสอบประเภทไฟล์
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/x-msvideo'];
+    const validFiles = files.filter(file => {
+      if (!allowedTypes.includes(file.type)) {
+        alert(`ไฟล์ ${file.name} ไม่รองรับ`);
+        return false;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`ไฟล์ ${file.name} มีขนาดใหญ่เกิน 20MB`);
+        return false;
+      }
+      return true;
+    });
+
+    // สร้าง preview
+    const newPreviews = validFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      type: file.type.startsWith('video/') ? 'video' : 'image'
+    }));
+
+    setResolutionFiles(prev => [...prev, ...validFiles]);
+    setFilePreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  // ลบไฟล์
+  const removeFile = (index) => {
+    URL.revokeObjectURL(filePreviews[index].preview);
+    setResolutionFiles(prev => prev.filter((_, i) => i !== index));
+    setFilePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCompleteTask = async () => {
+    if (!resolutionNote.trim()) {
+      alert('กรุณากรอกรายละเอียดการแก้ไข');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await complaintAPI.updateStatus(complaintId, updateData.status, updateData.comment);
-      alert('อัปเดตสถานะสำเร็จ');
-      await fetchComplaint();
-    } catch (error) {
-      console.error('Update status error:', error);
-      throw error;
+      const formData = new FormData();
+      formData.append('resolution_note', resolutionNote.trim());
+      formData.append('updated_by', currentUser.user_id || 'Staff');
+
+      // เพิ่มไฟล์ทั้งหมด
+      resolutionFiles.forEach(file => {
+        formData.append('resolution_images', file);
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/complaints/${id}/complete`, {
+        method: 'PATCH',
+        body: formData // ไม่ต้องกำหนด Content-Type เพราะ browser จะจัดการให้
+      });
+
+      if (res.ok) {
+        alert('เปลี่ยนสถานะเป็นเสร็จสิ้นแล้ว');
+        setShowResolutionModal(false);
+        setResolutionNote("");
+        setResolutionFiles([]);
+        filePreviews.forEach(p => URL.revokeObjectURL(p.preview));
+        setFilePreviews([]);
+        await fetchComplaint();
+      } else {
+        const error = await res.json();
+        alert(error.error || 'เปลี่ยนสถานะไม่สำเร็จ');
+      }
+    } catch (err) {
+      console.error('Error completing task:', err);
+      alert('เกิดข้อผิดพลาด');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('ต้องการลบเรื่องร้องเรียนนี้หรือไม่?')) return;
-
-    try {
-      await complaintAPI.delete(id);
-      alert('ลบเรื่องร้องเรียนสำเร็จ');
-      navigate('/my-complaints');
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('เกิดข้อผิดพลาดในการลบ');
-    }
-  };
-
-  // ฟังก์ชันสำหรับ Image Carousel
   const nextMedia = () => {
     if (!attachments.length) return;
     setCurrentIndex((prev) => (prev + 1) % attachments.length);
@@ -111,19 +166,6 @@ export default function ComplaintDetail() {
     if (!attachments.length) return;
     setCurrentIndex(
       (prev) => (prev - 1 + attachments.length) % attachments.length
-    );
-  };
-
-  // ✅ ฟังก์ชันสำหรับรูปภาพหลังแก้ไข
-  const nextResolutionMedia = () => {
-    if (!resolutionAttachments.length) return;
-    setResolutionMediaIndex((prev) => (prev + 1) % resolutionAttachments.length);
-  };
-
-  const prevResolutionMedia = () => {
-    if (!resolutionAttachments.length) return;
-    setResolutionMediaIndex(
-      (prev) => (prev - 1 + resolutionAttachments.length) % resolutionAttachments.length
     );
   };
 
@@ -145,7 +187,6 @@ export default function ComplaintDetail() {
     );
   }
 
-  // จัดการ attachments
   const attachments = Array.isArray(data.attachments)
     ? data.attachments.map(file => {
         return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
@@ -154,15 +195,7 @@ export default function ComplaintDetail() {
       ? [data.attachment.startsWith('http') ? data.attachment : `${API_BASE_URL}${data.attachment}`]
       : [];
 
-  // ✅ จัดการ resolution_attachments
-  const resolutionAttachments = Array.isArray(data.resolution_attachments)
-    ? data.resolution_attachments.map(file => {
-        return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
-      })
-    : [];
-
   const currentFile = attachments[currentIndex];
-  const currentResolutionFile = resolutionAttachments[resolutionMediaIndex];
   const cates = Array.isArray(data.categories)
     ? data.categories
     : data.categories
@@ -172,12 +205,11 @@ export default function ComplaintDetail() {
   return (
     <div className="min-h-screen p-4 sm:p-6">
       <div className="max-w-5xl mx-auto w-full px-2 sm:px-4">
-        {/* Back Button */}
         <Link
-          to="/"
+          to="/assignments"
           className="inline-flex items-center gap-2 hover:text-[#55C388] mb-4 sm:mb-6 transition-colors"
         >
-          <ArrowLeft size={18} /> กลับหน้าหลัก
+          <ArrowLeft size={18} /> กลับหน้างานที่มอบหมาย
         </Link>
 
         <motion.div
@@ -186,7 +218,6 @@ export default function ComplaintDetail() {
           transition={{ duration: 0.3 }}
           className="bg-white border border-green-100 rounded-3xl shadow-xl overflow-hidden"
         >
-          {/* Image Carousel Section */}
           <div className="relative bg-gray-50 flex justify-center items-center h-96">
             {attachments.length > 0 ? (
               <>
@@ -243,9 +274,7 @@ export default function ComplaintDetail() {
             )}
           </div>
 
-          {/* Content */}
           <div className="p-4 sm:p-8">
-            {/* Header with Actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3 sm:gap-0">
               <div className="flex-1 w-full min-w-0">
                 <h1 className="text-2xl sm:text-3xl font-bold text-[#55C388] mb-2 break-words">
@@ -257,42 +286,18 @@ export default function ComplaintDetail() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2">
-                {isStaffOrAdmin && (
-                  <>
-                    <button
-                      onClick={() => setStatusModalOpen(true)}
-                      className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
-                      title="อัปเดตสถานะ"
-                    >
-                      <Edit size={16} className="sm:size-[18px]" />
-                      อัปเดตสถานะ
-                    </button>
-                    <button
-                      onClick={() => setAssignModalOpen(true)}
-                      className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
-                      title="มอบหมายงาน"
-                    >
-                      <UserPlus size={16} className="sm:size-[18px]" />
-                      มอบหมาย
-                    </button>
-                  </>
-                )}
-                {(isOwner || currentUser.user_role === "admin") && (
-                  <button
-                    onClick={handleDelete}
-                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm sm:text-base"
-                    title="ลบ"
-                  >
-                    <Trash2 size={16} className="sm:size-[18px]" />
-                    ลบ
-                  </button>
-                )}
-              </div>
+              {/* ปุ่มเสร็จสิ้น - แสดงเฉพาะเมื่อสถานะเป็น "กำลังดำเนินการ" */}
+              {isStaffOrAdmin && data.current_status === 'กำลังดำเนินการ' && (
+                <button
+                  onClick={() => setShowResolutionModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base font-medium"
+                >
+                  <CheckCircle size={18} />
+                  เสร็จสิ้น
+                </button>
+              )}
             </div>
 
-            {/* Categories */}
             {cates.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {cates.map((cid, i) => {
@@ -309,12 +314,10 @@ export default function ComplaintDetail() {
               </div>
             )}
 
-            {/* Description */}
             <p className="text-gray-700 mb-5 leading-relaxed text-sm sm:text-base break-words">
               {data.description}
             </p>
 
-            {/* Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 text-sm text-gray-600 mb-6">
               <div className="flex items-center gap-2">
                 <MapPin className="text-[#55C388]" size={18} />
@@ -344,109 +347,24 @@ export default function ComplaintDetail() {
                 <Eye className="text-[#55C388]" size={18} />
                 <span>จำนวนผู้เข้าชม: {data.views || 0}</span>
               </div>
-              {data.assigned_to && (
-                <div className="flex items-center gap-2">
-                  <UserPlus className="text-[#55C388]" size={18} />
-                  <span>เจ้าหน้าที่: {data.assigned_to}</span>
-                </div>
-              )}
             </div>
 
-            {/* ✅ แสดงรายละเอียดการแก้ไข + ปุ่มดูรูปภาพ/วิดีโอ */}
+            {/* แสดงรายละเอียดการแก้ไข */}
             {data.resolution_note && (
               <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
                   <CheckCircle size={18} />
                   รายละเอียดการแก้ไข
                 </h4>
-                <p className="text-gray-700 whitespace-pre-wrap mb-3">{data.resolution_note}</p>
-                
-                {/* ปุ่มแสดง/ซ่อนรูปภาพ */}
-                {resolutionAttachments.length > 0 && (
-                  <button
-                    onClick={() => setShowResolutionMedia(!showResolutionMedia)}
-                    className="inline-flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                  >
-                    <ImageIcon size={16} />
-                    {showResolutionMedia ? 'ซ่อนรูปภาพ/วิดีโอ' : 'ดูรูปภาพ/วิดีโอหลังแก้ไข'}
-                    {showResolutionMedia ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-                )}
-                
-                {resolutionAttachments.length === 0 && (
-                  <p className="text-gray-500 text-sm italic">ไม่มีรูปภาพ/วิดีโอที่แนบมา</p>
-                )}
-                
-                {/* แสดงรูปภาพ/วิดีโอเมื่อกดปุ่ม */}
-                {showResolutionMedia && resolutionAttachments.length > 0 && (
-                  <div className="mt-4 relative bg-gray-100 rounded-lg p-4">
-                    <div className="relative flex justify-center items-center h-64">
-                      {currentResolutionFile.match(/\.(mp4|webm|ogg)$/i) ? (
-                        <video
-                          src={currentResolutionFile}
-                          controls
-                          className="rounded-lg max-h-full max-w-full object-contain cursor-pointer"
-                        />
-                      ) : (
-                        <img
-                          src={currentResolutionFile}
-                          alt={`resolution-${resolutionMediaIndex}`}
-                          onClick={() => setPreviewMedia(currentResolutionFile)}
-                          className="rounded-lg max-h-full max-w-full object-contain cursor-pointer"
-                        />
-                      )}
-
-                      {resolutionAttachments.length > 1 && (
-                        <>
-                          <button
-                            onClick={prevResolutionMedia}
-                            className="absolute left-2 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
-                          >
-                            <ChevronLeft size={20} />
-                          </button>
-                          <button
-                            onClick={nextResolutionMedia}
-                            className="absolute right-2 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
-                          >
-                            <ChevronRight size={20} />
-                          </button>
-                          <div className="absolute bottom-2 flex gap-1 justify-center w-full">
-                            {resolutionAttachments.map((_, i) => (
-                              <div
-                                key={i}
-                                className={`w-2 h-2 rounded-full ${
-                                  i === resolutionMediaIndex
-                                    ? "bg-green-600"
-                                    : "bg-white/50"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <p className="text-center text-sm text-gray-600 mt-2">
-                      {resolutionMediaIndex + 1} / {resolutionAttachments.length}
-                    </p>
-                  </div>
-                )}
+                <p className="text-gray-700 whitespace-pre-wrap">{data.resolution_note}</p>
               </div>
             )}
 
-            {/* Status Timeline */}
             <div className="mt-8 border-t border-green-100 pt-6">
               <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4 text-base sm:text-lg">
                 <FileText className="text-[#55C388]" size={20} /> ประวัติสถานะ
               </h3>
               <StatusTimeline history={data.status_history} />
-            </div>
-
-            {/* Comments Section */}
-            <div className="mt-8 border-t border-green-100 pt-6 text-gray-600">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4 text-base sm:text-lg">
-                <FileText className="text-[#55C388]" size={20} /> ความคิดเห็น
-              </h3>
-              <CommentSection complaintId={data.complaint_id} />
             </div>
           </div>
         </motion.div>
@@ -456,22 +374,112 @@ export default function ComplaintDetail() {
         </footer>
       </div>
 
-      {/* Modals */}
-      <StatusUpdateModal
-        isOpen={statusModalOpen}
-        onClose={() => setStatusModalOpen(false)}
-        complaint={data}
-        onUpdate={handleStatusUpdate}
-      />
+      {/* Modal กรอกรายละเอียดการแก้ไข */}
+      {showResolutionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <CheckCircle className="text-green-600" size={24} />
+              ยืนยันการเสร็จสิ้นงาน
+            </h3>
+            
+            <p className="text-gray-600 mb-4">
+              กรุณากรอกรายละเอียดการแก้ไขปัญหา
+            </p>
+            
+            <textarea
+              value={resolutionNote}
+              onChange={(e) => setResolutionNote(e.target.value)}
+              placeholder="เช่น ได้ทำการซ่อมแซมท่อน้ำที่รั่วเรียบร้อยแล้ว ใช้เวลา 2 ชั่วโมง..."
+              className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none mb-4"
+              disabled={submitting}
+            />
 
-      <AssignmentModal
-        isOpen={assignModalOpen}
-        onClose={() => setAssignModalOpen(false)}
-        complaintId={data?.complaint_id}
-        onAssign={fetchComplaint}
-      />
+            {/* ส่วนอัปโหลดไฟล์ */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                แนบรูปภาพ/วิดีโอหลังการแก้ไข (ไม่บังคับ, สูงสุด 5 ไฟล์)
+              </label>
+              
+              <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 transition-colors">
+                <div className="text-center">
+                  <Upload className="mx-auto mb-2 text-gray-400" size={32} />
+                  <p className="text-sm text-gray-600">คลิกเพื่อเลือกไฟล์</p>
+                  <p className="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, MP4 (ไฟล์ละไม่เกิน 20MB)</p>
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={submitting || resolutionFiles.length >= 5}
+                />
+              </label>
 
-      {/* Preview Media Modal */}
+              {/* แสดง Preview ไฟล์ที่เลือก */}
+              {filePreviews.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+                  {filePreviews.map((item, index) => (
+                    <div key={index} className="relative group">
+                      {item.type === 'video' ? (
+                        <video
+                          src={item.preview}
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                      ) : (
+                        <img
+                          src={item.preview}
+                          alt={`preview-${index}`}
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                      )}
+                      <button
+                        onClick={() => removeFile(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        disabled={submitting}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => {
+                  setShowResolutionModal(false);
+                  setResolutionNote("");
+                  setResolutionFiles([]);
+                  filePreviews.forEach(p => URL.revokeObjectURL(p.preview));
+                  setFilePreviews([]);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={submitting}
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleCompleteTask}
+                disabled={submitting || !resolutionNote.trim()}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    กำลังบันทึก...
+                  </>
+                ) : (
+                  'ยืนยัน'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {previewMedia && (
         <div
           className="fixed inset-0 bg-black/80 flex justify-center items-center z-50"

@@ -12,10 +12,11 @@ import SignUpForm from './components/LoginForm/SignUpForm'
 // Pages
 import Home from './pages/Home/Home'
 import ComplaintDetail from './components/complaints/ComplaintDetail';
+import AssignmentDetail from './pages/staff/AssignmentDetail'; // ✅ เพิ่มบรรทัดนี้
 import MyComplaints from './pages/user/MyComplaints';
 import CreateComplaint from './pages/user/CreateComplaint';
 import Reports from "./pages/admin/Reports";
-import Assignments from "./pages/admin/Assignments"; // ✅ เพิ่มบรรทัดนี้
+import Assignments from "./pages/staff/Assignments";
 
 function App() {
   const location = useLocation();
@@ -38,10 +39,12 @@ function App() {
         <Route path="/complaints/new" element={<CreateComplaint />} />
         <Route path="/my-complaints" element={<MyComplaints />} />
         <Route path="/complaint/:id" element={<ComplaintDetail />} />
+        <Route path="/assignment/:id" element={<AssignmentDetail />} /> {/* ✅ เพิ่มบรรทัดนี้ */}
         
         {/* หน้า Admin */}
         <Route path="/admin/reports" element={<Reports />} />
-        <Route path="/admin/assignments" element={<Assignments />} /> {/* ✅ เพิ่มบรรทัดนี้ */}
+        <Route path="/admin/assignments" element={<Assignments />} />
+        <Route path="/assignments" element={<Assignments />} /> {/* ✅ เพิ่มสำหรับ Staff */}
       </Routes>
 
       {/* Test Buttons - ลบออกได้เมื่อไม่ใช้แล้ว */}
