@@ -11,6 +11,7 @@ import {
   PresentationChartLineIcon,
   FireIcon,
   ArrowDownTrayIcon,
+  UserGroupIcon,
 } from "@heroicons/react/24/solid";
 import {
   BarChart,
@@ -76,6 +77,10 @@ export default function Reports() {
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+const [staffList, setStaffList] = useState([]);
+const [showAssignModal, setShowAssignModal] = useState(false);
+const [selectedComplaintId, setSelectedComplaintId] = useState(null);
+const [selectedStaffId, setSelectedStaffId] = useState('');
   const categories = [
     { id: "flood", name: "น้ำท่วม", icon: "💧" },
     { id: "electrical", name: "ไฟฟ้า", icon: "⚡" },
@@ -99,9 +104,23 @@ export default function Reports() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // เพิ่มในฟังก์ชัน loadData หรือสร้าง useEffect ใหม่
+useEffect(() => {
+  loadData();
+  loadStaffList(); // ✅ เพิ่มบรรทัดนี้
+}, []);
+
+const loadStaffList = async () => {
+  try {
+    const res = await fetch(`${API}/api/assignments/staff`);
+    const json = await res.json();
+    if (json.success) {
+      setStaffList(json.data);
+    }
+  } catch (err) {
+    console.error('Error fetching staff:', err);
+  }
+};
 
   const toggleCategory = (id) => {
     setSelectedCategories((prev) =>
@@ -263,6 +282,38 @@ const categoryStats = useMemo(() => {
       alert("เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะ");
     }
   };
+
+// Staff list สำหรับมอบหมายงาน
+const handleAssign = async () => {
+  if (!selectedStaffId) {
+    alert('กรุณาเลือกเจ้าหน้าที่');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/assignments/${selectedComplaintId}/assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assigned_to: selectedStaffId,
+        assigned_by: 'Admin001' // TODO: ใช้ user_id จริงจาก auth
+      })
+    });
+
+    if (res.ok) {
+      await loadData();
+      setShowAssignModal(false);
+      setSelectedComplaintId(null);
+      setSelectedStaffId('');
+      alert('มอบหมายงานสำเร็จ');
+    } else {
+      alert('มอบหมายงานไม่สำเร็จ');
+    }
+  } catch (err) {
+    console.error('Error assigning:', err);
+    alert('เกิดข้อผิดพลาด');
+  }
+};
 
   // Export CSV / XLSX
   const exportData = (type) => {
@@ -553,107 +604,107 @@ const categoryStats = useMemo(() => {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left border-collapse" style={{ color: "#000" }}>
-            <thead className="bg-green-50 border-b border-green-100">
-              <tr>
-                <th className="px-4 py-2">ID</th>
-                <th className="px-4 py-2">หัวข้อ</th>
-                <th className="px-4 py-2">หมวดหมู่</th>
-                <th className="px-4 py-2">สถานะ</th>
-                <th className="px-4 py-2">วันที่แจ้ง</th>
-                <th className="px-4 py-2">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentItems.map((c) => (
-                <tr key={c.complaint_id} className="border-b hover:bg-green-50 transition">
-                  <td className="px-4 py-2 align-top">{c.complaint_id}</td>
-                  <td className="px-4 py-2 align-top font-medium">{c.title}</td>
-                  <td className="px-4 py-2 align-top">
-                    <div className="flex flex-wrap gap-1">
-                      {(c.categories || []).map((cat, i) => (
-                        <span
-                          key={i}
-                          className="px-2 py-1 text-xs rounded-full"
-                          style={{
-                            background: "#F0FDF4",
-                            color: "#064E3B",
-                            border: "1px solid rgba(0,0,0,0.04)",
-                          }}
-                        >
-                          {cat}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
+<thead className="bg-green-50 border-b border-green-100">
+  <tr>
+    <th className="px-4 py-2">ID</th>
+    <th className="px-4 py-2">หัวข้อ</th>
+    <th className="px-4 py-2">หมวดหมู่</th> {/* เก็บไว้ */}
+    <th className="px-4 py-2">สถานะ</th>
+    <th className="px-4 py-2">วันที่แจ้ง</th>
+    <th className="px-4 py-2">จัดการ</th>
+  </tr>
+</thead>
+<tbody>
+  {currentItems.map((c) => (
+    <tr key={c.complaint_id} className="border-b hover:bg-green-50 transition">
+      <td className="px-4 py-2 align-top">{c.complaint_id}</td>
+      <td className="px-4 py-2 align-top font-medium">{c.title}</td>
+      
+      {/* ✅ คอลัมน์หมวดหมู่ */}
+<td className="px-4 py-2 align-top">
+  <div className="flex flex-wrap gap-1">
+    {(c.categories || []).map((cat, i) => {
+      // ✅ เพิ่มการแปลง id เป็นชื่อไทย
+      const categoryInfo = categories.find(category => category.id === cat);
+      const displayName = categoryInfo ? categoryInfo.name : cat;
+      
+      return (
+        <span
+          key={i}
+          className="px-2 py-1 text-xs rounded-full"
+          style={{
+            background: "#F0FDF4",
+            color: "#064E3B",
+            border: "1px solid rgba(0,0,0,0.04)",
+          }}
+        >
+          {displayName}
+        </span>
+      );
+    })}
+  </div>
+</td>
 
-                  <td className="px-4 py-2 align-top">
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(
-                        c.current_status
-                      )}`}
-                      style={{ border: "1px solid rgba(0,0,0,0.06)" }}
-                    >
-                      {c.current_status}
-                    </span>
-                  </td>
+      {/* คอลัมน์สถานะ */}
+      <td className="px-4 py-2 align-top">
+        <span
+          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(
+            c.current_status
+          )}`}
+          style={{ border: "1px solid rgba(0,0,0,0.06)" }}
+        >
+          {c.current_status}
+        </span>
+      </td>
 
-                  <td className="px-4 py-2 align-top">
-                    <div style={{ color: "#000" }}>
-                      {new Date(c.datetime_reported).toLocaleString("th-TH")}
-                    </div>
-                  </td>
+      {/* คอลัมน์วันที่แจ้ง */}
+      <td className="px-4 py-2 align-top">
+        <div style={{ color: "#000" }}>
+          {new Date(c.datetime_reported).toLocaleString("th-TH")}
+        </div>
+      </td>
 
-                  <td className="px-4 py-2 align-top">
-                    {/* การจัดการสถานะตามเงื่อนไข */}
-                    {c.current_status === "รอรับเรื่อง" && (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleStatusChange(c.complaint_id, "กำลังดำเนินการ")}
-                          className="px-2 py-1 bg-blue-600 text-white rounded-md text-sm"
-                        >
-                          กำลังดำเนินการ
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(c.complaint_id, "ยกเลิก")}
-                          className="px-2 py-1 bg-red-600 text-white rounded-md text-sm"
-                        >
-                          ยกเลิก
-                        </button>
-                      </div>
-                    )}
+      {/* ✅ คอลัมน์จัดการ - ใช้โค้ดด้านบน */}
+      <td className="px-4 py-2 align-top">
+        <div className="flex flex-col gap-2">
+          {/* ใช้โค้ดจากข้อ 1 ด้านบน */}
+          {!c.assigned_to && c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
+            <button
+              onClick={() => {
+                setSelectedComplaintId(c.complaint_id);
+                setShowAssignModal(true);
+              }}
+              className="px-3 py-1.5 bg-[#55C388] text-white rounded-md text-sm hover:bg-[#43A874] flex items-center gap-1 justify-center"
+            >
+              <UserGroupIcon className="h-4 w-4" />
+              มอบหมาย
+            </button>
+          )}
 
-                    {c.current_status === "กำลังดำเนินการ" && (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleStatusChange(c.complaint_id, "เสร็จสิ้น")}
-                          className="px-2 py-1 bg-green-600 text-white rounded-md text-sm"
-                        >
-                          เสร็จสิ้น
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(c.complaint_id, "ยกเลิก")}
-                          className="px-2 py-1 bg-red-600 text-white rounded-md text-sm"
-                        >
-                          ยกเลิก
-                        </button>
-                      </div>
-                    )}
+          {c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
+            <button
+              onClick={() => handleStatusChange(c.complaint_id, "ยกเลิก")}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
+            >
+              ยกเลิก
+            </button>
+          )}
 
-                    {(c.current_status === "เสร็จสิ้น" || c.current_status === "ยกเลิก") && (
-                      <div className="text-sm text-gray-600">-</div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+          {c.assigned_to && c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
+            <div className="text-xs text-gray-600 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
+              <UserGroupIcon className="h-3 w-3 text-blue-600" />
+              <span className="text-blue-600 font-medium">มอบหมายแล้ว</span>
+            </div>
+          )}
 
-              {currentItems.map.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-gray-600">
-                    ไม่พบรายการ
-                  </td>
-                </tr>
-              )}
-            </tbody>
+          {(c.current_status === "เสร็จสิ้น" || c.current_status === "ยกเลิก") && (
+            <div className="text-sm text-gray-500 italic">-</div>
+          )}
+        </div>
+      </td>
+    </tr>
+  ))}
+</tbody>
           </table>          
         </div>
         {/* Pagination Controls */}
@@ -707,6 +758,54 @@ const categoryStats = useMemo(() => {
   </div>
 )}
       </div>
+      {/* ✅ Assignment Modal */}
+{showAssignModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+      <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <UserGroupIcon className="h-6 w-6 text-[#55C388]" />
+        เลือกเจ้าหน้าที่
+      </h3>
+      
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          เจ้าหน้าที่
+        </label>
+        <select
+          value={selectedStaffId}
+          onChange={(e) => setSelectedStaffId(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#55C388] focus:outline-none"
+        >
+          <option value="">-- เลือกเจ้าหน้าที่ --</option>
+          {staffList.map((staff) => (
+            <option key={staff._id} value={staff._id}>
+              {staff.name} ({staff.email})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={handleAssign}
+          className="flex-1 px-4 py-2 bg-[#55C388] text-white rounded-lg hover:bg-[#43A874] font-medium"
+        >
+          ยืนยัน
+        </button>
+        <button
+          onClick={() => {
+            setShowAssignModal(false);
+            setSelectedComplaintId(null);
+            setSelectedStaffId('');
+          }}
+          className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium"
+        >
+          ยกเลิก
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

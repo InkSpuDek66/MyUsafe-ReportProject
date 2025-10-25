@@ -45,12 +45,14 @@ export default function Navbar() {
     navigate("/login");
   };
 
-  const navigation = [
-    { name: "Dashboard", href: "/", current: true },
-    // ✅ ใช้ conditional spreading เพื่อแสดง Admin Reports เฉพาะ admin
-    ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
-    { name: "Reports", href: "/complaints/new" },
-  ];
+const navigation = [
+  { name: "Dashboard", href: "/", current: true },
+  // ✅ Admin Reports - เฉพาะ admin
+  ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
+  // ✅ Assignments - เฉพาะ admin และ staff
+  ...(role === 'admin' || role === 'staff' ? [{ name: "Assignments", href: "/admin/assignments" }] : []),
+  { name: "Reports", href: "/complaints/new" },
+];
 
   // ⚙️ ตรวจสอบว่าบทบาทผู้ใช้มีสิทธิ์เข้าถึงรายการ 'work' หรือไม่
   // เงื่อนไขนี้ถูกต้อง: admin หรือ staff เห็น 'work'
@@ -63,7 +65,7 @@ export default function Navbar() {
   ];
 
   // รายการ 'work' ที่มีเฉพาะ admin/staff
-  const workItem = { name: "work", href: "#" };
+const workItem = { name: "Assignments", href: "/admin/assignments" }; // ✅ เปลี่ยนจาก work เป็น Assignments
 
   // รายการสุดท้ายคือ Sign out
   const signOutItem = { name: "Sign out", onClick: handleLogout };

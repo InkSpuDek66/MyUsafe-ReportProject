@@ -1,6 +1,5 @@
 // frontend/src/App.jsx
-// App.jsx - ตัวจัดการเส้นทางหลักของแอปพลิเคชัน
-import { Routes, Route, useLocation } from "react-router-dom"; // ลบ BrowserRouter ออก
+import { Routes, Route, useLocation } from "react-router-dom";
 import './App.css'
 
 // Common Components
@@ -8,6 +7,7 @@ import Navbar from './components/common/Navbar/Navbar'
 
 // Auth Components
 import LoginForm from './components/LoginForm/LoginForm'
+import SignUpForm from './components/LoginForm/SignUpForm'
 
 // Pages
 import Home from './pages/Home/Home'
@@ -15,13 +15,11 @@ import ComplaintDetail from './components/complaints/ComplaintDetail';
 import MyComplaints from './pages/user/MyComplaints';
 import CreateComplaint from './pages/user/CreateComplaint';
 import Reports from "./pages/admin/Reports";
-import SignUpForm from './components/LoginForm/SignUpForm' 
-
+import Assignments from "./pages/admin/Assignments"; // ✅ เพิ่มบรรทัดนี้
 
 function App() {
   const location = useLocation();
   
-  // ✅ ซ่อน Navbar และ Test Buttons ในหน้า login และ signup
   const hideNavbarAndButtons = ['/login', '/signup'].includes(location.pathname);
 
   return (
@@ -31,19 +29,19 @@ function App() {
       <Routes>
         {/* หน้าหลัก */}
         <Route path="/" element={<Home />} />
-        {/* หน้า Login */}
+        
+        {/* หน้า Auth */}
         <Route path="/login" element={<LoginForm />} />
-                <Route path="/signup" element={<SignUpForm />} />
-
+        <Route path="/signup" element={<SignUpForm />} />
         
         {/* หน้าเรื่องร้องเรียน */}
         <Route path="/complaints/new" element={<CreateComplaint />} />
         <Route path="/my-complaints" element={<MyComplaints />} />
         <Route path="/complaint/:id" element={<ComplaintDetail />} />
-        {/* หน้า Reports สำหรับ Admin */}
+        
+        {/* หน้า Admin */}
         <Route path="/admin/reports" element={<Reports />} />
-        {/* เพิ่ม routes อื่นๆ ตามต้องการ */}
-        {/* <Route path="/..." element={<... />} /> */}
+        <Route path="/admin/assignments" element={<Assignments />} /> {/* ✅ เพิ่มบรรทัดนี้ */}
       </Routes>
 
       {/* Test Buttons - ลบออกได้เมื่อไม่ใช้แล้ว */}
