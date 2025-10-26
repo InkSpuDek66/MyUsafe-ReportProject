@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Clock, User, CheckCircle, FileText, AlertTriangle, Eye, X, ChevronLeft, ChevronRight, Edit, UserPlus, Trash2, Loader2} from "lucide-react";
+import { ArrowLeft, MapPin, Clock, User, CheckCircle, FileText, AlertTriangle, Eye, X, ChevronLeft, ChevronRight, Edit, UserPlus, Trash2, Loader2, ChevronDown, ChevronUp, Image as ImageIcon} from "lucide-react";
 import { io } from "socket.io-client";
 import StatusBadge from './StatusBadge';
 import PriorityBadge from './PriorityBadge';
@@ -25,8 +25,12 @@ export default function ComplaintDetail() {
   // สำหรับ Image Carousel
   const [previewMedia, setPreviewMedia] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  
+  // ✅ สำหรับแสดง/ซ่อนรูปภาพหลังแก้ไข
+  const [showResolutionMedia, setShowResolutionMedia] = useState(false);
+  const [resolutionMediaIndex, setResolutionMediaIndex] = useState(0);
 
-  // Mock user data (จะเปลี่ยนเป็นจริงหลัง Auth เสร็จ)
+  // Mock user data
   const currentUser = {
     user_id: localStorage.getItem('user_id') || 'U0000001',
     user_role: localStorage.getItem('user_role') || 'reporter'
@@ -44,7 +48,7 @@ export default function ComplaintDetail() {
     { id: "facilities", name: "สิ่งอำนวยความสะดวก", icon: "🏢" },
     { id: "cleanliness", name: "ความสะอาด", icon: "🧹" },
     { id: "safety", name: "ความปลอดภัย", icon: "🚨" },
-    { id: "other", name: "อื่นๆ", icon: "📝" },
+    { id: "other", name: "อื่นๆ", icon: "📋" },
   ];
 
   const fetchComplaint = async () => {
@@ -64,7 +68,6 @@ export default function ComplaintDetail() {
     if (!id) return;
     fetchComplaint();
 
-    // Socket.IO for real-time views
     socket.emit("view_complaint", id);
     socket.on("update_views", (socketData) => {
       if (socketData.id === id) {
@@ -111,6 +114,19 @@ export default function ComplaintDetail() {
     );
   };
 
+  // ✅ ฟังก์ชันสำหรับรูปภาพหลังแก้ไข
+  const nextResolutionMedia = () => {
+    if (!resolutionAttachments.length) return;
+    setResolutionMediaIndex((prev) => (prev + 1) % resolutionAttachments.length);
+  };
+
+  const prevResolutionMedia = () => {
+    if (!resolutionAttachments.length) return;
+    setResolutionMediaIndex(
+      (prev) => (prev - 1 + resolutionAttachments.length) % resolutionAttachments.length
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-gray-500">
@@ -138,7 +154,15 @@ export default function ComplaintDetail() {
       ? [data.attachment.startsWith('http') ? data.attachment : `${API_BASE_URL}${data.attachment}`]
       : [];
 
+  // ✅ จัดการ resolution_attachments
+  const resolutionAttachments = Array.isArray(data.resolution_attachments)
+    ? data.resolution_attachments.map(file => {
+        return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
+      })
+    : [];
+
   const currentFile = attachments[currentIndex];
+  const currentResolutionFile = resolutionAttachments[resolutionMediaIndex];
   const cates = Array.isArray(data.categories)
     ? data.categories
     : data.categories
@@ -162,7 +186,7 @@ export default function ComplaintDetail() {
           transition={{ duration: 0.3 }}
           className="bg-white border border-green-100 rounded-3xl shadow-xl overflow-hidden"
         >
-          {/* ✅ Image Carousel Section */}
+          {/* Image Carousel Section */}
           <div className="relative bg-gray-50 flex justify-center items-center h-96">
             {attachments.length > 0 ? (
               <>
@@ -328,6 +352,87 @@ export default function ComplaintDetail() {
               )}
             </div>
 
+            {/* ✅ แสดงรายละเอียดการแก้ไข + ปุ่มดูรูปภาพ/วิดีโอ */}
+            {data.resolution_note && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                  <CheckCircle size={18} />
+                  รายละเอียดการแก้ไข
+                </h4>
+                <p className="text-gray-700 whitespace-pre-wrap mb-3">{data.resolution_note}</p>
+                
+                {/* ปุ่มแสดง/ซ่อนรูปภาพ */}
+                {resolutionAttachments.length > 0 && (
+                  <button
+                    onClick={() => setShowResolutionMedia(!showResolutionMedia)}
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                  >
+                    <ImageIcon size={16} />
+                    {showResolutionMedia ? 'ซ่อนรูปภาพ/วิดีโอ' : 'ดูรูปภาพ/วิดีโอหลังแก้ไข'}
+                    {showResolutionMedia ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                )}
+                
+                {resolutionAttachments.length === 0 && (
+                  <p className="text-gray-500 text-sm italic">ไม่มีรูปภาพ/วิดีโอที่แนบมา</p>
+                )}
+                
+                {/* แสดงรูปภาพ/วิดีโอเมื่อกดปุ่ม */}
+                {showResolutionMedia && resolutionAttachments.length > 0 && (
+                  <div className="mt-4 relative bg-gray-100 rounded-lg p-4">
+                    <div className="relative flex justify-center items-center h-64">
+                      {currentResolutionFile.match(/\.(mp4|webm|ogg)$/i) ? (
+                        <video
+                          src={currentResolutionFile}
+                          controls
+                          className="rounded-lg max-h-full max-w-full object-contain cursor-pointer"
+                        />
+                      ) : (
+                        <img
+                          src={currentResolutionFile}
+                          alt={`resolution-${resolutionMediaIndex}`}
+                          onClick={() => setPreviewMedia(currentResolutionFile)}
+                          className="rounded-lg max-h-full max-w-full object-contain cursor-pointer"
+                        />
+                      )}
+
+                      {resolutionAttachments.length > 1 && (
+                        <>
+                          <button
+                            onClick={prevResolutionMedia}
+                            className="absolute left-2 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                          >
+                            <ChevronLeft size={20} />
+                          </button>
+                          <button
+                            onClick={nextResolutionMedia}
+                            className="absolute right-2 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                          >
+                            <ChevronRight size={20} />
+                          </button>
+                          <div className="absolute bottom-2 flex gap-1 justify-center w-full">
+                            {resolutionAttachments.map((_, i) => (
+                              <div
+                                key={i}
+                                className={`w-2 h-2 rounded-full ${
+                                  i === resolutionMediaIndex
+                                    ? "bg-green-600"
+                                    : "bg-white/50"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <p className="text-center text-sm text-gray-600 mt-2">
+                      {resolutionMediaIndex + 1} / {resolutionAttachments.length}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Status Timeline */}
             <div className="mt-8 border-t border-green-100 pt-6">
               <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4 text-base sm:text-lg">
@@ -366,7 +471,7 @@ export default function ComplaintDetail() {
         onAssign={fetchComplaint}
       />
 
-      {/* ✅ Preview Media Modal */}
+      {/* Preview Media Modal */}
       {previewMedia && (
         <div
           className="fixed inset-0 bg-black/80 flex justify-center items-center z-50"

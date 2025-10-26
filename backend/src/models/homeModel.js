@@ -1,5 +1,4 @@
 // backend/src/models/homeModel.js
-// Mongoose model สำหรับเรื่องร้องเรียน (Complaints)
 const mongoose = require('mongoose');
 
 const statusSchema = new mongoose.Schema({
@@ -12,7 +11,6 @@ const statusSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  // ✅ เพิ่มฟิลด์นี้
   updated_by: {
     type: String,
     default: 'system'
@@ -49,15 +47,15 @@ const complaintSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  attachments: [String], // Array ของ URL รูปภาพ (สูงสุด 5 รูป)
-
+  attachments: [String], // รูปภาพแนบตอนแจ้งเรื่อง
+  
   user_id: {
     type: String,
     required: true,
     index: true
   },
   assigned_to: {
-    type: String, // user_id ของเจ้าหน้าที่
+    type: String,
     default: null,
     index: true
   },
@@ -66,11 +64,10 @@ const complaintSchema = new mongoose.Schema({
     default: null
   },
   assigned_by: {
-    type: String, // user_id ของคนที่มอบหมาย
+    type: String,
     default: null
   },
   
-  // Location (แยกเป็น object)
   location: {
     building: {
       type: String,
@@ -90,7 +87,7 @@ const complaintSchema = new mongoose.Schema({
     type: String,
     enum: ['low', 'medium', 'high', 'urgent'],
     default: 'low',
-    index: true  // เพิ่ม index เพื่อให้ค้นหา/กรองได้เร็ว
+    index: true
   },
 
   current_status: {
@@ -106,10 +103,18 @@ const complaintSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  liked_by: [{
+    type: String,
+    default: []
+  }],
   dislikes: {
     type: Number,
     default: 0
   },
+  disliked_by: [{
+    type: String,
+    default: []
+  }],
   views: {
     type: Number,
     default: 0
@@ -122,9 +127,19 @@ const complaintSchema = new mongoose.Schema({
   completed_date: {
     type: String,
     default: '-'
+  },
+  
+  // ✅ ฟิลด์สำหรับรายละเอียดและไฟล์แนบหลังแก้ไขเสร็จ
+  resolution_note: {
+    type: String,
+    default: null
+  },
+  resolution_attachments: {
+    type: [String],
+    default: []
   }
 }, {
-  timestamps: true // เพิ่ม createdAt และ updatedAt อัตโนมัติ
+  timestamps: true
 });
 
 module.exports = mongoose.model('Complaint', complaintSchema);

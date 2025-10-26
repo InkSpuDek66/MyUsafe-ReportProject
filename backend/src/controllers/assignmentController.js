@@ -1,6 +1,28 @@
 // backend/src/controllers/assignmentController.js
-// Controller สำหรับจัดการการมอบหมายงาน
 const Complaint = require('../models/homeModel');
+const User = require('../models/userModel'); // ✅ เพิ่ม import User model
+
+// 👥 GET: ดึงรายชื่อ staff ทั้งหมด (เพิ่มใหม่)
+exports.getAllStaff = async (req, res) => {
+    try {
+        const staffList = await User.find({ 
+            role: 'staff',
+            is_active: true 
+        }).select('_id name email phone'); // เลือกเฉพาะฟิลด์ที่ต้องการ
+
+        res.json({
+            success: true,
+            count: staffList.length,
+            data: staffList
+        });
+    } catch (err) {
+        console.error('Get Staff List Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการดึงข้อมูลเจ้าหน้าที่'
+        });
+    }
+};
 
 // 👤 POST: มอบหมายงานให้เจ้าหน้าที่
 exports.assignComplaint = async (req, res) => {
@@ -12,6 +34,15 @@ exports.assignComplaint = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'กรุณาระบุเจ้าหน้าที่ที่จะมอบหมายงาน'
+            });
+        }
+
+        // ✅ ตรวจสอบว่า staff มีอยู่จริง
+        const staff = await User.findById(assigned_to);
+        if (!staff || staff.role !== 'staff') {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบเจ้าหน้าที่นี้ในระบบ'
             });
         }
 
@@ -34,7 +65,8 @@ exports.assignComplaint = async (req, res) => {
             complaint.status_history.push({
                 status_id: 'S' + Date.now().toString().slice(-7),
                 status_name: 'กำลังดำเนินการ',
-                updated_at: new Date()
+                updated_at: new Date(),
+                updated_by: assigned_by || 'system'
             });
         }
 
@@ -43,7 +75,14 @@ exports.assignComplaint = async (req, res) => {
         res.json({
             success: true,
             message: 'มอบหมายงานสำเร็จ',
-            data: complaint
+            data: {
+                ...complaint.toObject(),
+                assigned_staff: {
+                    _id: staff._id,
+                    name: staff.name,
+                    email: staff.email
+                }
+            }
         });
     } catch (err) {
         console.error('Assign Complaint Error:', err);
@@ -54,7 +93,7 @@ exports.assignComplaint = async (req, res) => {
     }
 };
 
-// 📋 GET: ดึงเรื่องร้องเรียนที่มอบหมายให้เจ้าหน้าที่
+// 📋 GET: ดึงเรื่องร้องเรียนที่มอบหมายให้เจ้าหน้าที่ (แก้ไข)
 exports.getAssignedComplaints = async (req, res) => {
     try {
         const { staffId } = req.params;
@@ -63,9 +102,13 @@ exports.getAssignedComplaints = async (req, res) => {
             assigned_to: staffId
         }).sort({ assigned_at: -1 });
 
+        // ✅ ดึงข้อมูล staff ด้วย
+        const staff = await User.findById(staffId).select('name email');
+
         res.json({
             success: true,
             count: complaints.length,
+            staff: staff,
             data: complaints
         });
     } catch (err) {

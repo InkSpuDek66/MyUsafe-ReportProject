@@ -267,32 +267,60 @@ exports.updateComplaint = async (req, res) => {
     }
 
     // ใช้ action เพื่ออัปเดต likes, dislikes, views
-    if (action) {
-      let updateOperation = {};
-
-      if (action === 'like') {
-        updateOperation = { $inc: { likes: 1 } };
-      } else if (action === 'dislike') {
-        updateOperation = { $inc: { dislikes: 1 } };
-      } else if (action === 'view') {
-        updateOperation = { $inc: { views: 1 } };
-      }
-
-      if (Object.keys(updateOperation).length > 0) {
-        // ใช้ findOneAndUpdate แทน save() เพื่อให้เป็น atomic operation
-        const updatedComplaint = await Complaint.findOneAndUpdate(
-          { complaint_id: req.params.id },
-          updateOperation,
-          { new: true } // return updated document
-        );
-
-        return res.json({
-          success: true,
-          message: 'อัพเดทเรื่องร้องเรียนสำเร็จ',
-          data: updatedComplaint
-        });
+// ในส่วน if (action) ของ exports.updateComplaint
+if (action) {
+  const userId = req.body.user_id || 'U0000000'; // ✅ รับ user_id มาด้วย
+  
+  if (action === 'like') {
+    // ✅ ตรวจสอบว่าเคยกดไหม
+    const alreadyLiked = complaint.liked_by.includes(userId);
+    const alreadyDisliked = complaint.disliked_by.includes(userId);
+    
+    if (alreadyLiked) {
+      // ยกเลิก like
+      complaint.likes = Math.max(0, complaint.likes - 1);
+      complaint.liked_by = complaint.liked_by.filter(id => id !== userId);
+    } else {
+      // เพิ่ม like
+      complaint.likes += 1;
+      complaint.liked_by.push(userId);
+      
+      // ถ้าเคยกด dislike ให้ยกเลิก dislike
+      if (alreadyDisliked) {
+        complaint.dislikes = Math.max(0, complaint.dislikes - 1);
+        complaint.disliked_by = complaint.disliked_by.filter(id => id !== userId);
       }
     }
+  } else if (action === 'dislike') {
+    // ✅ ตรวจสอบว่าเคยกดไหม
+    const alreadyDisliked = complaint.disliked_by.includes(userId);
+    const alreadyLiked = complaint.liked_by.includes(userId);
+    
+    if (alreadyDisliked) {
+      // ยกเลิก dislike
+      complaint.dislikes = Math.max(0, complaint.dislikes - 1);
+      complaint.disliked_by = complaint.disliked_by.filter(id => id !== userId);
+    } else {
+      // เพิ่ม dislike
+      complaint.dislikes += 1;
+      complaint.disliked_by.push(userId);
+      
+      // ถ้าเคยกด like ให้ยกเลิก like
+      if (alreadyLiked) {
+        complaint.likes = Math.max(0, complaint.likes - 1);
+        complaint.liked_by = complaint.liked_by.filter(id => id !== userId);
+      }
+    }
+  }
+  
+  await complaint.save(); // ✅ ใช้ save แทน findOneAndUpdate
+  
+  return res.json({
+    success: true,
+    message: 'อัพเดทสำเร็จ',
+    data: complaint
+  });
+}
 
     // อัพเดท priority
     if (priority) {

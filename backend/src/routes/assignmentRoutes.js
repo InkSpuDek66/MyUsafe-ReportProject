@@ -1,8 +1,10 @@
 // backend/src/routes/assignmentRoutes.js
-// Routes สำหรับจัดการการมอบหมายงาน
 const express = require('express');
 const router = express.Router();
 const assignmentController = require('../controllers/assignmentController');
+
+// ✅ GET: ดึงรายชื่อ staff ทั้งหมด (เพิ่มใหม่)
+router.get('/staff', assignmentController.getAllStaff);
 
 // POST: มอบหมายงานให้เจ้าหน้าที่
 router.post('/:id/assign', assignmentController.assignComplaint);
