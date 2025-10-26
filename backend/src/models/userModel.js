@@ -1,5 +1,7 @@
+// backend/src/models/userModel.js
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs'); // เปลี่ยนจาก 'bcrypt' เป็น 'bcryptjs'
+const bcrypt = require('bcryptjs');
+
 const userSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'กรุณาใส่ชื่อ-นามสกุล'], trim: true }, 
   email: { 
@@ -25,10 +27,11 @@ const userSchema = new mongoose.Schema({
     default: 'reporter'
   },
   phone: { type: String, trim: true },
-  university_id: { type: mongoose.Schema.Types.ObjectId, ref: 'University' },
+  university_id: { type: String, trim: true }, // ✅ เปลี่ยนเป็น String สำหรับรหัสนักศึกษา
+  profile_image: { type: String, default: null }, // ✅ เพิ่ม field สำหรับรูปโปรไฟล์
   is_active: { type: Boolean, default: true },
   created_at: { type: Date, default: Date.now },
-  updated_at: { type: Date, default: Date.now }  // ✅ อยู่ท้ายสุด
+  updated_at: { type: Date, default: Date.now }
 });
 
 // Middleware - รวม 2 อัน ไว้ใน 1 ตัว
@@ -52,7 +55,6 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Indexes
 userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ university_id: 1, email: 1 });
 
 module.exports = mongoose.models.User 
   ? mongoose.model('User') 

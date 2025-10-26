@@ -19,6 +19,7 @@ import Reports from "./pages/admin/Reports";
 import Assignments from "./pages/staff/Assignments";
 import StaffPerformanceReports from "./pages/admin/StaffPerformanceReport";
 import ComplaintsListManagement from "./pages/admin/ComplaintListManagement";
+import Profile from './pages/user/Profile';
 
 function App() {
   const location = useLocation();
@@ -36,7 +37,8 @@ function App() {
         {/* หน้า Auth */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/signup" element={<SignUpForm />} />
-        
+        <Route path="/profile" element={<Profile />} />
+
         {/* หน้าเรื่องร้องเรียน */}
         <Route path="/complaints/new" element={<CreateComplaint />} />
         <Route path="/my-complaints" element={<MyComplaints />} />

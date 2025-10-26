@@ -20,8 +20,11 @@ function classNames(...classes) {
 export default function Navbar() {
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
+  const [profileImage, setProfileImage] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -29,8 +32,44 @@ export default function Navbar() {
     setToken(storedToken);
     setRole(storedRole);
 
+    // โหลดรูปโปรไฟล์
+    if (storedToken) {
+      fetchProfileImage(storedToken);
+    }
+
     console.log("Navbar: Loaded role:", storedRole);
   }, []);
+
+  // ✅ เพิ่ม useEffect เพื่อฟัง event การอัปเดตโปรไฟล์
+  useEffect(() => {
+    const handleProfileUpdate = (event) => {
+      if (event.detail?.profile_image) {
+        setProfileImage(event.detail.profile_image);
+      }
+    };
+
+    // ฟัง custom event
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
+    };
+  }, []);
+
+  const fetchProfileImage = async (authToken) => {
+    try {
+      const response = await fetch(`${API_URL}/profile`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await response.json();
+      if (data.success && data.data.profile_image) {
+        setProfileImage(data.data.profile_image);
+      }
+    } catch (err) {
+      console.error('Error fetching profile image:', err);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -38,6 +77,7 @@ export default function Navbar() {
     localStorage.removeItem("userId");
     setToken(null);
     setRole(null);
+    setProfileImage(null);
     navigate("/login");
   };
 
@@ -51,14 +91,12 @@ export default function Navbar() {
   const navigation = [
     { name: "Dashboard", href: "/" },
     
-    // ✅ Admin เท่านั้น - เห็นเมนูเหล่านี้
     ...(role === 'admin' ? [
       { name: "Admin Reports", href: "/admin/reports" },
       { name: "Staff Performance", href: "/admin/staff-performance" },
       { name: "Complaint List", href: "/admin/complaint-list" }
     ] : []),
     
-    // ✅ Assignments - เฉพาะ admin และ staff
     ...(role === 'admin' || role === 'staff' ? [
       { name: "Assignments", href: "/admin/assignments" }
     ] : []),
@@ -69,7 +107,7 @@ export default function Navbar() {
   const canSeeWork = role === 'admin' || role === 'staff';
 
   const baseItems = [
-    { name: "Your profile", href: "#" },
+    { name: "Your profile", href: "/profile" },
     { name: "My Complains", href: "/my-complaints" },
   ];
 
@@ -88,8 +126,9 @@ export default function Navbar() {
   const user = {
     name: "User Name",
     email: "user@example.com",
-    imageUrl:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+    imageUrl: profileImage 
+      ? `${API_URL.replace('/api', '')}${profileImage}`
+      : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
   const NotificationPlaceholder = () => (
@@ -172,7 +211,7 @@ export default function Navbar() {
                     <img
                       alt=""
                       src={user.imageUrl}
-                      className="border border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10"
+                      className="border border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10 object-cover"
                     />
                   </MenuButton>
                   <MenuItems
@@ -240,7 +279,7 @@ export default function Navbar() {
             <div className="flex items-center px-5">
               {token && (
                 <>
-                  <img alt="" src={user.imageUrl} className="size-10 rounded-full outline -outline-offset-1 outline-white/10" />
+                  <img alt="" src={user.imageUrl} className="size-10 rounded-full outline -outline-offset-1 outline-white/10 object-cover" />
                   <div className="ml-3">
                     <div className="text-base font-medium text-white">{user.name}</div>
                     <div className="text-sm font-medium text-gray-700">{user.email}</div>

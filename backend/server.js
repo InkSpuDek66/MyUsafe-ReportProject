@@ -18,6 +18,7 @@ const categoryRoutes = require('./src/routes/categoryRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const commentRoutes = require('./src/routes/commentRoutes');
 const assignmentRoutes = require('./src/routes/assignmentRoutes');
+const profileRoutes = require('./src/routes/profileRoutes');
 
 // Import Models
 const Complaint = require('./src/models/homeModel');
@@ -60,7 +61,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+app.use('/profile', express.static(path.join(__dirname, 'profile'))); // ✅ ลบ ../
 // Request Logger
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -75,6 +76,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/assignments', assignmentRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
