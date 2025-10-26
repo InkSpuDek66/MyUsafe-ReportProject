@@ -21,7 +21,7 @@ export default function Navbar() {
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ เพิ่ม useLocation เพื่อดึง path ปัจจุบัน
+  const location = useLocation();
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -41,7 +41,6 @@ export default function Navbar() {
     navigate("/login");
   };
 
-  // ✅ ฟังก์ชันตรวจสอบว่า path ปัจจุบันตรงกับ href หรือไม่
   const isActive = (href) => {
     if (href === '/') {
       return location.pathname === '/';
@@ -51,10 +50,19 @@ export default function Navbar() {
 
   const navigation = [
     { name: "Dashboard", href: "/" },
-    // Admin Reports - เฉพาะ admin
-    ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
-    // Assignments - เฉพาะ admin และ staff
-    ...(role === 'admin' || role === 'staff' ? [{ name: "Assignments", href: "/admin/assignments" }] : []),
+    
+    // ✅ Admin เท่านั้น - เห็นเมนูเหล่านี้
+    ...(role === 'admin' ? [
+      { name: "Admin Reports", href: "/admin/reports" },
+      { name: "Staff Performance", href: "/admin/staff-performance" },
+      { name: "Complaint List", href: "/admin/complaint-list" }
+    ] : []),
+    
+    // ✅ Assignments - เฉพาะ admin และ staff
+    ...(role === 'admin' || role === 'staff' ? [
+      { name: "Assignments", href: "/admin/assignments" }
+    ] : []),
+    
     { name: "Reports", href: "/complaints/new" },
   ];
 
@@ -123,7 +131,7 @@ export default function Navbar() {
                       key={item.name}
                       to={item.href}
                       className={classNames(
-                        isActive(item.href) // ✅ ใช้ฟังก์ชัน isActive แทน item.current
+                        isActive(item.href)
                           ? "bg-gray-950/50 text-white"
                           : "text-gray-700 hover:bg-white/5 hover:text-white",
                         "rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
@@ -217,7 +225,7 @@ export default function Navbar() {
                 as={Link}
                 to={item.href}
                 className={classNames(
-                  isActive(item.href) // ✅ ใช้ isActive สำหรับ Mobile ด้วย
+                  isActive(item.href)
                     ? "bg-gray-950/50 text-white"
                     : "text-gray-700 hover:bg-white/5 hover:text-white",
                   "block rounded-md px-3 py-2 text-base font-medium transition-colors duration-200"
