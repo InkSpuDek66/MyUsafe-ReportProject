@@ -26,7 +26,7 @@ const { Server } = require('socket.io');
 require('dotenv').config(); // ✅ โหลด .env ก่อนใช้ค่าใน process.env
 
 // ✅ Import Routes & Models
-const authRoutes = require('./src/routes/auth'); 
+const authRoutes = require('./src/routes/authRoutes'); 
 
 const app = express();
 const server = http.createServer(app);

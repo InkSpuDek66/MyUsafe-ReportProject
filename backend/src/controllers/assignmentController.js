@@ -1,4 +1,5 @@
 // backend/src/controllers/assignmentController.js
+// Controller สำหรับจัดการการมอบหมายงานเรื่องร้องเรียนให้เจ้าหน้าที่
 const Complaint = require('../models/homeModel');
 const User = require('../models/userModel'); // ✅ เพิ่ม import User model
 

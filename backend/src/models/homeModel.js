@@ -1,4 +1,5 @@
 // backend/src/models/homeModel.js
+// Model สำหรับข้อมูลเรื่องร้องเรียน (Complaints)
 const mongoose = require('mongoose');
 
 const statusSchema = new mongoose.Schema({

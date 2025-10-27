@@ -1,3 +1,5 @@
+// backend/src/routes/authRoutes.js
+// Routes สำหรับจัดการการสมัครสมาชิกและการเข้าสู่ระบบ
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken'); 

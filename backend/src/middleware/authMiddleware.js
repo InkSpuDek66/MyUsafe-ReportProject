@@ -1,3 +1,5 @@
+// backend/src/middleware/authMiddleware.js
+// Middleware สำหรับการตรวจสอบสิทธิ์ผู้ใช้ (Authentication & Authorization)
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel'); // Path ไปยัง User Model
 require('dotenv').config();

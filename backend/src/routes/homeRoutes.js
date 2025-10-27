@@ -1,4 +1,5 @@
 // backend/src/routes/homeRoutes.js
+// Routes สำหรับจัดการเรื่องร้องเรียน (Complaints)
 const express = require('express');
 const router = express.Router();
 const complaintController = require('../controllers/homeController');

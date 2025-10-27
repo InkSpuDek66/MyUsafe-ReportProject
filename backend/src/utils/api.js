@@ -1,3 +1,5 @@
+// backend/src/utils/api.js
+// Utility สำหรับการตั้งค่า Axios instance พร้อมกับการแนบ Token
 import axios from 'axios';
 
 const api = axios.create({

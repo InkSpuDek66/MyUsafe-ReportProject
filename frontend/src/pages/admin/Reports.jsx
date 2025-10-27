@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+// frontend/src/pages/admin/Reports.jsx
+// หน้าแสดงรายงานและสถิติเรื่องร้องเรียนสำหรับผู้ดูแลระบบ
+import { useEffect, useMemo, useState } from "react";
 import {
   ClipboardDocumentListIcon,
   CheckCircleIcon,

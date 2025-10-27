@@ -1,3 +1,5 @@
+// frontend/src/pages/staff/AssignmentDetail.jsx
+// หน้าแสดงรายละเอียดงานที่มอบหมายให้เจ้าหน้าที่
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
