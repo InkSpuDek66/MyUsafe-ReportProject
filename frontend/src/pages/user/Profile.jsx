@@ -43,8 +43,7 @@ export default function Profile() {
             if (response.data.success) {
                 const userData = response.data.data;
                 setProfile(userData);
-                
-                // แยกชื่อและนามสกุล
+
                 const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
                 setFormData({
                     firstName: nameParts[0] || '',
@@ -97,8 +96,7 @@ export default function Profile() {
                 }));
                 setSuccess('อัปเดตรูปโปรไฟล์สำเร็จ');
                 setTimeout(() => setSuccess(''), 3000);
-                
-                // Reload Navbar เพื่ออัปเดตรูป
+
                 window.dispatchEvent(new Event('profileImageUpdated'));
             }
         } catch (err) {
@@ -115,7 +113,7 @@ export default function Profile() {
         setSuccess('');
 
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-        
+
         if (!fullName) {
             setError('กรุณากรอกชื่อ-นามสกุล');
             return;
@@ -147,7 +145,6 @@ export default function Profile() {
         setError('');
         setSuccess('');
 
-        // Validation
         if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
             setError('กรุณากรอกข้อมูลให้ครบทุกช่อง');
             return;
@@ -219,43 +216,43 @@ export default function Profile() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-base-200 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-lime-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600">กำลังโหลดข้อมูล...</p>
+                    <div className="w-16 h-16 border-4 border-[#55C388] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-base-content/70">กำลังโหลดข้อมูล...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen bg-base-200 py-8">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900">โปรไฟล์</h1>
-                    <p className="mt-1 text-sm text-gray-600">จัดการข้อมูลส่วนตัวของคุณ</p>
+                    <h1 className="text-3xl font-bold text-base-content">โปรไฟล์</h1>
+                    <p className="mt-1 text-sm text-base-content/70">จัดการข้อมูลส่วนตัวของคุณ</p>
                 </div>
-
+                
                 {/* Alert Messages */}
                 {error && (
-                    <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                        {error}
+                    <div className="alert alert-error mb-6">
+                        <span>{error}</span>
                     </div>
                 )}
                 {success && (
-                    <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                        {success}
+                    <div className="alert alert-success mb-6">
+                        <span>{success}</span>
                     </div>
                 )}
 
                 {/* Profile Card */}
-                <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+                <div className="card bg-base-100 shadow-xl mb-6">
                     {/* Profile Image Section */}
-                    <div className="bg-gradient-to-r from-lime-400 to-lime-500 px-6 py-8">
+                    <div className="bg-gradient-to-r from-[#55C388] to-[#43A874] px-6 py-8 rounded-t-2xl">
                         <div className="flex flex-col items-center">
                             <div className="relative">
-                                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-200">
+                                <div className="w-32 h-32 rounded-full border-4 border-base-100 shadow-lg overflow-hidden bg-base-300">
                                     {profile?.profile_image ? (
                                         <img
                                             src={`${API_URL.replace('/api', '')}${profile.profile_image}`}
@@ -263,19 +260,19 @@ export default function Profile() {
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-300">
-                                            <User className="w-16 h-16 text-gray-500" />
+                                        <div className="w-full h-full flex items-center justify-center bg-base-300">
+                                            <User className="w-16 h-16 text-base-content/40" />
                                         </div>
                                     )}
                                 </div>
                                 <label
                                     htmlFor="profile-image-upload"
-                                    className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50 transition"
+                                    className="absolute bottom-0 right-0 btn btn-circle btn-sm bg-base-100 hover:bg-base-200 border-0 shadow-lg"
                                 >
                                     {uploading ? (
-                                        <div className="w-5 h-5 border-2 border-lime-400 border-t-transparent rounded-full animate-spin" />
+                                        <div className="w-5 h-5 border-2 border-[#55C388] border-t-transparent rounded-full animate-spin" />
                                     ) : (
-                                        <Camera className="w-5 h-5 text-gray-700" />
+                                        <Camera className="w-5 h-5 text-base-content" />
                                     )}
                                 </label>
                                 <input
@@ -298,33 +295,33 @@ export default function Profile() {
                     </div>
 
                     {/* Profile Info Section */}
-                    <div className="px-6 py-6">
+                    <div className="card-body">
                         {!editing && !changingPassword ? (
                             <>
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-                                        <Mail className="w-5 h-5 text-gray-400" />
+                                    <div className="flex items-center gap-3 pb-4 border-b border-base-300">
+                                        <Mail className="w-5 h-5 text-base-content/40" />
                                         <div>
-                                            <p className="text-sm text-gray-500">อีเมล</p>
-                                            <p className="text-gray-900 font-medium">{profile?.email}</p>
+                                            <p className="text-sm text-base-content/60">อีเมล</p>
+                                            <p className="text-base-content font-medium">{profile?.email}</p>
                                         </div>
                                     </div>
 
                                     {profile?.phone && (
-                                        <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-                                            <Phone className="w-5 h-5 text-gray-400" />
+                                        <div className="flex items-center gap-3 pb-4 border-b border-base-300">
+                                            <Phone className="w-5 h-5 text-base-content/40" />
                                             <div>
-                                                <p className="text-sm text-gray-500">เบอร์โทรศัพท์</p>
-                                                <p className="text-gray-900 font-medium">{profile.phone}</p>
+                                                <p className="text-sm text-base-content/60">เบอร์โทรศัพท์</p>
+                                                <p className="text-base-content font-medium">{profile.phone}</p>
                                             </div>
                                         </div>
                                     )}
 
                                     <div className="flex items-center gap-3 pb-4">
-                                        <Calendar className="w-5 h-5 text-gray-400" />
+                                        <Calendar className="w-5 h-5 text-base-content/40" />
                                         <div>
-                                            <p className="text-sm text-gray-500">สมาชิกเมื่อ</p>
-                                            <p className="text-gray-900 font-medium">
+                                            <p className="text-sm text-base-content/60">สมาชิกเมื่อ</p>
+                                            <p className="text-base-content font-medium">
                                                 {formatDate(profile?.created_at)}
                                             </p>
                                         </div>
@@ -334,13 +331,13 @@ export default function Profile() {
                                 <div className="mt-6 flex gap-3">
                                     <button
                                         onClick={() => setEditing(true)}
-                                        className="flex-1 bg-lime-400 hover:bg-lime-500 text-gray-900 font-medium py-2 px-4 rounded-lg transition"
+                                        className="btn flex-1 bg-[#55C388] hover:bg-[#43A874] text-white border-0"
                                     >
                                         แก้ไขข้อมูล
                                     </button>
                                     <button
                                         onClick={() => setChangingPassword(true)}
-                                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                                        className="btn flex-1 btn-ghost"
                                     >
                                         <Lock className="w-4 h-4" />
                                         เปลี่ยนรหัสผ่าน
@@ -350,49 +347,48 @@ export default function Profile() {
                         ) : editing ? (
                             <form onSubmit={handleUpdateProfile} className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            ชื่อ <span className="text-red-500">*</span>
-                                        </label>
+                                    <div className="form-control">
+                                        <label className="label">
+                                            <span className="label-text">ชื่อ <span className="text-error">*</span></span>
+                                        </label><br />
                                         <input
                                             type="text"
                                             value={formData.firstName}
                                             onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-transparent"
+                                            className="input input-bordered focus:input-primary"
                                             required
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            นามสกุล <span className="text-red-500">*</span>
-                                        </label>
+                                    <div className="form-control">
+                                        <label className="label">
+                                            <span className="label-text">นามสกุล <span className="text-error">*</span></span>
+                                        </label><br />
                                         <input
                                             type="text"
                                             value={formData.lastName}
                                             onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-transparent"
+                                            className="input input-bordered focus:input-primary"
                                             required
                                         />
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        เบอร์โทรศัพท์
-                                    </label>
+                                <div className="form-control">
+                                    <label className="label">
+                                        <span className="label-text">เบอร์โทรศัพท์</span>
+                                    </label><br />
                                     <input
                                         type="tel"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-transparent"
+                                        className="input input-bordered focus:input-primary w-180"
                                     />
                                 </div>
-
                                 <div className="flex gap-3 pt-4">
                                     <button
                                         type="submit"
-                                        className="flex-1 bg-lime-400 hover:bg-lime-500 text-gray-900 font-medium py-2 px-4 rounded-lg transition"
+                                        className="btn flex-1 bg-[#55C388] hover:bg-[#43A874] text-white border-0"
                                     >
                                         บันทึก
                                     </button>
@@ -407,7 +403,7 @@ export default function Profile() {
                                                 phone: profile?.phone || ''
                                             });
                                         }}
-                                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition"
+                                        className="btn flex-1 btn-ghost"
                                     >
                                         ยกเลิก
                                     </button>
@@ -415,68 +411,70 @@ export default function Profile() {
                             </form>
                         ) : (
                             <form onSubmit={handleChangePassword} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        รหัสผ่านปัจจุบัน <span className="text-red-500">*</span>
+                                <div className="form-control">
+                                    <label className="label">
+                                        <span className="label-text">รหัสผ่านปัจจุบัน <span className="text-error">*</span></span>
                                     </label>
                                     <div className="relative">
                                         <input
                                             type={showPasswords.current ? "text" : "password"}
                                             value={passwordData.currentPassword}
                                             onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                                            className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-transparent"
+                                            className="input input-bordered focus:input-primary w-full pr-12"
                                             required
                                         />
                                         <button
                                             type="button"
                                             onClick={() => togglePasswordVisibility('current')}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm btn-circle"
                                         >
                                             {showPasswords.current ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </button>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        รหัสผ่านใหม่ <span className="text-red-500">*</span>
+                                <div className="form-control">
+                                    <label className="label">
+                                        <span className="label-text">รหัสผ่านใหม่ <span className="text-error">*</span></span>
                                     </label>
                                     <div className="relative">
                                         <input
                                             type={showPasswords.new ? "text" : "password"}
                                             value={passwordData.newPassword}
                                             onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                                            className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-transparent"
+                                            className="input input-bordered focus:input-primary w-full pr-12"
                                             required
                                             minLength={6}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => togglePasswordVisibility('new')}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm btn-circle"
                                         >
                                             {showPasswords.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </button>
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร</p>
+                                    <label className="label">
+                                        <span className="label-text-alt text-base-content/60">รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร</span>
+                                    </label>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        ยืนยันรหัสผ่านใหม่ <span className="text-red-500">*</span>
+                                <div className="form-control">
+                                    <label className="label">
+                                        <span className="label-text">ยืนยันรหัสผ่านใหม่ <span className="text-error">*</span></span>
                                     </label>
                                     <div className="relative">
                                         <input
                                             type={showPasswords.confirm ? "text" : "password"}
                                             value={passwordData.confirmPassword}
                                             onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                                            className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-400 focus:border-transparent"
+                                            className="input input-bordered focus:input-primary w-full pr-12"
                                             required
                                         />
                                         <button
                                             type="button"
                                             onClick={() => togglePasswordVisibility('confirm')}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm btn-circle"
                                         >
                                             {showPasswords.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </button>
@@ -486,7 +484,7 @@ export default function Profile() {
                                 <div className="flex gap-3 pt-4">
                                     <button
                                         type="submit"
-                                        className="flex-1 bg-lime-400 hover:bg-lime-500 text-gray-900 font-medium py-2 px-4 rounded-lg transition"
+                                        className="btn flex-1 bg-[#55C388] hover:bg-[#43A874] text-white border-0"
                                     >
                                         เปลี่ยนรหัสผ่าน
                                     </button>
@@ -505,7 +503,7 @@ export default function Profile() {
                                                 confirm: false
                                             });
                                         }}
-                                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition"
+                                        className="btn flex-1 btn-ghost"
                                     >
                                         ยกเลิก
                                     </button>
