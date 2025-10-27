@@ -47,6 +47,9 @@ MyUsafe-ReportProject/
 │   │   │   ├── lineService.js
 │   │   │   ├── notificationService.js
 │   │   │   └── exportService.js
+│   │   ├── scripts/
+│   │   │   ├── seedAll.js
+│   │   │   └── seedLargeData.js
 │   │   └── utils/
 │   │       ├── validators.js
 │   │       ├── helpers.js
