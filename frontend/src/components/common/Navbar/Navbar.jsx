@@ -9,8 +9,14 @@ import {
   MenuItem,
   MenuItems,
 } from "@headlessui/react";
-import { Bars3Icon, XMarkIcon, BellIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { LogIn } from "lucide-react";
+import NotificationBell from "../../NotificationBell/NotificationBell";
+
+
+
+
+
 import './Navbar.css'
 
 function classNames(...classes) {
@@ -131,17 +137,6 @@ export default function Navbar() {
       : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  const NotificationPlaceholder = () => (
-    <button
-      type="button"
-      className="relative p-1 text-gray-700 rounded-full hover:text-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-lime-400"
-    >
-      <span className="sr-only">View notifications</span>
-      <BellIcon className="size-6" aria-hidden="true" />
-      <span className="absolute top-0 right-0 size-2.5 rounded-full bg-red-600 ring-2 ring-lime-400"></span>
-    </button>
-  );
-
   return (
     <div className="min-h-full">
       <Disclosure as="nav" className="bg-lime-400 shadow">
@@ -185,7 +180,8 @@ export default function Navbar() {
 
             {/* Right */}
             <div className="hidden lg:flex items-center md:ml-6 gap-3">
-              {token && <NotificationPlaceholder />}
+              {/* ✅ NotificationBell - แทนที่ NotificationPlaceholder */}
+              {token && <NotificationBell />}
 
               {!token && (
                 <Link
@@ -285,7 +281,8 @@ export default function Navbar() {
                     <div className="text-sm font-medium text-gray-700">{user.email}</div>
                   </div>
                   <div className="ml-auto">
-                    <NotificationPlaceholder />
+                    {/* ✅ NotificationBell - บน Mobile */}
+                    <NotificationBell />
                   </div>
                 </>
               )}

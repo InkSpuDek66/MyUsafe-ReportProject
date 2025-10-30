@@ -29,6 +29,7 @@ require('dotenv').config(); // ✅ โหลด .env ก่อนใช้ค่
 // ✅ Import Routes & Models
 const authRoutes = require('./src/routes/auth'); 
 
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -77,6 +78,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/profile', profileRoutes);
+const notificationRoutes = require('./src/routes/notifications');
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
