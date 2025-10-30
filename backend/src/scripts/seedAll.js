@@ -43,41 +43,223 @@ const categories = [
     { name: 'อื่นๆ', description: 'ปัญหาอื่นๆ ที่ไม่อยู่ในหมวดหมู่ข้างต้น', icon: '📝', auto_assign_dept: 'งานทั่วไป' }
 ];
 
-// ==================== Locations Data ====================
-const locations = [
-    // อาคาร 1
-    { building: 'อาคาร 1', floor: 'ชั้น 1', room: '', description: 'ล็อบบี้' },
-    { building: 'อาคาร 1', floor: 'ชั้น 1', room: '101', description: 'ห้องเรียน' },
-    { building: 'อาคาร 1', floor: 'ชั้น 1', room: '102', description: 'ห้องเรียน' },
-    { building: 'อาคาร 1', floor: 'ชั้น 1', room: '103', description: 'ห้องปฏิบัติการคอมพิวเตอร์' },
-    { building: 'อาคาร 1', floor: 'ชั้น 2', room: '201', description: 'ห้องเรียน' },
-    { building: 'อาคาร 1', floor: 'ชั้น 2', room: '202', description: 'ห้องเรียน' },
-    { building: 'อาคาร 1', floor: 'ชั้น 3', room: '301', description: 'ห้องเรียน' },
+// ==================== ฟังก์ชันสร้าง Locations Data ====================
+const generateLocations = () => {
+    const locations = [];
 
-    // อาคาร 2
-    { building: 'อาคาร 2', floor: 'ชั้น 1', room: '', description: 'ล็อบบี้' },
-    { building: 'อาคาร 2', floor: 'ชั้น 1', room: '101', description: 'ห้องเรียน' },
-    { building: 'อาคาร 2', floor: 'ชั้น 1', room: 'โรงอาหาร', description: 'โรงอาหาร' },
-    { building: 'อาคาร 2', floor: 'ชั้น 2', room: '201', description: 'ห้องเรียน' },
-    { building: 'อาคาร 2', floor: 'ชั้น 2', room: '202', description: 'ห้องปฏิบัติการวิทยาศาสตร์' },
+    // กำหนดรายการอาคาร
+    const buildings = [
+        'อาคาร 1', 'อาคาร 2', 'อาคาร 3', 'อาคาร 4',
+        'อาคาร 5', 'อาคาร 6', 'อาคาร 7', 'อาคาร 8',
+        'อาคาร 9', 'อาคาร 10', 'อาคาร 11', 'อาคาร 12'
+    ];
 
-    // อาคาร 3 (หอพัก)
-    { building: 'อาคาร 3', floor: 'ชั้น 1', room: '', description: 'ล็อบบี้หอพัก' },
-    { building: 'อาคาร 3', floor: 'ชั้น 1', room: 'ห้องซักรีด', description: 'ห้องซักรีดรวม' },
-    { building: 'อาคาร 3', floor: 'ชั้น 2', room: '201-210', description: 'ห้องพักนักศึกษา' },
+    // กำหนดรายการชั้น
+    const floors = [
+        'ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4',
+        'ชั้น 5', 'ชั้น 6', 'ชั้น 7', 'ชั้น 8',
+        'ชั้น 9', 'ชั้น 10', 'ชั้น 11', 'ชั้น 12',
+        'ชั้น 13', 'ชั้น 14', 'ชั้น 15', 'ชั้น 16'
+    ];
 
-    // อาคารกีฬา
-    { building: 'อาคารกีฬา', floor: 'ชั้น 1', room: 'สนามบาสเกตบอล', description: 'สนามกีฬา' },
-    { building: 'อาคารกีฬา', floor: 'ชั้น 1', room: 'สนามฟุตซอล', description: 'สนามกีฬา' },
+    // กำหนดรายการห้องตามชั้น
+    const roomsByFloor = {
+        'ชั้น 1': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: 'ลิฟต์', description: 'ลิฟต์' }
+        ],
+        'ชั้น 2': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '201', description: 'ห้องเรียน' },
+            { room: '202', description: 'ห้องเรียน' },
+            { room: '203', description: 'ห้องเรียน' },
+            { room: '204', description: 'ห้องเรียน' },
+            { room: '205', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 3': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '301', description: 'ห้องเรียน' },
+            { room: '302', description: 'ห้องเรียน' },
+            { room: '303', description: 'ห้องเรียน' },
+            { room: '304', description: 'ห้องเรียน' },
+            { room: '305', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 4': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '401', description: 'ห้องเรียน' },
+            { room: '402', description: 'ห้องเรียน' },
+            { room: '403', description: 'ห้องเรียน' },
+            { room: '404', description: 'ห้องเรียน' },
+            { room: '405', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 5': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '501', description: 'ห้องเรียน' },
+            { room: '502', description: 'ห้องเรียน' },
+            { room: '503', description: 'ห้องเรียน' },
+            { room: '504', description: 'ห้องเรียน' },
+            { room: '505', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 6': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '601', description: 'ห้องเรียน' },
+            { room: '602', description: 'ห้องเรียน' },
+            { room: '603', description: 'ห้องเรียน' },
+            { room: '604', description: 'ห้องเรียน' },
+            { room: '605', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 7': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '701', description: 'ห้องเรียน' },
+            { room: '702', description: 'ห้องเรียน' },
+            { room: '703', description: 'ห้องเรียน' },
+            { room: '704', description: 'ห้องเรียน' },
+            { room: '705', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 8': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '801', description: 'ห้องเรียน' },
+            { room: '802', description: 'ห้องเรียน' },
+            { room: '803', description: 'ห้องเรียน' },
+            { room: '804', description: 'ห้องเรียน' },
+            { room: '805', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 9': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '901', description: 'ห้องเรียน' },
+            { room: '902', description: 'ห้องเรียน' },
+            { room: '903', description: 'ห้องเรียน' },
+            { room: '904', description: 'ห้องเรียน' },
+            { room: '905', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 10': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '1001', description: 'ห้องเรียน' },
+            { room: '1002', description: 'ห้องเรียน' },
+            { room: '1003', description: 'ห้องเรียน' },
+            { room: '1004', description: 'ห้องเรียน' },
+            { room: '1005', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 11': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '1101', description: 'ห้องเรียน' },
+            { room: '1102', description: 'ห้องเรียน' },
+            { room: '1103', description: 'ห้องเรียน' },
+            { room: '1104', description: 'ห้องเรียน' },
+            { room: '1105', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 12': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '1201', description: 'ห้องเรียน' },
+            { room: '1202', description: 'ห้องเรียน' },
+            { room: '1203', description: 'ห้องเรียน' },
+            { room: '1204', description: 'ห้องเรียน' },
+            { room: '1205', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 13': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '1301', description: 'ห้องเรียน' },
+            { room: '1302', description: 'ห้องเรียน' },
+            { room: '1303', description: 'ห้องเรียน' },
+            { room: '1304', description: 'ห้องเรียน' },
+            { room: '1305', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 14': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '1401', description: 'ห้องเรียน' },
+            { room: '1402', description: 'ห้องเรียน' },
+            { room: '1403', description: 'ห้องเรียน' },
+            { room: '1404', description: 'ห้องเรียน' },
+            { room: '1405', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 15': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '1501', description: 'ห้องเรียน' },
+            { room: '1502', description: 'ห้องเรียน' },
+            { room: '1503', description: 'ห้องเรียน' },
+            { room: '1504', description: 'ห้องเรียน' },
+            { room: '1505', description: 'ห้องเรียน' }
+        ],
+        'ชั้น 16': [
+            { room: 'โถงทางเดิน', description: 'โถงทางเดิน' },
+            { room: 'ห้องประชุม', description: 'ห้องประชุม' },
+            { room: 'ห้องน้ำชาย', description: 'ห้องน้ำชาย' },
+            { room: 'ห้องน้ำหญิง', description: 'ห้องน้ำหญิง' },
+            { room: '1601', description: 'ห้องเรียน' },
+            { room: '1602', description: 'ห้องเรียน' },
+            { room: '1603', description: 'ห้องเรียน' },
+            { room: '1604', description: 'ห้องเรียน' },
+            { room: '1605', description: 'ห้องเรียน' }
+        ]
+    };
 
-    // ห้องสมุด
-    { building: 'ห้องสมุด', floor: 'ชั้น 1', room: '', description: 'เคาน์เตอร์ยืม-คืน' },
-    { building: 'ห้องสมุด', floor: 'ชั้น 2', room: 'โซนศึกษาค้นคว้า', description: 'โซนอ่านหนังสือ' },
+    // สร้างข้อมูล locations สำหรับทุกอาคารและทุกชั้น
+    for (const building of buildings) {
+        for (const floor of floors) {
+            const rooms = roomsByFloor[floor];
 
-    // พื้นที่กลางแจ้ง
-    { building: 'พื้นที่กลางแจ้ง', floor: 'ชั้น 1', room: 'ลานจอดรถ A', description: 'ลานจอดรถ' },
-    { building: 'พื้นที่กลางแจ้ง', floor: 'ชั้น 1', room: 'สวนหย่อม', description: 'พื้นที่พักผ่อน' }
-];
+            // เพิ่มห้องต่างๆ ในแต่ละชั้น
+            for (const roomData of rooms) {
+                locations.push({
+                    building: building,
+                    floor: floor,
+                    room: roomData.room,
+                    description: roomData.description
+                });
+            }
+        }
+    }
+
+    return locations;
+};
+
+// สร้าง locations data
+const locations = generateLocations();
 
 // ฟังก์ชันเชื่อมต่อ MongoDB
 const connectDB = async () => {
