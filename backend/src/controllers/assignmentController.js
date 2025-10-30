@@ -1,6 +1,7 @@
 // backend/src/controllers/assignmentController.js
 const Complaint = require('../models/homeModel');
 const User = require('../models/userModel'); // ✅ เพิ่ม import User model
+const notificationController = require('./notificationController');
 
 // 👥 GET: ดึงรายชื่อ staff ทั้งหมด (เพิ่มใหม่)
 exports.getAllStaff = async (req, res) => {
@@ -27,8 +28,10 @@ exports.getAllStaff = async (req, res) => {
 // 👤 POST: มอบหมายงานให้เจ้าหน้าที่
 exports.assignComplaint = async (req, res) => {
     try {
-        const { id } = req.params; // complaint_id
+        const { id } = req.params;
         const { assigned_to, assigned_by } = req.body;
+
+        console.log('🎯 Assignment Request:', { id, assigned_to, assigned_by }); // ✅ เพิ่ม log
 
         if (!assigned_to) {
             return res.status(400).json({
@@ -37,7 +40,6 @@ exports.assignComplaint = async (req, res) => {
             });
         }
 
-        // ✅ ตรวจสอบว่า staff มีอยู่จริง
         const staff = await User.findById(assigned_to);
         if (!staff || staff.role !== 'staff') {
             return res.status(404).json({
@@ -54,12 +56,10 @@ exports.assignComplaint = async (req, res) => {
             });
         }
 
-        // อัปเดตการมอบหมาย
         complaint.assigned_to = assigned_to;
         complaint.assigned_at = new Date();
         complaint.assigned_by = assigned_by || null;
 
-        // เปลี่ยนสถานะเป็น "กำลังดำเนินการ" ถ้ายังเป็น "รอรับเรื่อง"
         if (complaint.current_status === 'รอรับเรื่อง') {
             complaint.current_status = 'กำลังดำเนินการ';
             complaint.status_history.push({
@@ -71,6 +71,36 @@ exports.assignComplaint = async (req, res) => {
         }
 
         await complaint.save();
+        console.log('✅ Complaint assigned successfully'); // ✅ เพิ่ม log
+
+        // 🔔 แจ้งเตือนผู้แจ้ง
+        console.log('🔔 Creating notification for reporter:', complaint.user_id); // ✅ เพิ่ม log
+        const reporterNotif = await notificationController.createNotification(
+            complaint.user_id,
+            complaint.complaint_id,
+            'assigned',
+            `เรื่องร้องเรียน "${complaint.title}" ได้รับมอบหมายให้เจ้าหน้าที่แล้ว`,
+            {
+                staff_id: staff._id,
+                staff_name: staff.name,
+                assigned_by: assigned_by
+            }
+        );
+        console.log('✅ Reporter notification created:', reporterNotif._id); // ✅ เพิ่ม log
+
+        // 🔔 แจ้งเตือน Staff ที่ได้รับมอบหมาย
+        console.log('🔔 Creating notification for staff:', staff._id.toString()); // ✅ เพิ่ม log
+        const staffNotif = await notificationController.createNotification(
+            staff._id.toString(),
+            complaint.complaint_id,
+            'assigned',
+            `คุณได้รับมอบหมายงาน: "${complaint.title}"`,
+            {
+                complaint_title: complaint.title,
+                assigned_by: assigned_by
+            }
+        );
+        console.log('✅ Staff notification created:', staffNotif._id); // ✅ เพิ่ม log
 
         res.json({
             success: true,
@@ -85,10 +115,11 @@ exports.assignComplaint = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error('Assign Complaint Error:', err);
+        console.error('❌ Assign Complaint Error:', err);
         res.status(500).json({
             success: false,
-            error: 'เกิดข้อผิดพลาดในการมอบหมายงาน'
+            error: 'เกิดข้อผิดพลาดในการมอบหมายงาน',
+            details: err.message // ✅ เพิ่ม details
         });
     }
 };
