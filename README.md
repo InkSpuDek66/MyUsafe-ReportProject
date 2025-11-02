@@ -1,7 +1,10 @@
+# MyUsafe-ReportProject
+Web-based complaint reporting system for higher education institutions, developed as part of the CSI400 – Web Services course at Sripatum University.
+
 # ข้อมูลเกี่ยวกับโปรเจค
 ues nvm  --> v22.20.0 || nvm install jod
 
-# โครงสร้างโปรเจค testJINGJING
+# โครงสร้างโปรเจค
 MyUsafe-ReportProject/
 ├── backend/
 │   ├── node_modules/
