@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const mongoose = require('mongoose');
+const { Server } = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
@@ -18,11 +19,14 @@ const categoryRoutes = require('./src/routes/categoryRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const commentRoutes = require('./src/routes/commentRoutes');
 const assignmentRoutes = require('./src/routes/assignmentRoutes');
+const profileRoutes = require('./src/routes/profileRoutes');
+const homeRoutes = require('./src/routes/homeRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes'); // ✅ เพิ่ม
 
 // Import Models
 const Complaint = require('./src/models/homeModel');
 // const User = require('./src/models/User');
-const { Server } = require('socket.io');
+// const { Server } = require('socket.io');
 require('dotenv').config(); // ✅ โหลด .env ก่อนใช้ค่าใน process.env
 
 // ✅ Import Routes & Models
@@ -36,6 +40,9 @@ const io = new Server(server, {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // ✅ เพิ่ม PATCH
   },
 });
+
+// ทำให้ io เป็น global variable
+global.io = io;
 
 // ================= MongoDB Connect ==================
 if (process.env.NODE_ENV !== 'test' && mongoose.connection.readyState === 0) {
@@ -57,10 +64,11 @@ app.use(cors({
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use('/uploads', express.static('uploads'));
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+app.use('/profile', express.static(path.join(__dirname, 'profile'))); // ✅ ลบ ../
 // Request Logger
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -75,6 +83,45 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/assignments', assignmentRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/notifications', notificationRoutes); // ✅ เพิ่ม
+app.use('/api/complaints', homeRoutes);
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 User connected:', socket.id);
+
+  // Join user's personal room
+  socket.on('join', (userId) => {
+    socket.join(userId);
+    console.log(`✅ User ${userId} joined room`);
+  });
+
+  // View complaint (for view counter)
+  socket.on('view_complaint', async (complaintId) => {
+    try {
+      const Complaint = require('./src/models/homeModel');
+      const complaint = await Complaint.findOneAndUpdate(
+        { complaint_id: complaintId },
+        { $inc: { views: 1 } },
+        { new: true }
+      );
+      
+      if (complaint) {
+        io.emit('update_views', {
+          id: complaintId,
+          views: complaint.views
+        });
+      }
+    } catch (err) {
+      console.error('View complaint error:', err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 User disconnected:', socket.id);
+  });
+});
 
 // Health check
 app.get('/health', (req, res) => {

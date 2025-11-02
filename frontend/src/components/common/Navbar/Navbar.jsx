@@ -9,9 +9,13 @@ import {
   MenuItem,
   MenuItems,
 } from "@headlessui/react";
-import { Bars3Icon, XMarkIcon, BellIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, BellIcon, CheckIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { LogIn } from "lucide-react";
-import './Navbar.css'
+import { io } from 'socket.io-client';
+import './Navbar.css';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -20,79 +24,403 @@ function classNames(...classes) {
 export default function Navbar() {
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [profileImage, setProfileImage] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [socket, setSocket] = useState(null);
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ เพิ่ม useLocation เพื่อดึง path ปัจจุบัน
+  const location = useLocation();
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedRole = localStorage.getItem("role");
+    const storedUserId = localStorage.getItem("userId") || localStorage.getItem("user_id");
+    
+    console.log('👤 User info:', { 
+      storedUserId, 
+      storedRole,
+      hasToken: !!storedToken 
+    });
+    
     setToken(storedToken);
     setRole(storedRole);
+    setUserId(storedUserId);
 
-    console.log("Navbar: Loaded role:", storedRole);
+    if (storedToken && storedUserId) {
+      fetchProfileImage(storedToken);
+      fetchNotifications(storedUserId);
+      
+      // เชื่อมต่อ Socket.IO
+      console.log('🔌 Connecting to socket:', SOCKET_URL);
+      const socketConnection = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'], // ใช้ทั้ง websocket และ polling
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5
+      });
+      
+      socketConnection.on('connect', () => {
+        console.log('✅ Socket connected:', socketConnection.id);
+        console.log('📤 Joining room:', storedUserId);
+        socketConnection.emit('join', storedUserId);
+      });
+
+      socketConnection.on('disconnect', (reason) => {
+        console.log('❌ Socket disconnected:', reason);
+      });
+
+      socketConnection.on('connect_error', (error) => {
+        console.error('❌ Socket connection error:', error);
+      });
+
+      // ฟัง new_notification event
+      socketConnection.on('new_notification', (notification) => {
+        console.log('🔔 New notification received:', notification);
+        console.log('🔔 Notification type:', notification.type);
+        console.log('🔔 Notification message:', notification.message);
+        
+        // อัพเดท state
+        setNotifications(prev => {
+          console.log('📝 Updating notifications, prev count:', prev.length);
+          return [notification, ...prev];
+        });
+        
+        setUnreadCount(prev => {
+          console.log('📝 Updating unread count from', prev, 'to', prev + 1);
+          return prev + 1;
+        });
+        
+        // แสดง browser notification
+        if (Notification.permission === 'granted') {
+          console.log('🔔 Showing browser notification');
+          new Notification('MyUSafe - การแจ้งเตือนใหม่', {
+            
+            body: notification.message,
+            icon: '/MyUSafe_mini_none-bg_LOGO1.png'
+          });socketConnection.onAny((eventName, ...args) => {
+  console.log('📨 Socket event received:', eventName, args);
+});
+        } else if (Notification.permission === 'default') {
+          console.log('❓ Requesting notification permission');
+          Notification.requestPermission();
+        }
+      });
+
+      // Test event เพื่อตรวจสอบว่า socket ทำงาน
+      socketConnection.on('test', (data) => {
+        console.log('🧪 Test event received:', data);
+      });
+      
+      setSocket(socketConnection);
+      
+      return () => {
+        console.log('🔌 Disconnecting socket...');
+        socketConnection.off('new_notification');
+        socketConnection.off('connect');
+        socketConnection.off('disconnect');
+        socketConnection.off('connect_error');
+        socketConnection.off('test');
+        socketConnection.disconnect();
+      };
+    } else {
+      console.log('⚠️ No token or userId, skipping socket connection');
+    }
   }, []);
+
+  useEffect(() => {
+    const handleProfileUpdate = (event) => {
+      if (event.detail?.profile_image) {
+        setProfileImage(event.detail.profile_image);
+      }
+    };
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
+  }, []);
+
+  // ขอ permission สำหรับ browser notification
+  useEffect(() => {
+    if (token && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('🔔 Notification permission:', permission);
+      });
+    }
+  }, [token]);
+
+  const fetchProfileImage = async (authToken) => {
+    try {
+      const response = await fetch(`${API_URL}/profile`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await response.json();
+      if (data.success && data.data.profile_image) {
+        setProfileImage(data.data.profile_image);
+      }
+    } catch (err) {
+      console.error('Error fetching profile image:', err);
+    }
+  };
+
+  const fetchNotifications = async (uid) => {
+    try {
+      console.log('📥 Fetching notifications for:', uid);
+      const response = await fetch(`${API_URL}/notifications/${uid}?limit=20`);
+      const data = await response.json();
+      console.log('📥 Notifications fetched:', data);
+      if (data.success) {
+        setNotifications(data.data);
+        setUnreadCount(data.unread_count);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+
+  const markAsRead = async (notificationId) => {
+    try {
+      const response = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      
+      if (response.ok) {
+        setNotifications(prev =>
+          prev.map(n => n._id === notificationId ? { ...n, is_read: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error('Error marking as read:', err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch(`${API_URL}/notifications/read-all`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.error('Error marking all as read:', err);
+    }
+  };
+
+  const deleteNotification = async (notificationId) => {
+    try {
+      const response = await fetch(`${API_URL}/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      
+      if (response.ok) {
+        const wasUnread = notifications.find(n => n._id === notificationId)?.is_read === false;
+        setNotifications(prev => prev.filter(n => n._id !== notificationId));
+        if (wasUnread) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
+const handleNotificationClick = (notification) => {
+  console.log('🖱️ Notification clicked:', notification);
+  if (!notification.is_read) {
+    markAsRead(notification._id);
+  }
+  setShowNotifications(false);
+  
+  // ✅ ตรวจสอบว่าเป็น Staff หรือไม่ และ notification เป็นประเภท assigned
+  if (role === 'staff' && notification.type === 'assigned') {
+    // Staff ที่ได้รับมอบหมายงาน → ไปที่ AssignmentDetail
+    navigate(`/assignment/${notification.complaint_id}`);
+  } else {
+    // User ปกติ → ไปที่ ComplaintDetail
+    navigate(`/complaint/${notification.complaint_id}`);
+  }
+};
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'completed': return '✅';
+      case 'assigned': return '👤';
+      case 'status_change': return '🔄';
+      case 'comment': return '💬';
+      case 'cancelled': return '❌';
+      default: return '📢';
+    }
+  };
+
+  const formatTimeAgo = (date) => {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    if (seconds < 60) return 'เมื่อสักครู่';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`;
+    const days = Math.floor(hours / 24);
+    return `${days} วันที่แล้ว`;
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("userId");
+    localStorage.removeItem("user_id");
     setToken(null);
     setRole(null);
+    setProfileImage(null);
+    setNotifications([]);
+    setUnreadCount(0);
+    if (socket) {
+      console.log('🔌 Logging out, disconnecting socket');
+      socket.disconnect();
+    }
     navigate("/login");
   };
 
-  // ✅ ฟังก์ชันตรวจสอบว่า path ปัจจุบันตรงกับ href หรือไม่
   const isActive = (href) => {
-    if (href === '/') {
-      return location.pathname === '/';
-    }
+    if (href === '/') return location.pathname === '/';
     return location.pathname.startsWith(href);
   };
 
   const navigation = [
     { name: "Dashboard", href: "/" },
-    // Admin Reports - เฉพาะ admin
-    ...(role === 'admin' ? [{ name: "Admin Reports", href: "/admin/reports" }] : []),
-    // Assignments - เฉพาะ admin และ staff
-    ...(role === 'admin' || role === 'staff' ? [{ name: "Assignments", href: "/admin/assignments" }] : []),
+    ...(role === 'admin' ? [
+      { name: "Admin Reports", href: "/admin/reports" },
+      { name: "Staff Performance", href: "/admin/staff-performance" },
+      { name: "Complaint List", href: "/admin/complaint-list" }
+    ] : []),
+    ...(role === 'admin' || role === 'staff' ? [
+      { name: "Assignments", href: "/admin/assignments" }
+    ] : []),
     { name: "Reports", href: "/complaints/new" },
   ];
 
   const canSeeWork = role === 'admin' || role === 'staff';
-
   const baseItems = [
-    { name: "Your profile", href: "#" },
+    { name: "Your profile", href: "/profile" },
     { name: "My Complains", href: "/my-complaints" },
   ];
-
   const workItem = { name: "Assignments", href: "/admin/assignments" };
-
   const signOutItem = { name: "Sign out", onClick: handleLogout };
-
   const userNavigation = token
-    ? [
-      ...baseItems,
-      ...(canSeeWork ? [workItem] : []),
-      signOutItem,
-    ]
+    ? [...baseItems, ...(canSeeWork ? [workItem] : []), signOutItem]
     : [];
 
   const user = {
     name: "User Name",
     email: "user@example.com",
-    imageUrl:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+    imageUrl: profileImage 
+      ? `${API_URL.replace('/api', '')}${profileImage}`
+      : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
   };
 
-  const NotificationPlaceholder = () => (
-    <button
-      type="button"
-      className="relative p-1 text-gray-700 rounded-full hover:text-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-lime-400"
-    >
-      <span className="sr-only">View notifications</span>
-      <BellIcon className="size-6" aria-hidden="true" />
-      <span className="absolute top-0 right-0 size-2.5 rounded-full bg-red-600 ring-2 ring-lime-400"></span>
-    </button>
+  const NotificationButton = () => (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setShowNotifications(!showNotifications)}
+        className="relative p-1 text-gray-700 rounded-full hover:text-white hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-lime-400"
+      >
+        <span className="sr-only">View notifications</span>
+        <BellIcon className="size-6" aria-hidden="true" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex items-center justify-center size-5 text-xs font-bold text-white bg-red-600 rounded-full ring-2 ring-lime-400">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {/* Notification Dropdown */}
+      {showNotifications && (
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50 max-h-[80vh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-900">
+              การแจ้งเตือน ({unreadCount})
+            </h3>
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllAsRead}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+              >
+                <CheckIcon className="size-3" />
+                อ่านทั้งหมด
+              </button>
+            )}
+          </div>
+
+          {/* Notifications List */}
+          <div className="overflow-y-auto flex-1">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <BellIcon className="size-12 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">ไม่มีการแจ้งเตือน</p>
+              </div>
+            ) : (
+              notifications.map((notif) => (
+                <div
+                  key={notif._id}
+                  className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
+                    !notif.is_read ? 'bg-blue-50' : ''
+                  }`}
+                  onClick={() => handleNotificationClick(notif)}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl flex-shrink-0">
+                      {getNotificationIcon(notif.type)}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${!notif.is_read ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                        {notif.message}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatTimeAgo(notif.created_at)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNotification(notif._id);
+                      }}
+                      className="text-gray-400 hover:text-red-600 flex-shrink-0"
+                    >
+                      <TrashIcon className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowNotifications(false);
+                  navigate('/notifications');
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium w-full text-center"
+              >
+                ดูทั้งหมด
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -123,7 +451,7 @@ export default function Navbar() {
                       key={item.name}
                       to={item.href}
                       className={classNames(
-                        isActive(item.href) // ✅ ใช้ฟังก์ชัน isActive แทน item.current
+                        isActive(item.href)
                           ? "bg-gray-950/50 text-white"
                           : "text-gray-700 hover:bg-white/5 hover:text-white",
                         "rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200"
@@ -138,19 +466,12 @@ export default function Navbar() {
 
             {/* Right */}
             <div className="hidden lg:flex items-center md:ml-6 gap-3">
-              {token && <NotificationPlaceholder />}
+              {token && <NotificationButton />}
 
               {!token && (
                 <Link
                   to="/login"
-                  className="
-                    flex items-center gap-2
-                    bg-lime-600 hover:bg-lime-700
-                    text-white font-medium
-                    rounded-md px-3 py-2
-                    shadow-sm hover:shadow-md
-                    transition duration-300
-                  "
+                  className="flex items-center gap-2 bg-lime-600 hover:bg-lime-700 text-white font-medium rounded-md px-3 py-2 shadow-sm hover:shadow-md transition duration-300"
                 >
                   <LogIn className="w-4 h-4" />
                   Login
@@ -164,7 +485,7 @@ export default function Navbar() {
                     <img
                       alt=""
                       src={user.imageUrl}
-                      className="border border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10"
+                      className="border border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10 object-cover"
                     />
                   </MenuButton>
                   <MenuItems
@@ -217,7 +538,7 @@ export default function Navbar() {
                 as={Link}
                 to={item.href}
                 className={classNames(
-                  isActive(item.href) // ✅ ใช้ isActive สำหรับ Mobile ด้วย
+                  isActive(item.href)
                     ? "bg-gray-950/50 text-white"
                     : "text-gray-700 hover:bg-white/5 hover:text-white",
                   "block rounded-md px-3 py-2 text-base font-medium transition-colors duration-200"
@@ -232,13 +553,13 @@ export default function Navbar() {
             <div className="flex items-center px-5">
               {token && (
                 <>
-                  <img alt="" src={user.imageUrl} className="size-10 rounded-full outline -outline-offset-1 outline-white/10" />
+                  <img alt="" src={user.imageUrl} className="size-10 rounded-full outline -outline-offset-1 outline-white/10 object-cover" />
                   <div className="ml-3">
                     <div className="text-base font-medium text-white">{user.name}</div>
                     <div className="text-sm font-medium text-gray-700">{user.email}</div>
                   </div>
                   <div className="ml-auto">
-                    <NotificationPlaceholder />
+                    <NotificationButton />
                   </div>
                 </>
               )}

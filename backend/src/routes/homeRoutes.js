@@ -122,17 +122,26 @@ router.put('/:id', complaintController.updateComplaint);
 // DELETE - Delete complaint
 router.delete('/:id', complaintController.deleteComplaint);
 
-// PATCH: เปลี่ยนสถานะ + บันทึกรายละเอียดการแก้ไข
+// PATCH: เปลี่ยนสถานะ + บันทึกรายละเอียดการแก้ไข + แจ้งเตือน
 router.patch('/:id/status', async (req, res) => {
     const { status, updated_by, resolution_details } = req.body;
+    const notificationController = require('../controllers/notificationController');
 
     try {
         const complaint = await Complaint.findOne({ complaint_id: req.params.id });
         if (!complaint)
             return res.status(404).json({ success: false, error: 'ไม่พบเรื่องร้องเรียนนี้' });
 
+        const oldStatus = complaint.current_status; // ✅ เก็บสถานะเก่า
         const now = new Date();
         complaint.current_status = status;
+        
+        console.log('📝 Status change:', { 
+            complaint_id: req.params.id, 
+            old: oldStatus, 
+            new: status,
+            user_id: complaint.user_id 
+        }); // ✅ เพิ่ม log
         
         complaint.status_history.push({
             status_id: 'S' + Date.now().toString().slice(-7),
@@ -151,10 +160,54 @@ router.patch('/:id/status', async (req, res) => {
         }
 
         await complaint.save();
+        console.log('✅ Status updated in DB'); // ✅ เพิ่ม log
+
+        // 🔔 สร้างการแจ้งเตือนเมื่อเปลี่ยนสถานะ
+        if (status !== oldStatus) {
+            let notifMessage = '';
+            let notifType = 'status_change';
+            
+            // กำหนดข้อความแจ้งเตือนตามสถานะ
+            if (status === 'กำลังดำเนินการ') {
+                notifMessage = `เรื่องร้องเรียน "${complaint.title}" กำลังดำเนินการโดยเจ้าหน้าที่`;
+                notifType = 'status_change';
+            } else if (status === 'เสร็จสิ้น') {
+                notifMessage = `เรื่องร้องเรียน "${complaint.title}" ได้รับการจัดการเสร็จสิ้นแล้ว ใช้เวลา ${complaint.time_used}`;
+                notifType = 'completed';
+            } else if (status === 'ยกเลิก') {
+                notifMessage = `เรื่องร้องเรียน "${complaint.title}" ถูกยกเลิก`;
+                notifType = 'cancelled';
+            } else {
+                notifMessage = `เรื่องร้องเรียน "${complaint.title}" เปลี่ยนสถานะเป็น "${status}"`;
+            }
+            
+            console.log('🔔 Creating notification:', notifMessage); // ✅ เพิ่ม log
+            
+            await notificationController.createNotification(
+                complaint.user_id,
+                complaint.complaint_id,
+                notifType,
+                notifMessage,
+                {
+                    old_status: oldStatus,
+                    new_status: status,
+                    updated_by: updated_by || 'ไม่ระบุ',
+                    resolution_details: resolution_details,
+                    time_used: complaint.time_used
+                }
+            );
+            
+            console.log('✅ Notification created'); // ✅ เพิ่ม log
+        }
+
         res.json({ success: true, message: 'อัปเดตสถานะสำเร็จ', data: complaint });
     } catch (err) {
-        console.error('Change Status Error:', err);
-        res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ' });
+        console.error('❌ Change Status Error:', err);
+        res.status(500).json({ 
+            success: false, 
+            error: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ',
+            details: err.message 
+        });
     }
 });
 
@@ -173,6 +226,7 @@ router.patch('/:id/complete', (req, res, next) => {
 }, async (req, res) => {
     try {
         const { resolution_note, updated_by } = req.body;
+        const notificationController = require('../controllers/notificationController');
         
         console.log('📝 Complete request received:', {
             id: req.params.id,
@@ -181,7 +235,6 @@ router.patch('/:id/complete', (req, res, next) => {
             files: req.files ? req.files.length : 0
         });
 
-        // ตรวจสอบว่ามี resolution_note
         if (!resolution_note || resolution_note.trim() === '') {
             return res.status(400).json({ 
                 success: false, 
@@ -197,7 +250,6 @@ router.patch('/:id/complete', (req, res, next) => {
             });
         }
 
-        // ตรวจสอบว่าเป็นสถานะ "กำลังดำเนินการ" หรือไม่
         if (complaint.current_status !== 'กำลังดำเนินการ') {
             return res.status(400).json({ 
                 success: false, 
@@ -210,7 +262,6 @@ router.patch('/:id/complete', (req, res, next) => {
         complaint.resolution_note = resolution_note.trim();
         complaint.completed_date = now;
         
-        // จัดการไฟล์ที่อัปโหลด
         let resolutionAttachments = [];
         if (req.files && Array.isArray(req.files) && req.files.length > 0) {
             resolutionAttachments = req.files.map(file => `/uploads/${file.filename}`);
@@ -218,7 +269,6 @@ router.patch('/:id/complete', (req, res, next) => {
         }
         complaint.resolution_attachments = resolutionAttachments;
         
-        // คำนวณเวลาที่ใช้
         const diff = now - complaint.datetime_reported;
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -232,6 +282,19 @@ router.patch('/:id/complete', (req, res, next) => {
         });
 
         await complaint.save();
+
+        // 🔔 สร้างการแจ้งเตือน
+        await notificationController.createNotification(
+            complaint.user_id,
+            complaint.complaint_id,
+            'completed',
+            `เรื่องร้องเรียน "${complaint.title}" ได้รับการแก้ไขเสร็จสิ้นแล้ว`,
+            {
+                resolution_note: resolution_note.substring(0, 100),
+                completed_by: updated_by,
+                time_used: complaint.time_used
+            }
+        );
         
         console.log('✅ Complaint completed successfully');
         

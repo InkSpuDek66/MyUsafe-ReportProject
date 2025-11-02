@@ -12,11 +12,14 @@ import SignUpForm from './components/LoginForm/SignUpForm'
 // Pages
 import Home from './pages/Home/Home'
 import ComplaintDetail from './components/complaints/ComplaintDetail';
-import AssignmentDetail from './pages/staff/AssignmentDetail'; // ✅ เพิ่มบรรทัดนี้
+import AssignmentDetail from './pages/staff/AssignmentDetail';
 import MyComplaints from './pages/user/MyComplaints';
 import CreateComplaint from './pages/user/CreateComplaint';
 import Reports from "./pages/admin/Reports";
 import Assignments from "./pages/staff/Assignments";
+import StaffPerformanceReports from "./pages/admin/StaffPerformanceReport";
+import ComplaintsListManagement from "./pages/admin/ComplaintListManagement";
+import Profile from './pages/user/Profile';
 
 function App() {
   const location = useLocation();
@@ -34,28 +37,23 @@ function App() {
         {/* หน้า Auth */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/signup" element={<SignUpForm />} />
-        
+        <Route path="/profile" element={<Profile />} />
+
         {/* หน้าเรื่องร้องเรียน */}
         <Route path="/complaints/new" element={<CreateComplaint />} />
         <Route path="/my-complaints" element={<MyComplaints />} />
         <Route path="/complaint/:id" element={<ComplaintDetail />} />
-        <Route path="/assignment/:id" element={<AssignmentDetail />} /> {/* ✅ เพิ่มบรรทัดนี้ */}
+        <Route path="/assignment/:id" element={<AssignmentDetail />} />
         
         {/* หน้า Admin */}
         <Route path="/admin/reports" element={<Reports />} />
+        <Route path="/admin/staff-performance" element={<StaffPerformanceReports />} />
+        <Route path="/admin/complaint-list" element={<ComplaintsListManagement />} />
         <Route path="/admin/assignments" element={<Assignments />} />
-        <Route path="/assignments" element={<Assignments />} /> ✅ เพิ่มสำหรับ Staff
+        
+        {/* หน้า Staff */}
+        <Route path="/assignments" element={<Assignments />} />
       </Routes>
-
-      {/* Test Buttons - ลบออกได้เมื่อไม่ใช้แล้ว */}
-      {/* <div className="flex items-center justify-center min-h-screen">
-        <button className="inline-block cursor-pointer rounded-md bg-gray-800 px-4 py-3 text-center text-sm font-semibold uppercase text-white transition duration-200 ease-in-out hover:bg-gray-900">
-          Button
-        </button>
-        <button className="btn btn-primary">One</button>
-        <button className="btn btn-secondary">Two</button>
-        <button className="btn btn-accent btn-outline">Three</button>
-      </div> */}
     </>
   );
 }

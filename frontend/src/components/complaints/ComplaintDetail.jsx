@@ -359,7 +359,15 @@ export default function ComplaintDetail() {
                   <CheckCircle size={18} />
                   รายละเอียดการแก้ไข
                 </h4>
-                <p className="text-gray-700 whitespace-pre-wrap mb-3">{data.resolution_note}</p>
+                <p className="text-gray-700 whitespace-pre-wrap mb-2">{data.resolution_note}</p>
+                
+                {/* ✅ แสดงเวลาที่ใช้ในการแก้ไข */}
+                {data.time_used && data.time_used !== '-' && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-3 mt-2">
+                    <Clock size={16} className="text-green-600" />
+                    <span>เวลาที่ใช้ในการแก้ไข: <span className="font-semibold text-green-700">{data.time_used}</span></span>
+                  </div>
+                )}
                 
                 {/* ปุ่มแสดง/ซ่อนรูปภาพ */}
                 {resolutionAttachments.length > 0 && (

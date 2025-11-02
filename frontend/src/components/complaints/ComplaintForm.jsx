@@ -13,10 +13,17 @@ const ComplaintForm = () => {
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [submitError, setSubmitError] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState([]); // State สำหรับ multiple categories
+    const [selectedCategories, setSelectedCategories] = useState([]);
     const navigate = useNavigate();
 
-    // Mock categories data (ในอนาคตจะดึงจาก API)
+    // ✅ ฟังก์ชันดึง userId จริงจาก localStorage
+    const getCurrentUserId = () => {
+        return localStorage.getItem('userId') || 
+               localStorage.getItem('user_id') || 
+               'U0000001'; // fallback
+    };
+
+    // Mock categories data
     const categories = [
         { id: 'flood', name: 'น้ำท่วม', icon: '💧' },
         { id: 'electrical', name: 'ไฟฟ้า', icon: '⚡' },
@@ -25,24 +32,20 @@ const ComplaintForm = () => {
         { id: 'facilities', name: 'สิ่งอำนวยความสะดวก', icon: '🏢' },
         { id: 'cleanliness', name: 'ความสะอาด', icon: '🧹' },
         { id: 'safety', name: 'ความปลอดภัย', icon: '🚨' },
-        { id: 'other', name: 'อื่นๆ', icon: '📝' }
+        { id: 'other', name: 'อื่นๆ', icon: '📋' }
     ];
 
-    // Handle category selection (toggle)
     const handleCategoryToggle = (categoryId) => {
         setSelectedCategories(prev => {
             if (prev.includes(categoryId)) {
-                // ถ้าเลือกไว้แล้ว ให้ลบออก
                 return prev.filter(id => id !== categoryId);
             } else {
-                // ถ้ายังไม่เลือก ให้เพิ่มเข้าไป
                 return [...prev, categoryId];
             }
         });
     };
 
     const onSubmit = async (data) => {
-        // Validate categories
         if (selectedCategories.length === 0) {
             setSubmitError('กรุณาเลือกหมวดหมู่อย่างน้อย 1 หมวดหมู่');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -53,7 +56,10 @@ const ComplaintForm = () => {
             setLoading(true);
             setSubmitError('');
 
+            const userId = getCurrentUserId(); // ✅ ดึง userId จริง
+
             console.log('📤 Submitting complaint...');
+            console.log('👤 User ID:', userId); // ✅ แสดง userId
             console.log('🔹 Form Data:', {
                 title: data.title,
                 description: data.description?.substring(0, 50) + '...',
@@ -66,18 +72,15 @@ const ComplaintForm = () => {
 
             const formData = new FormData();
 
-            // Append text fields
             formData.append('title', data.title);
             formData.append('description', data.description || '');
 
-            // Append categories as JSON string
             const categoriesJSON = JSON.stringify(selectedCategories);
             formData.append('categories', categoriesJSON);
             console.log('✅ Categories JSON:', categoriesJSON);
 
-            // Append location as JSON string
             const locationData = {
-                building: data.building, // ✅ ตอนนี้จะเป็น 'อาคาร 1' แล้ว (ไม่ใช่ '1')
+                building: data.building,
                 floor: data.floor,
                 room: data.room || ''
             };
@@ -85,16 +88,15 @@ const ComplaintForm = () => {
             formData.append('location', locationJSON);
             console.log('✅ Location JSON:', locationJSON);
 
-            // Append user_id
-            formData.append('user_id', 'U0000001');
+            // ✅ ใช้ userId จริงจาก localStorage
+            formData.append('user_id', userId);
+            console.log('✅ User ID appended:', userId);
 
-            // Append image files
             files.forEach((file, index) => {
                 formData.append('images', file);
-                console.log(`📎 File ${index + 1}: ${file.name} (${(file.size / 1024).toFixed(2)} KB, ${file.type})`);
+                console.log(`🔎 File ${index + 1}: ${file.name} (${(file.size / 1024).toFixed(2)} KB, ${file.type})`);
             });
 
-            // Log all FormData entries
             console.log('\n📋 FormData Summary:');
             let hasFiles = false;
             for (let pair of formData.entries()) {
@@ -107,7 +109,6 @@ const ComplaintForm = () => {
             }
             console.log(`  📊 Total Files: ${hasFiles ? files.length : 0}\n`);
 
-            // Call API
             console.log('🌐 Calling API: POST /api/complaints');
             const response = await complaintAPI.create(formData);
 
@@ -147,7 +148,7 @@ const ComplaintForm = () => {
                     }
                 }
             } else if (error.request) {
-                console.error('🔌 No Response - Connection Error:');
+                console.error('📌 No Response - Connection Error:');
                 console.error('  Request was made but no response received');
                 console.error('  Check if backend is running on port 5000');
                 errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้\nกรุณาตรวจสอบว่า Backend กำลังทำงานอยู่';
@@ -280,17 +281,17 @@ const ComplaintForm = () => {
                                                 : 'border-gray-200 bg-white'
                                                 }`}
                                         >
-                                            {/* Checkmark Badge - เล็กลง */}
+                                            {/* Checkmark Badge */}
                                             {isSelected && (
                                                 <div className="absolute -top-1.5 -right-1.5 bg-[#55C388] rounded-full p-0.5 shadow-sm">
                                                     <Check size={10} className="text-white" />
                                                 </div>
                                             )}
 
-                                            {/* Icon - เล็กลง */}
+                                            {/* Icon */}
                                             <span className="text-2xl mb-1">{category.icon}</span>
 
-                                            {/* Text - เล็กลงและกระชับ */}
+                                            {/* Text */}
                                             <span className={`text-[10px] text-center font-medium leading-tight ${isSelected ? 'text-[#55C388]' : 'text-gray-700'
                                                 }`}>
                                                 {category.name}
