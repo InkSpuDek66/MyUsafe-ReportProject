@@ -1,12 +1,13 @@
 // frontend/src/components/complaints/ComplaintForm.jsx
 // Component สำหรับฟอร์มสร้างเรื่องร้องเรียนใหม่
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, AlertCircle, Check } from 'lucide-react';
 import LocationSelector from './LocationSelector';
 import ImageUploader from './ImageUploader';
 import { complaintAPI } from '../../services/complaintAPI';
+import { categoryAPI } from '../../services/categoryAPI';
 
 const ComplaintForm = () => {
     const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm();
@@ -14,26 +15,50 @@ const ComplaintForm = () => {
     const [loading, setLoading] = useState(false);
     const [submitError, setSubmitError] = useState('');
     const [selectedCategories, setSelectedCategories] = useState([]);
+    const [categories, setCategories] = useState([]); // เปลี่ยนจาก mock data เป็น state
+    const [loadingCategories, setLoadingCategories] = useState(true);
+    const [categoriesError, setCategoriesError] = useState(''); // เพิ่ม error state
     const navigate = useNavigate();
 
-    // ✅ ฟังก์ชันดึง userId จริงจาก localStorage
+    // ฟังก์ชันดึง userId จริงจาก localStorage
     const getCurrentUserId = () => {
         return localStorage.getItem('userId') || 
                localStorage.getItem('user_id') || 
                'U0000001'; // fallback
     };
 
-    // Mock categories data
-    const categories = [
-        { id: 'flood', name: 'น้ำท่วม', icon: '💧' },
-        { id: 'electrical', name: 'ไฟฟ้า', icon: '⚡' },
-        { id: 'computer', name: 'คอมพิวเตอร์/เว็บไซต์', icon: '💻' },
-        { id: 'plumbing', name: 'ประปา/ท่อน้ำ', icon: '🚰' },
-        { id: 'facilities', name: 'สิ่งอำนวยความสะดวก', icon: '🏢' },
-        { id: 'cleanliness', name: 'ความสะอาด', icon: '🧹' },
-        { id: 'safety', name: 'ความปลอดภัย', icon: '🚨' },
-        { id: 'other', name: 'อื่นๆ', icon: '📋' }
-    ];
+    // ดึงข้อมูล categories จาก API เมื่อ component โหลด
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setLoadingCategories(true);
+                setCategoriesError('');
+                const response = await categoryAPI.getCategories();
+                
+                if (response.success && response.data && response.data.length > 0) {
+                    // แปลงข้อมูลจาก API ให้เป็นรูปแบบที่ใช้งาน
+                    const formattedCategories = response.data.map(cat => ({
+                        id: cat.name, // ใช้ name เป็น id
+                        name: cat.name,
+                        icon: cat.icon || '📋'
+                    }));
+                    setCategories(formattedCategories);
+                } else {
+                    // ไม่มีข้อมูล
+                    setCategoriesError('ไม่พบข้อมูลหมวดหมู่ กรุณาติดต่อผู้ดูแลระบบ');
+                    setCategories([]);
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                setCategoriesError('ไม่สามารถโหลดข้อมูลหมวดหมู่ได้ กรุณาลองใหม่อีกครั้ง');
+                setCategories([]);
+            } finally {
+                setLoadingCategories(false);
+            }
+        };
+
+        fetchCategories();
+    }, []);
 
     const handleCategoryToggle = (categoryId) => {
         setSelectedCategories(prev => {
@@ -56,19 +81,19 @@ const ComplaintForm = () => {
             setLoading(true);
             setSubmitError('');
 
-            const userId = getCurrentUserId(); // ✅ ดึง userId จริง
+            const userId = getCurrentUserId();
 
             console.log('📤 Submitting complaint...');
-            console.log('👤 User ID:', userId); // ✅ แสดง userId
-            console.log('🔹 Form Data:', {
+            console.log('👤 User ID:', userId);
+            console.log('📹 Form Data:', {
                 title: data.title,
                 description: data.description?.substring(0, 50) + '...',
                 building: data.building,
                 floor: data.floor,
                 room: data.room
             });
-            console.log('🔹 Selected Categories:', selectedCategories);
-            console.log('🔹 Files Count:', files.length);
+            console.log('📹 Selected Categories:', selectedCategories);
+            console.log('📹 Files Count:', files.length);
 
             const formData = new FormData();
 
@@ -88,7 +113,6 @@ const ComplaintForm = () => {
             formData.append('location', locationJSON);
             console.log('✅ Location JSON:', locationJSON);
 
-            // ✅ ใช้ userId จริงจาก localStorage
             formData.append('user_id', userId);
             console.log('✅ User ID appended:', userId);
 
@@ -117,7 +141,7 @@ const ComplaintForm = () => {
             if (response.success) {
                 alert('✅ สร้างเรื่องร้องเรียนสำเร็จ');
                 const complaintId = response.data.complaint_id || response.data._id;
-                console.log('🔄 Navigating to:', `/complaint/${complaintId}`);
+                console.log('📄 Navigating to:', `/complaint/${complaintId}`);
                 navigate(`/complaint/${complaintId}`);
             } else {
                 throw new Error(response.error || 'การสร้างเรื่องร้องเรียนไม่สำเร็จ');
@@ -141,26 +165,20 @@ const ComplaintForm = () => {
 
                 if (error.response.data?.details) {
                     console.error('  Details:', error.response.data.details);
-                    if (Array.isArray(error.response.data.details)) {
-                        errorMessage += '\n' + error.response.data.details.join('\n');
-                    } else {
-                        errorMessage += '\n' + error.response.data.details;
-                    }
                 }
             } else if (error.request) {
-                console.error('📌 No Response - Connection Error:');
-                console.error('  Request was made but no response received');
-                console.error('  Check if backend is running on port 5000');
-                errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้\nกรุณาตรวจสอบว่า Backend กำลังทำงานอยู่';
+                console.error('📡 Request Error (No Response):');
+                console.error('  Request:', error.request);
+                errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้';
             } else {
-                console.error('⚙️ Request Setup Error:', error.message);
+                console.error('❌ Error:', error.message);
                 errorMessage = error.message;
             }
 
-            console.error('====================================\n');
+            console.error('=====================================\n');
 
             setSubmitError(errorMessage);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            alert('❌ ' + errorMessage);
         } finally {
             setLoading(false);
         }
@@ -267,39 +285,64 @@ const ComplaintForm = () => {
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                                {categories.map(category => {
-                                    const isSelected = selectedCategories.includes(category.id);
+                            {loadingCategories ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#55C388]"></div>
+                                    <span className="ml-3 text-gray-600">กำลังโหลดหมวดหมู่...</span>
+                                </div>
+                            ) : categoriesError ? (
+                                <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-center">
+                                    <AlertCircle className="mx-auto text-red-500 mb-2" size={32} />
+                                    <p className="text-red-700 font-medium">{categoriesError}</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => window.location.reload()}
+                                        className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        โหลดใหม่อีกครั้ง
+                                    </button>
+                                </div>
+                            ) : categories.length === 0 ? (
+                                <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+                                    <AlertCircle className="mx-auto text-yellow-600 mb-2" size={32} />
+                                    <p className="text-yellow-800 font-medium">ไม่มีข้อมูลหมวดหมู่</p>
+                                    <p className="text-sm text-yellow-700 mt-1">กรุณาติดต่อผู้ดูแลระบบ</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                                    {categories.map(category => {
+                                        const isSelected = selectedCategories.includes(category.id);
 
-                                    return (
-                                        <button
-                                            key={category.id}
-                                            type="button"
-                                            onClick={() => handleCategoryToggle(category.id)}
-                                            className={`relative flex flex-col items-center p-2.5 border rounded-lg transition-all hover:border-[#55C388] hover:shadow-sm ${isSelected
-                                                ? 'border-[#55C388] bg-green-50 shadow-sm'
-                                                : 'border-gray-200 bg-white'
-                                                }`}
-                                        >
-                                            {/* Checkmark Badge */}
-                                            {isSelected && (
-                                                <div className="absolute -top-1.5 -right-1.5 bg-[#55C388] rounded-full p-0.5 shadow-sm">
-                                                    <Check size={10} className="text-white" />
-                                                </div>
-                                            )}
+                                        return (
+                                            <button
+                                                key={category.id}
+                                                type="button"
+                                                onClick={() => handleCategoryToggle(category.id)}
+                                                className={`relative flex flex-col items-center p-2.5 border rounded-lg transition-all hover:border-[#55C388] hover:shadow-sm ${isSelected
+                                                    ? 'border-[#55C388] bg-green-50 shadow-sm'
+                                                    : 'border-gray-200 bg-white'
+                                                    }`}
+                                            >
+                                                {/* Checkmark Badge */}
+                                                {isSelected && (
+                                                    <div className="absolute -top-1.5 -right-1.5 bg-[#55C388] rounded-full p-0.5 shadow-sm">
+                                                        <Check size={10} className="text-white" />
+                                                    </div>
+                                                )}
 
-                                            {/* Icon */}
-                                            <span className="text-2xl mb-1">{category.icon}</span>
+                                                {/* Icon */}
+                                                <span className="text-2xl mb-1">{category.icon}</span>
 
-                                            {/* Text */}
-                                            <span className={`text-[10px] text-center font-medium leading-tight ${isSelected ? 'text-[#55C388]' : 'text-gray-700'
-                                                }`}>
-                                                {category.name}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                                {/* Text */}
+                                                <span className={`text-[10px] text-center font-medium leading-tight ${isSelected ? 'text-[#55C388]' : 'text-gray-700'
+                                                    }`}>
+                                                    {category.name}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             {/* Error message for categories */}
                             {selectedCategories.length === 0 && submitError && (

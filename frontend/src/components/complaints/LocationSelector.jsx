@@ -1,75 +1,120 @@
 // frontend/src/components/complaints/LocationSelector.jsx
-// Component สำหรับเลือกสถานที่ (อาคาร, ชั้น, ห้อง) - FIXED VERSION
-import { useState } from 'react';
+// Component สำหรับเลือกสถานที่ (อาคาร, ชั้น, ห้อง) - ใช้ข้อมูลจาก API จริง
+import { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { locationAPI } from '../../services/locationAPI';
 
 const LocationSelector = ({ register, errors, setValue }) => {
+    const [buildings, setBuildings] = useState([]);
+    const [floors, setFloors] = useState([]);
+    const [rooms, setRooms] = useState([]);
+    const [selectedBuilding, setSelectedBuilding] = useState('');
     const [selectedFloor, setSelectedFloor] = useState('');
+    const [loading, setLoading] = useState({
+        buildings: false,
+        floors: false,
+        rooms: false
+    });
 
-    // Mock data - ในอนาคตจะดึงจาก API
-    const buildings = [
-        { id: '1', name: 'อาคาร 1' },
-        { id: '2', name: 'อาคาร 2' },
-        { id: '3', name: 'อาคาร 3' },
-        { id: '4', name: 'อาคาร 4' },
-        { id: '5', name: 'อาคาร 5' },
-        { id: '6', name: 'อาคาร 6' },
-        { id: '7', name: 'อาคาร 7' },
-        { id: '8', name: 'อาคาร 8' },
-        { id: '9', name: 'อาคาร 9' },
-        { id: '10', name: 'อาคาร 10' },
-        { id: '11', name: 'อาคาร 11' },
-        { id: '12', name: 'อาคาร 12' }
-    ];
+    // ดึงข้อมูลอาคารทั้งหมดเมื่อ component โหลด
+    useEffect(() => {
+        const fetchBuildings = async () => {
+            try {
+                setLoading(prev => ({ ...prev, buildings: true }));
+                const response = await locationAPI.getBuildings();
 
-    const floors = [
-        'ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4',
-        'ชั้น 5', 'ชั้น 6', 'ชั้น 7', 'ชั้น 8',
-        'ชั้น 9', 'ชั้น 10', 'ชั้น 11', 'ชั้น 12',
-        'ชั้น 13', 'ชั้น 14', 'ชั้น 15', 'ชั้น 16'
-    ];
+                if (response.success && response.data) {
+                    // แปลง array ของ string เป็น array ของ object
+                    const buildingOptions = response.data.map(building => ({
+                        id: building,
+                        name: building
+                    }));
+                    setBuildings(buildingOptions);
+                } else {
+                    console.error('Failed to load buildings');
+                }
+            } catch (error) {
+                console.error('Error fetching buildings:', error);
+            } finally {
+                setLoading(prev => ({ ...prev, buildings: false }));
+            }
+        };
 
-    const rooms = {
-        'ชั้น 1': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','ลิฟต์'],
-        'ชั้น 2': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','201', '202', '203', '204', '205'],
-        'ชั้น 3': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','301', '302', '303', '304', '305'],
-        'ชั้น 4': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','401', '402', '403', '404', '405'],
-        'ชั้น 5': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','501', '502', '503', '504', '505'],
-        'ชั้น 6': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','601', '602', '603', '604', '605'],
-        'ชั้น 7': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','701', '702', '703', '704', '705'],
-        'ชั้น 8': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','801', '802', '803', '804', '805'],
-        'ชั้น 9': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','901', '902', '903', '904', '905'],
-        'ชั้น 10': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','1001', '1002', '1003', '1004', '1005'],
-        'ชั้น 11': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','1101', '1102', '1103', '1104', '1105'],
-        'ชั้น 12': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','1201', '1202', '1203', '1204', '1205'],
-        'ชั้น 13': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','1301', '1302', '1303', '1304', '1305'],
-        'ชั้น 14': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','1401', '1402', '1403', '1404', '1405'],
-        'ชั้น 15': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','1501', '1502', '1503', '1504', '1505'],
-        'ชั้น 16': ['โถงทางเดิน','ห้องประชุม','ห้องน้ำชาย','ห้องน้ำหญิง','1601', '1602', '1603', '1604', '1605']
+        fetchBuildings();
+    }, []);
+
+    // ดึงข้อมูลชั้นเมื่อเลือกอาคาร
+    const handleBuildingChange = async (e) => {
+        const building = e.target.value;
+        setSelectedBuilding(building);
+        setSelectedFloor('');
+        setFloors([]);
+        setRooms([]);
+        setValue('floor', '');
+        setValue('room', '');
+
+        if (!building) return;
+
+        try {
+            setLoading(prev => ({ ...prev, floors: true }));
+            const response = await locationAPI.getFloorsByBuilding(building);
+
+            if (response.success && response.data) {
+                setFloors(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching floors:', error);
+        } finally {
+            setLoading(prev => ({ ...prev, floors: false }));
+        }
     };
 
-    const handleFloorChange = (e) => {
+    // ดึงข้อมูลห้องเมื่อเลือกชั้น
+    const handleFloorChange = async (e) => {
         const floor = e.target.value;
         setSelectedFloor(floor);
-        setValue('room', ''); // Reset room when floor changes
+        setRooms([]);
+        setValue('room', '');
+
+        if (!floor || !selectedBuilding) return;
+
+        try {
+            setLoading(prev => ({ ...prev, rooms: true }));
+            const response = await locationAPI.getRoomsByBuildingFloor(selectedBuilding, floor);
+
+            if (response.success && response.data) {
+                setRooms(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching rooms:', error);
+        } finally {
+            setLoading(prev => ({ ...prev, rooms: false }));
+        }
     };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Building Selector */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     อาคาร <span className="text-red-500">*</span>
                 </label>
                 <select
                     {...register('building', { required: 'กรุณาเลือกอาคาร' })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-500 ${
-                        errors.building ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
+                    onChange={(e) => {
+                        handleBuildingChange(e);
+                        register('building').onChange(e);
+                    }}
+                    disabled={loading.buildings}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-500 ${errors.building ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        } ${loading.buildings ? 'cursor-wait opacity-50' : ''}`}
                 >
-                    <option value="">เลือกอาคาร</option>
+                    <option value="">
+                        {loading.buildings ? 'กำลังโหลด...' : 'เลือกอาคาร'}
+                    </option>
                     {buildings.map(building => (
-                        <option 
-                            key={building.id} 
+                        <option
+                            key={building.id}
                             value={building.name}
                         >
                             {building.name}
@@ -84,7 +129,7 @@ const LocationSelector = ({ register, errors, setValue }) => {
                 )}
             </div>
 
-            {/* Floor */}
+            {/* Floor Selector */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     ชั้น <span className="text-red-500">*</span>
@@ -95,11 +140,13 @@ const LocationSelector = ({ register, errors, setValue }) => {
                         handleFloorChange(e);
                         register('floor').onChange(e);
                     }}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-500 ${
-                        errors.floor ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
+                    disabled={!selectedBuilding || loading.floors}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-500 ${errors.floor ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        } ${(!selectedBuilding || loading.floors) ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
-                    <option value="">เลือกชั้น</option>
+                    <option value="">
+                        {loading.floors ? 'กำลังโหลด...' : 'เลือกชั้น'}
+                    </option>
                     {floors.map(floor => (
                         <option key={floor} value={floor}>
                             {floor}
@@ -112,20 +159,28 @@ const LocationSelector = ({ register, errors, setValue }) => {
                         {errors.floor.message}
                     </p>
                 )}
+                {!selectedBuilding && (
+                    <p className="mt-1 text-xs text-gray-500">
+                        💡 เลือกอาคารก่อนเพื่อเลือกชั้น
+                    </p>
+                )}
             </div>
 
-            {/* Room */}
+            {/* Room Selector */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     ห้อง <span className="text-gray-400 text-xs">(ถ้ามี)</span>
                 </label>
                 <select
                     {...register('room')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 transition-all text-gray-500"
-                    disabled={!selectedFloor}
+                    disabled={!selectedFloor || loading.rooms}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-500 ${(!selectedFloor || loading.rooms) ? 'cursor-not-allowed opacity-50' : ''
+                        }`}
                 >
-                    <option value="">เลือกห้อง (ถ้ามี)</option>
-                    {selectedFloor && rooms[selectedFloor]?.map(room => (
+                    <option value="">
+                        {loading.rooms ? 'กำลังโหลด...' : 'เลือกห้อง (ถ้ามี)'}
+                    </option>
+                    {rooms.map(room => (
                         <option key={room} value={room}>
                             {room}
                         </option>

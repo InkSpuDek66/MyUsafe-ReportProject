@@ -1,9 +1,9 @@
 cd backend
 npm install express mongoose cors socket.io bcryptjs
 npm install multer  # สำหรับ upload ไฟล์
+
 ## 📦 ติดตั้ง Testing Dependencies
-npm install -D mocha chai supertest
-npm install -D mochawesome  # สำหรับ HTML test reports
+npm install --save-dev chai mocha mochawesome
 
 รัน npm run seed เพื่อสร้างข้อมูลเริ่มต้น
 รัน npm start เพื่อเริ่ม server
