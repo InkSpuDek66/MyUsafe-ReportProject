@@ -13,7 +13,10 @@ router.put('/', protect, profileController.updateProfile);
 // อัปเดตรูปโปรไฟล์
 router.post('/image', protect, profileController.uploadMiddleware, profileController.updateProfileImage);
 
-// เปลี่ยนรหัสผ่าน ✅ เพิ่มบรรทัดนี้
+// เปลี่ยนรหัสผ่าน
 router.put('/password', protect, profileController.updatePassword);
+
+// ✅ ดาวน์โหลดรูป OAuth
+router.post('/download-oauth-image', protect, profileController.downloadOAuthImage);
 
 module.exports = router;
