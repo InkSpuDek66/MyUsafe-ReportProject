@@ -288,7 +288,7 @@ export default function Reports() {
         {/* หมวดหมู่ยอดนิยม */}
         <div className="bg-white p-4 rounded-xl shadow border border-green-100">
           <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <FireIcon className="h-5 w-5 text-[#55C388]" /> หมวดหมู่ที่ถูกร้องเรียนมากที่สุด
+            <FireIcon className="h-5 w-5 text-[#  ]" /> หมวดหมู่ที่ถูกร้องเรียนมากที่สุด
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>

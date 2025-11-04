@@ -20,6 +20,7 @@ import Assignments from "./pages/staff/Assignments";
 import StaffPerformanceReports from "./pages/admin/StaffPerformanceReport";
 import ComplaintsListManagement from "./pages/admin/ComplaintListManagement";
 import Profile from './pages/user/Profile';
+import CategoryManagement from './pages/admin/CategoryManagement';
 
 function App() {
   const location = useLocation();
@@ -30,30 +31,31 @@ function App() {
     <>
       {!hideNavbarAndButtons && <Navbar />}
       
-      <Routes>
-        {/* หน้าหลัก */}
-        <Route path="/" element={<Home />} />
-        
-        {/* หน้า Auth */}
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="/signup" element={<SignUpForm />} />
-        <Route path="/profile" element={<Profile />} />
+<Routes>
+  {/* หน้าหลัก */}
+  <Route path="/" element={<Home />} />
+  
+  {/* หน้า Auth */}
+  <Route path="/login" element={<LoginForm />} />
+  <Route path="/signup" element={<SignUpForm />} />
+  <Route path="/profile" element={<Profile />} />
 
-        {/* หน้าเรื่องร้องเรียน */}
-        <Route path="/complaints/new" element={<CreateComplaint />} />
-        <Route path="/my-complaints" element={<MyComplaints />} />
-        <Route path="/complaint/:id" element={<ComplaintDetail />} />
-        <Route path="/assignment/:id" element={<AssignmentDetail />} />
-        
-        {/* หน้า Admin */}
-        <Route path="/admin/reports" element={<Reports />} />
-        <Route path="/admin/staff-performance" element={<StaffPerformanceReports />} />
-        <Route path="/admin/complaint-list" element={<ComplaintsListManagement />} />
-        <Route path="/admin/assignments" element={<Assignments />} />
-        
-        {/* หน้า Staff */}
-        <Route path="/assignments" element={<Assignments />} />
-      </Routes>
+  {/* หน้าเรื่องร้องเรียน */}
+  <Route path="/complaints/new" element={<CreateComplaint />} />
+  <Route path="/my-complaints" element={<MyComplaints />} />
+  <Route path="/complaint/:id" element={<ComplaintDetail />} />
+  <Route path="/assignment/:id" element={<AssignmentDetail />} />
+  
+  {/* หน้า Admin */}
+  <Route path="/admin/reports" element={<Reports />} />
+  <Route path="/admin/staff-performance" element={<StaffPerformanceReports />} />
+  <Route path="/admin/complaint-list" element={<ComplaintsListManagement />} />
+  <Route path="/admin/assignments" element={<Assignments />} />
+  <Route path="/admin/categories" element={<CategoryManagement />} /> {/* ⬅️ เพิ่มบรรทัดนี้ */}
+  
+  {/* หน้า Staff */}
+  <Route path="/assignments" element={<Assignments />} />
+</Routes>
     </>
   );
 }
