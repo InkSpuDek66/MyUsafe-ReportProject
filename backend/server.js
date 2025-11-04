@@ -36,10 +36,6 @@ const notificationRoutes = require('./src/routes/notificationRoutes');
 
 // Import Models
 const Complaint = require('./src/models/homeModel');
-const { Server } = require('socket.io');
-
-// ✅ Import Routes & Models
-const authRoutes = require('./src/routes/auth'); 
 
 // สร้าง Express app และ HTTP server
 const app = express();
