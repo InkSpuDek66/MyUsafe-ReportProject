@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import { Routes, Route, useLocation } from "react-router-dom";
 import './App.css'
 
@@ -8,6 +7,7 @@ import Navbar from './components/common/Navbar/Navbar'
 // Auth Components
 import LoginForm from './components/LoginForm/LoginForm'
 import SignUpForm from './components/LoginForm/SignUpForm'
+import AuthSuccess from './pages/AuthSuccess'; // ✅ เพิ่มบรรทัดนี้
 
 // Pages
 import Home from './pages/Home/Home'
@@ -24,7 +24,8 @@ import Profile from './pages/user/Profile';
 function App() {
   const location = useLocation();
   
-  const hideNavbarAndButtons = ['/login', '/signup'].includes(location.pathname);
+  // ✅ เพิ่ม '/auth-success' เข้าไปในรายการ
+  const hideNavbarAndButtons = ['/login', '/signup', '/auth-success'].includes(location.pathname);
 
   return (
     <>
@@ -37,6 +38,7 @@ function App() {
         {/* หน้า Auth */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/signup" element={<SignUpForm />} />
+        <Route path="/auth-success" element={<AuthSuccess />} /> {/* ✅ เพิ่มเส้นทางนี้ */}
         <Route path="/profile" element={<Profile />} />
 
         {/* หน้าเรื่องร้องเรียน */}
