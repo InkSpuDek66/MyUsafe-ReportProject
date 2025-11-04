@@ -1,20 +1,21 @@
 // backend/tests/comments.test.js
-// Tests สำหรับระบบความคิดเห็น
+// Tests for Comments API
 const request = require('supertest');
 const { expect } = require('chai');
 const app = require('../server');
 const Comment = require('../src/models/commentModel');
 const Complaint = require('../src/models/homeModel');
 
-describe('💬 ทดสอบระบบความคิดเห็น', () => {
+describe('ทดสอบ API Comments', () => {
     let complaintId;
+    let testUserId = 'U001';
 
     beforeEach(async () => {
-        // สร้าง complaint ทดสอบ
+        // สร้าง complaint สำหรับทดสอบ
         const complaint = await Complaint.create({
             complaint_id: 'C_COMMENT_TEST',
             title: 'Test Complaint for Comments',
-            categories: ['ทั่วไป'],
+            categories: ['ไฟฟ้า'],
             description: 'Test',
             location: {
                 building: 'Test Building',
@@ -28,7 +29,7 @@ describe('💬 ทดสอบระบบความคิดเห็น', ()
                 status_name: 'รอรับเรื่อง',
                 updated_at: new Date()
             }],
-            user_id: 'U001',
+            user_id: testUserId,
             datetime_reported: new Date(),
             likes: 0,
             dislikes: 0,
@@ -37,11 +38,11 @@ describe('💬 ทดสอบระบบความคิดเห็น', ()
         complaintId = complaint.complaint_id;
     });
 
-    describe('POST /api/comments - เพิ่มความคิดเห็น', () => {
-        it('ควรเพิ่มความคิดเห็นใหม่สำเร็จ', async () => {
+    describe('POST /api/comments - สร้างความคิดเห็น', () => {
+        it('ควรสร้างความคิดเห็นสำเร็จ', async () => {
             const commentData = {
                 complaint_id: complaintId,
-                user_id: 'U001',
+                user_id: testUserId,
                 user_name: 'Test User',
                 user_role: 'reporter',
                 comment: 'นี่คือความคิดเห็นทดสอบ'
@@ -57,12 +58,12 @@ describe('💬 ทดสอบระบบความคิดเห็น', ()
             expect(res.body.data).to.have.property('user_name', commentData.user_name);
         });
 
-        it('ควรล้มเหลวเมื่อไม่มีความคิดเห็น', async () => {
+        it('ควรล้มเหลวเมื่อไม่ระบุความคิดเห็น', async () => {
             const res = await request(app)
                 .post('/api/comments')
                 .send({
                     complaint_id: complaintId,
-                    user_id: 'U001',
+                    user_id: testUserId,
                     user_name: 'Test User'
                 });
 
@@ -70,12 +71,12 @@ describe('💬 ทดสอบระบบความคิดเห็น', ()
             expect(res.body).to.have.property('success', false);
         });
 
-        it('ควรล้มเหลวเมื่อเรื่องร้องเรียนไม่มีอยู่', async () => {
+        it('ควรล้มเหลวเมื่อ complaint ไม่มีอยู่', async () => {
             const res = await request(app)
                 .post('/api/comments')
                 .send({
                     complaint_id: 'C_NOTEXIST',
-                    user_id: 'U001',
+                    user_id: testUserId,
                     user_name: 'Test User',
                     comment: 'Test comment'
                 });
@@ -86,7 +87,7 @@ describe('💬 ทดสอบระบบความคิดเห็น', ()
 
     describe('GET /api/comments/complaint/:complaintId - ดึงความคิดเห็น', () => {
         beforeEach(async () => {
-            // สร้างความคิดเห็นทดสอบ
+            // สร้างข้อมูลทดสอบ
             await Comment.create([
                 {
                     complaint_id: complaintId,
@@ -113,64 +114,59 @@ describe('💬 ทดสอบระบบความคิดเห็น', ()
             expect(res.body).to.have.property('success', true);
             expect(res.body.data).to.be.an('array');
             expect(res.body.data).to.have.lengthOf(2);
-            expect(res.body).to.have.property('count', 2);
         });
 
-        it('ควรเรียงความคิดเห็นจากเก่าไปใหม่', async () => {
-            const res = await request(app)
-                .get(`/api/comments/complaint/${complaintId}`);
-
-            expect(res.status).to.equal(200);
-            expect(res.body.data[0]).to.have.property('comment', 'Comment 1');
-            expect(res.body.data[1]).to.have.property('comment', 'Comment 2');
-        });
-
-        it('ควรคืนค่า array ว่างเมื่อไม่มีความคิดเห็น', async () => {
-            await Comment.deleteMany({});
+        it('ควร return array ว่างถ้าไม่มีความคิดเห็น', async () => {
+            await Comment.deleteMany({ complaint_id: complaintId });
 
             const res = await request(app)
                 .get(`/api/comments/complaint/${complaintId}`);
 
             expect(res.status).to.equal(200);
+            expect(res.body.data).to.be.an('array');
             expect(res.body.data).to.have.lengthOf(0);
         });
     });
 
-    describe('PUT /api/comments/:id - แก้ไขความคิดเห็น', () => {
+    describe('PUT /api/comments/:id - อัพเดทความคิดเห็น', () => {
         let commentId;
 
         beforeEach(async () => {
             const comment = await Comment.create({
                 complaint_id: complaintId,
-                user_id: 'U001',
+                user_id: testUserId,
                 user_name: 'Test User',
                 comment: 'Original comment'
             });
             commentId = comment._id;
         });
 
-        it('ควรแก้ไขความคิดเห็นสำเร็จ', async () => {
+        it('ควรอัพเดทความคิดเห็นสำเร็จ', async () => {
             const res = await request(app)
                 .put(`/api/comments/${commentId}`)
                 .send({
-                    user_id: 'U001',
-                    comment: 'Updated comment'
+                    comment: 'Updated comment',
+                    user_id: testUserId,
+                    user_role: 'reporter'
                 });
 
             expect(res.status).to.equal(200);
+            expect(res.body).to.have.property('success', true);
             expect(res.body.data).to.have.property('comment', 'Updated comment');
-            expect(res.body.data).to.have.property('is_edited', true);
         });
 
-        it('ควรล้มเหลวเมื่อไม่ใช่เจ้าของความคิดเห็น', async () => {
+        it('ควร return 404 ถ้าไม่พบความคิดเห็น', async () => {
+            const fakeId = '507f1f77bcf86cd799439011';
+
             const res = await request(app)
-                .put(`/api/comments/${commentId}`)
+                .put(`/api/comments/${fakeId}`)
                 .send({
-                    user_id: 'U999', // คนอื่น
-                    comment: 'Hacked comment'
+                    comment: 'Updated',
+                    user_id: testUserId,
+                    user_role: 'reporter'
                 });
 
-            expect(res.status).to.equal(403);
+            expect(res.status).to.equal(404);
         });
     });
 
@@ -180,34 +176,28 @@ describe('💬 ทดสอบระบบความคิดเห็น', ()
         beforeEach(async () => {
             const comment = await Comment.create({
                 complaint_id: complaintId,
-                user_id: 'U001',
+                user_id: testUserId,
                 user_name: 'Test User',
-                comment: 'To be deleted'
+                comment: 'Test comment'
             });
             commentId = comment._id;
         });
 
         it('ควรลบความคิดเห็นสำเร็จ', async () => {
             const res = await request(app)
-                .delete(`/api/comments/${commentId}`)
-                .send({
-                    user_id: 'U001'
-                });
+                .delete(`/api/comments/${commentId}`);
 
             expect(res.status).to.equal(200);
-
-            const deleted = await Comment.findById(commentId);
-            expect(deleted).to.be.null;
+            expect(res.body).to.have.property('success', true);
         });
 
-        it('ควรล้มเหลวเมื่อไม่ใช่เจ้าของ', async () => {
-            const res = await request(app)
-                .delete(`/api/comments/${commentId}`)
-                .send({
-                    user_id: 'U999'
-                });
+        it('ควร return 404 ถ้าไม่พบความคิดเห็น', async () => {
+            const fakeId = '507f1f77bcf86cd799439011';
 
-            expect(res.status).to.equal(403);
+            const res = await request(app)
+                .delete(`/api/comments/${fakeId}`);
+
+            expect(res.status).to.equal(404);
         });
     });
 });

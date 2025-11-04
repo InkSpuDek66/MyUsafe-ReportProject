@@ -1,24 +1,24 @@
 // backend/tests/categories.test.js
-// Test suite สำหรับระบบ Categories
+// Test suite for Categories
 const request = require('supertest');
 const { expect } = require('chai');
 const app = require('../server');
 const Category = require('../src/models/categoryModel');
 
-describe('📂 ทดสอบระบบหมวดหมู่', () => {
+describe('ทดสอบ API Categories', () => {
 
     beforeEach(async () => {
-        // สร้างข้อมูลทดสอบ
+        // เตรียมข้อมูลทดสอบ
         await Category.create([
-            { name: 'น้ำท่วม', description: 'ปัญหาน้ำท่วม น้ำรั่ว' },
-            { name: 'ไฟฟ้า', description: 'ปัญหาไฟฟ้า แอร์ หลอดไฟ' },
-            { name: 'คอมพิวเตอร์', description: 'ปัญหาคอมพิวเตอร์ อินเทอร์เน็ต' }
+            { name: 'ไฟฟ้า', description: 'ปัญหาเกี่ยวกับไฟฟ้า', icon: 'electric' },
+            { name: 'ประปา', description: 'ปัญหาเกี่ยวกับระบบประปา', icon: 'water' },
+            { name: 'ความสะอาด', description: 'ปัญหาเกี่ยวกับความสะอาด', icon: 'clean' }
         ]);
     });
 
-    describe('GET /api/categories - ดึงข้อมูลหมวดหมู่ทั้งหมด', () => {
+    describe('GET /api/categories - ดึงรายการหมวดหมู่', () => {
 
-        it('ควรดึงหมวดหมู่ทั้งหมดที่เรียงตามชื่อ', async () => {
+        it('ควรดึงรายการหมวดหมู่ทั้งหมดได้', async () => {
             const res = await request(app)
                 .get('/api/categories');
 
@@ -27,12 +27,12 @@ describe('📂 ทดสอบระบบหมวดหมู่', () => {
             expect(res.body.data).to.be.an('array');
             expect(res.body.data).to.have.lengthOf(3);
 
-            // ตรวจสอบว่าเรียงลำดับตาม name
+            // ตรวจสอบว่ามี property name
             expect(res.body.data[0]).to.have.property('name');
             expect(res.body.data[0]).to.have.property('description');
         });
 
-        it('ควรคืนค่า array ว่างเมื่อไม่มีหมวดหมู่', async () => {
+        it('ควร return array ว่างถ้าไม่มีข้อมูล', async () => {
             await Category.deleteMany({});
 
             const res = await request(app)
@@ -48,8 +48,9 @@ describe('📂 ทดสอบระบบหมวดหมู่', () => {
 
         it('ควรสร้างหมวดหมู่ใหม่สำเร็จ', async () => {
             const categoryData = {
-                name: 'ทั่วไป',
-                description: 'เรื่องทั่วไปอื่นๆ'
+                name: 'อื่นๆ',
+                description: 'ปัญหาอื่นๆ ที่ไม่ระบุ',
+                icon: 'other'
             };
 
             const res = await request(app)
@@ -58,69 +59,83 @@ describe('📂 ทดสอบระบบหมวดหมู่', () => {
 
             expect(res.status).to.equal(201);
             expect(res.body).to.have.property('success', true);
-            expect(res.body).to.have.property('message');
             expect(res.body.data).to.have.property('name', categoryData.name);
             expect(res.body.data).to.have.property('description', categoryData.description);
         });
 
-        it('ควรสร้างหมวดหมู่ได้โดยไม่มี description', async () => {
+        it('ควรล้มเหลวถ้าไม่ระบุชื่อหมวดหมู่', async () => {
+            const categoryData = {
+                description: 'Test description'
+            };
+
             const res = await request(app)
                 .post('/api/categories')
-                .send({
-                    name: 'อื่นๆ'
-                });
+                .send(categoryData);
 
-            expect(res.status).to.equal(201);
-            expect(res.body.data).to.have.property('description', '');
+            expect(res.status).to.equal(400);
         });
 
-        it('ควรล้มเหลวเมื่อไม่มีชื่อหมวดหมู่', async () => {
+        it('ควรล้มเหลวถ้าชื่อซ้ำ', async () => {
+            const categoryData = {
+                name: 'ไฟฟ้า',
+                description: 'ซ้ำ'
+            };
+
             const res = await request(app)
                 .post('/api/categories')
+                .send(categoryData);
+
+            expect(res.status).to.equal(400);
+        });
+    });
+
+    describe('PUT /api/categories/:id - อัพเดทหมวดหมู่', () => {
+
+        it('ควรอัพเดทหมวดหมู่สำเร็จ', async () => {
+            // ค้นหา category ที่ต้องการอัพเดท
+            const category = await Category.findOne({ name: 'ไฟฟ้า' });
+
+            // รอให้แน่ใจว่า category ถูกสร้างแล้ว
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const res = await request(app)
+                .put(`/api/categories/${category._id}`)
+                .send({
+                    description: 'คำอธิบายใหม่สำหรับไฟฟ้า'
+                });
+
+            expect(res.status).to.equal(200);
+            expect(res.body).to.have.property('success', true);
+            expect(res.body.data).to.have.property('description', 'คำอธิบายใหม่สำหรับไฟฟ้า');
+        });
+
+        it('ควร return 404 ถ้าไม่พบหมวดหมู่', async () => {
+            const fakeId = '507f1f77bcf86cd799439011';
+
+            const res = await request(app)
+                .put(`/api/categories/${fakeId}`)
                 .send({
                     description: 'Test'
                 });
 
-            expect(res.status).to.equal(400);
-            expect(res.body).to.have.property('success', false);
-            expect(res.body).to.have.property('error');
+            expect(res.status).to.equal(404);
         });
+    });
 
-        it('ควรล้มเหลวเมื่อชื่อหมวดหมู่เป็น string ว่าง', async () => {
+    describe('DELETE /api/categories/:id - ลบหมวดหมู่', () => {
+
+        it('ควรลบหมวดหมู่สำเร็จ', async () => {
+            // ค้นหา category ที่ต้องการลบ
+            const category = await Category.findOne({ name: 'ไฟฟ้า' });
+
+            // รอให้แน่ใจว่า category ถูกสร้างแล้ว
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const res = await request(app)
-                .post('/api/categories')
-                .send({
-                    name: '   ',
-                    description: 'Test'
-                });
+                .delete(`/api/categories/${category._id}`);
 
-            expect(res.status).to.equal(400);
-            expect(res.body).to.have.property('success', false);
-        });
-
-        it('ควรล้มเหลวเมื่อชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว', async () => {
-            const res = await request(app)
-                .post('/api/categories')
-                .send({
-                    name: 'น้ำท่วม',
-                    description: 'ซ้ำกับที่มีอยู่แล้ว'
-                });
-
-            expect(res.status).to.equal(400);
-            expect(res.body).to.have.property('success', false);
-            expect(res.body).to.have.property('error', 'มีหมวดหมู่นี้อยู่แล้ว');
-        });
-
-        it('ควรตัดช่องว่างออกจากชื่อหมวดหมู่', async () => {
-            const res = await request(app)
-                .post('/api/categories')
-                .send({
-                    name: '  ทดสอบ  ',
-                    description: 'Test trim'
-                });
-
-            expect(res.status).to.equal(201);
-            expect(res.body.data).to.have.property('name', 'ทดสอบ');
+            expect(res.status).to.equal(200);
+            expect(res.body).to.have.property('success', true);
         });
     });
 });

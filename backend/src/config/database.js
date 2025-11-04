@@ -1,18 +1,22 @@
 // backend/src/config/database.js
-// ใช้สำหรับการเชื่อมต่อกับฐานข้อมูล(mongoDB)
+// ไฟล์สำหรับการเชื่อมต่อกับฐานข้อมูล MongoDB
+
 const mongoose = require('mongoose');
-require('dotenv').config(); //npm install dotenv โหลดค่า .env
-const MONGODB_URI = process.env.MONGODB_URI_MY; // ควรเก็บไว้ใน .env
-// เชื่อมต่อกับ MongoDB ด้วย Mongoose แบบ async/await
+require('dotenv').config();
+
+const MONGODB_URI = process.env.MONGODB_URI_MY;
+
+// ===================================
+// เชื่อมต่อกับ MongoDB
+// ===================================
 const connectDB = async () => {
     try {
-        await mongoose.connect(MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
-        console.log('Connected to MongoDB');
+        // เชื่อมต่อกับ MongoDB (ไม่ต้องใส่ useNewUrlParser และ useUnifiedTopology อีกต่อไป)
+        await mongoose.connect(MONGODB_URI);
+        console.log('🟢 Connected to MongoDB');
     } catch (error) {
-        console.error('Error connecting to MongoDB:', error);
+        console.error('❌ Error connecting to MongoDB:', error);
+        process.exit(1);
     }
 };
 

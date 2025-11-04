@@ -4,8 +4,21 @@ const request = require('supertest');
 const { expect } = require('chai');
 const app = require('../server');
 const Complaint = require('../src/models/homeModel');
+const { createAuthenticatedUser, getAuthHeader } = require('./testHelpers');
 
-describe('📝 ทดสอบระบบเรื่องร้องเรียน', () => {
+describe(' ทดสอบระบบเรื่องร้องเรียน', () => {
+    // ตัวแปรเก็บข้อมูล authentication
+    let authToken;
+    let testUserId;
+
+    // สร้างผู้ใช้ทดสอบและ login ก่อนเริ่มเทสต์
+    before(async function() {
+        this.timeout(10000);
+        const authData = await createAuthenticatedUser();
+        authToken = authData.token;
+        testUserId = authData.userId;
+    });
+
 
     // ทดสอบการสร้างเรื่องร้องเรียนใหม่
     describe('POST /api/complaints - สร้างเรื่องร้องเรียนใหม่', () => {
@@ -25,6 +38,7 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
 
             const res = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send(complaintData);
 
             expect(res.status).to.equal(201);
@@ -34,12 +48,13 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
             expect(res.body.data).to.have.property('current_status', 'รอรับเรื่อง');
             expect(res.body.data).to.have.property('views', 0);
             expect(res.body.data).to.have.property('likes', 0);
-            expect(res.body.data).to.have.property('priority', 'low'); // ✅ default priority
+            expect(res.body.data).to.have.property('priority', 'low'); //  default priority
         });
 
         it('ควรล้มเหลวเมื่อไม่มีหัวเรื่อง', async () => {
             const res = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     categories: ['ไฟฟ้า'],
                     description: 'ทดสอบ',
@@ -56,6 +71,7 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
         it('ควรล้มเหลวเมื่อหมวดหมู่เป็น array ว่าง', async () => {
             const res = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'ทดสอบไม่มีหมวดหมู่',
                     categories: [],
@@ -73,6 +89,7 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
         it('ควรล้มเหลวเมื่อไม่มีตำแหน่ง', async () => {
             const res = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'ทดสอบไม่มีตำแหน่ง',
                     categories: ['ทั่วไป'],
@@ -86,6 +103,7 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
         it('ควรสร้างเรื่องร้องเรียนด้วยระดับความสำคัญเริ่มต้นเป็น "low"', async () => {
             const res = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'Test Priority Default',
                     categories: ['ทั่วไป'],
@@ -105,6 +123,7 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
         it('ควรสร้างเรื่องร้องเรียนที่มีหลายหมวดหมู่', async () => {
             const res = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'ทดสอบหลายหมวดหมู่',
                     categories: ['ไฟฟ้า', 'น้ำท่วม'],
@@ -514,11 +533,12 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
     });
 
     // ทดสอบ Priority Field
-    describe('🎯 ทดสอบฟิลด์ระดับความสำคัญ', () => {
+    describe(' ทดสอบฟิลด์ระดับความสำคัญ', () => {
 
         it('ควรสร้างเรื่องร้องเรียนด้วยระดับความสำคัญเริ่มต้นเป็น "low"', async () => {
             const res = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'Test Priority Default',
                     categories: ['ทั่วไป'],
@@ -595,6 +615,7 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
             // สร้าง complaint
             const createRes = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'Test Priority Update',
                     categories: ['ทั่วไป'],
@@ -623,6 +644,7 @@ describe('📝 ทดสอบระบบเรื่องร้องเร�
         it('ควรตรวจสอบค่า enum ของระดับความสำคัญ', async () => {
             const createRes = await request(app)
                 .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'Test Invalid Priority',
                     categories: ['ทั่วไป'],

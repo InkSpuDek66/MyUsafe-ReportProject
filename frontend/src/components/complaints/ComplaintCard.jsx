@@ -44,26 +44,69 @@ const ComplaintCard = ({ complaint }) => {
         return 'ไม่ระบุ';
     };
 
-    // Helper function สำหรับเลือกภาพที่จะแสดง
+    // Helper function สำหรับตรวจสอบว่าไฟล์เป็นรูปภาพหรือไม่
+    const isImageFile = (url) => {
+        if (!url) return false;
+        // เช็คว่าเป็นไฟล์รูปภาพจาก extension
+        return url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) !== null;
+    };
+
+    // Helper function สำหรับตรวจสอบว่าไฟล์เป็นวิดีโอหรือไม่
+    const isVideoFile = (url) => {
+        if (!url) return false;
+        return url.match(/\.(mp4|mov|avi|webm)$/i) !== null;
+    };
+
+    // Helper function สำหรับหารูปภาพอันแรกจาก array
+    const getFirstImageFromArray = (mediaArray) => {
+        if (!mediaArray || !Array.isArray(mediaArray) || mediaArray.length === 0) {
+            return null;
+        }
+
+        // วนหาไฟล์ที่เป็นรูปภาพอันแรก โดยข้ามวิดีโอ
+        for (let i = 0; i < mediaArray.length; i++) {
+            const item = mediaArray[i];
+            if (isImageFile(item)) {
+                return item;
+            }
+        }
+
+        // ถ้าไม่มีรูปเลย (มีแต่วิดีโอ) ก็ return null
+        return null;
+    };
+
+    // Helper function สำหรับเลือกภาพที่จะแสดง (แสดงเฉพาะรูปภาพ ไม่แสดงวิดีโอ)
     const getDisplayImage = () => {
-        // ลำดับความสำคัญ: attachments[0] > images[0] > attachment > default logo
+        // ลำดับความสำคัญ: attachments > images > attachment > default logo
+        // แต่จะเลือกเฉพาะไฟล์ที่เป็นรูปภาพเท่านั้น
         
         // 1. ตรวจสอบ attachments (จากฐานข้อมูลจริง)
         if (complaint.attachments && Array.isArray(complaint.attachments) && complaint.attachments.length > 0) {
-            return `http://localhost:5000${complaint.attachments[0]}`;
+            const firstImage = getFirstImageFromArray(complaint.attachments);
+            if (firstImage) {
+                return `http://localhost:5000${firstImage}`;
+            }
         }
         
         // 2. ตรวจสอบ images (format อื่น)
         if (complaint.images && Array.isArray(complaint.images) && complaint.images.length > 0) {
-            return complaint.images[0];
+            const firstImage = getFirstImageFromArray(complaint.images);
+            if (firstImage) {
+                // ถ้ามี protocol อยู่แล้วก็ใช้เลย ไม่ต้องเพิ่ม
+                if (firstImage.startsWith('http://') || firstImage.startsWith('https://')) {
+                    return firstImage;
+                }
+                // ถ้าไม่มี protocol ก็เพิ่มให้
+                return `http://localhost:5000${firstImage}`;
+            }
         }
         
         // 3. ตรวจสอบ attachment (format เดี่ยว)
-        if (complaint.attachment) {
+        if (complaint.attachment && isImageFile(complaint.attachment)) {
             return complaint.attachment;
         }
         
-        // 4. Default logo
+        // 4. Default logo (ถ้าไม่มีรูปภาพเลย)
         return '/MyUSafe_mini_none-bg_LOGO1.png';
     };
 
@@ -91,57 +134,19 @@ const ComplaintCard = ({ complaint }) => {
             onClick={handleClick}
             className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 hover:border-[#55C388] group"
         >
-            {/* Image/Video Section */}
+            {/* Image Section - แสดงเฉพาะรูปภาพ */}
             <div className="h-48 overflow-hidden bg-gray-100 relative">
                 {(() => {
-                    const mediaUrl = getDisplayImage();
-                    const isDefaultLogo = mediaUrl === '/MyUSafe_mini_none-bg_LOGO1.png';
-                    const isVideo = !isDefaultLogo && mediaUrl.match(/\.(mp4|mov|avi|webm)$/i);
-                    
-                    if (isVideo) {
-                        return (
-                            <>
-                                <video
-                                    src={mediaUrl}
-                                    className="w-full h-full object-cover"
-                                    muted
-                                    preload="metadata"
-                                    onError={(e) => {
-                                        console.error('Video load error:', mediaUrl);
-                                        e.target.style.display = 'none';
-                                        const fallback = e.target.parentElement.querySelector('.fallback-image');
-                                        if (fallback) fallback.style.display = 'flex';
-                                    }}
-                                />
-                                <div 
-                                    className="fallback-image w-full h-full hidden items-center justify-center bg-gray-200"
-                                    style={{ display: 'none' }}
-                                >
-                                    <img 
-                                        src="/MyUSafe_mini_none-bg_LOGO1.png" 
-                                        alt="Default" 
-                                        className="w-full h-full object-contain p-8"
-                                    />
-                                </div>
-                                {/* Video Play Icon Overlay */}
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
-                                    <div className="bg-black/60 rounded-full p-3 backdrop-blur-sm shadow-lg">
-                                        <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            </>
-                        );
-                    }
+                    const imageUrl = getDisplayImage();
+                    const isDefaultLogo = imageUrl === '/MyUSafe_mini_none-bg_LOGO1.png';
                     
                     return (
                         <img
-                            src={mediaUrl}
+                            src={imageUrl}
                             alt={complaint.title}
                             className={`w-full h-full ${isDefaultLogo ? 'object-contain p-8' : 'object-cover group-hover:scale-110 transition-transform duration-500'}`}
                             onError={(e) => {
-                                console.error('Image load error:', mediaUrl);
+                                console.error('Image load error:', imageUrl);
                                 e.target.src = '/MyUSafe_mini_none-bg_LOGO1.png';
                                 e.target.className = 'w-full h-full object-contain p-8';
                             }}

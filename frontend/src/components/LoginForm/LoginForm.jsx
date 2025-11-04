@@ -1,17 +1,17 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; 
-import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline"; 
+import { useNavigate } from "react-router-dom";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 const BASE_URL = "http://localhost:5000";
-const LOGO_URL = "/MyUSafe_LOGO1.png";
+const LOGO_URL = "../../../public/MyUSafe_LOGO1.png";
 
 const LoginForm = () => {
-  const navigate = useNavigate(); 
-  
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false); 
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -26,7 +26,7 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${BASE_URL}/auth/login`, { 
+      const response = await fetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,13 +42,13 @@ const LoginForm = () => {
           localStorage.setItem("token", data.token);
           localStorage.setItem("role", data.data.user.role); // ✅ เปลี่ยนเป็น "role"
           localStorage.setItem("userId", data.data.user._id);
-          
+
           // 🛠️ Debug: ตรวจสอบว่าบันทึกถูกต้อง
           console.log("✅ Saved to localStorage:");
           console.log("- token:", data.token);
           console.log("- role:", data.data.user.role);
         }
-        
+
         navigate("/");
       } else {
         setError(data.message || "การเข้าสู่ระบบล้มเหลว");
@@ -94,7 +94,7 @@ const LoginForm = () => {
               required
               value={formData.email}
               onChange={handleChange}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
+              className="mt-1 w-full px-3 py-2 text-gray-600 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
             />
           </div>
 
@@ -104,12 +104,12 @@ const LoginForm = () => {
             </label>
             <div className="relative mt-1">
               <input
-                type={showPassword ? "text" : "password"} 
+                type={showPassword ? "text" : "password"}
                 name="password"
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full pr-10 pl-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                className="w-full pr-10 pl-3 py-2 text-gray-600 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
               />
               <button
                 type="button"
@@ -129,18 +129,11 @@ const LoginForm = () => {
             <p className="text-red-500 text-sm text-center">{error}</p>
           )}
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-4 w-4 text-green-600 border-gray-300 rounded"
-              />
-              จำไว้ในระบบ
-            </label>
+          {/* <div className="flex items-center justify-between text-sm">
             <a href="#" className="text-green-600 hover:text-green-500">
              ลืมรหัสผ่าน
             </a>
-          </div>
+          </div> */}
 
           <div className="flex gap-3 pt-4">
             <button

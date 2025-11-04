@@ -2,6 +2,7 @@
 // Model สำหรับข้อมูลเรื่องร้องเรียน (Complaints)
 const mongoose = require('mongoose');
 
+// Schema สำหรับเก็บประวัติการเปลี่ยนสถานะ
 const statusSchema = new mongoose.Schema({
   status_id: String,
   status_name: {
@@ -18,6 +19,7 @@ const statusSchema = new mongoose.Schema({
   }
 });
 
+// Schema หลักสำหรับเรื่องร้องเรียน
 const complaintSchema = new mongoose.Schema({
   complaint_id: {
     type: String,
@@ -48,7 +50,7 @@ const complaintSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  attachments: [String], // รูปภาพแนบตอนแจ้งเรื่อง
+  images: [String], // URL รูปภาพแนบตอนแจ้งเรื่อง (สูงสุด 5 รูป)
   
   user_id: {
     type: String,
@@ -69,6 +71,7 @@ const complaintSchema = new mongoose.Schema({
     default: null
   },
   
+  // ข้อมูลตำแหน่งที่เกิดเหตุ
   location: {
     building: {
       type: String,
@@ -84,6 +87,7 @@ const complaintSchema = new mongoose.Schema({
     }
   },
 
+  // ระดับความสำคัญ (default: low)
   priority: {
     type: String,
     enum: ['low', 'medium', 'high', 'urgent'],
@@ -91,6 +95,7 @@ const complaintSchema = new mongoose.Schema({
     index: true
   },
 
+  // สถานะปัจจุบัน
   current_status: {
     type: String,
     enum: ['รอรับเรื่อง', 'กำลังดำเนินการ', 'เสร็จสิ้น', 'ยกเลิก'],
@@ -98,8 +103,10 @@ const complaintSchema = new mongoose.Schema({
     index: true
   },
 
+  // ประวัติการเปลี่ยนสถานะทั้งหมด
   status_history: [statusSchema],
 
+  // ระบบ Likes/Dislikes
   likes: {
     type: Number,
     default: 0
@@ -121,6 +128,7 @@ const complaintSchema = new mongoose.Schema({
     default: 0
   },
 
+  // ข้อมูลเมื่อเสร็จสิ้น
   time_used: {
     type: String,
     default: '-'
@@ -130,7 +138,7 @@ const complaintSchema = new mongoose.Schema({
     default: '-'
   },
   
-  // ✅ ฟิลด์สำหรับรายละเอียดและไฟล์แนบหลังแก้ไขเสร็จ
+  // ฟิลด์สำหรับรายละเอียดและไฟล์แนบหลังแก้ไขเสร็จ
   resolution_note: {
     type: String,
     default: null

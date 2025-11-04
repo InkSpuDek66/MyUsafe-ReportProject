@@ -2,7 +2,7 @@
 // Controller สำหรับจัดการข้อมูลตำแหน่งอาคาร ชั้น และห้อง
 const Location = require('../models/locationModel');
 
-// 🏢 GET: ดึงรายการอาคารทั้งหมด
+// GET: ดึงรายการอาคารทั้งหมด
 exports.getBuildings = async (req, res) => {
     try {
         const buildings = await Location.distinct('building');
@@ -20,7 +20,7 @@ exports.getBuildings = async (req, res) => {
     }
 };
 
-// 🏢 GET: ดึงรายการชั้นของอาคาร
+// GET: ดึงรายการชั้นของอาคาร
 exports.getFloorsByBuilding = async (req, res) => {
     try {
         const { building } = req.params;
@@ -40,7 +40,7 @@ exports.getFloorsByBuilding = async (req, res) => {
     }
 };
 
-// 🏢 GET: ดึงรายการห้องของอาคารและชั้น
+// GET: ดึงรายการห้องของอาคารและชั้น
 exports.getRoomsByBuildingFloor = async (req, res) => {
     try {
         const { building, floor } = req.params;
@@ -60,11 +60,12 @@ exports.getRoomsByBuildingFloor = async (req, res) => {
     }
 };
 
-// 🆕 POST: เพิ่มตำแหน่งใหม่ (Admin only)
+// POST: เพิ่มตำแหน่งใหม่ (Admin only)
 exports.createLocation = async (req, res) => {
     try {
         const { building, floor, room } = req.body;
 
+        // ตรวจสอบข้อมูลที่จำเป็น
         if (!building || !floor) {
             return res.status(400).json({
                 success: false,

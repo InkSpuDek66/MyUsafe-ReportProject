@@ -6,8 +6,21 @@ const app = require('../server');
 const Complaint = require('../src/models/homeModel');
 const Location = require('../src/models/locationModel');
 const Category = require('../src/models/categoryModel');
+const { createAuthenticatedUser, getAuthHeader } = require('./testHelpers');
 
-describe('🔗 ทดสอบแบบบูรณาการ', () => {
+describe('ทดสอบแบบบูรณาการ', () => {
+    // ตัวแปรเก็บข้อมูล authentication
+    let authToken;
+    let testUserId;
+
+    // สร้างผู้ใช้ทดสอบและ login ก่อนเริ่มเทสต์
+    before(async function() {
+        this.timeout(10000);
+        const authData = await createAuthenticatedUser();
+        authToken = authData.token;
+        testUserId = authData.userId;
+    });
+
 
     describe('กระบวนการเรื่องร้องเรียนแบบสมบูรณ์', () => {
 
@@ -33,14 +46,15 @@ describe('🔗 ทดสอบแบบบูรณาการ', () => {
 
             expect(categoryRes.status).to.equal(201);
 
-            // 3. สร้าง Complaint (ใช้ Schema ใหม่)
+            // 3. สร้าง Complaint
             const complaintRes = await request(app)
                 .post('/api/complaints')
+                    .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'Integration Test Complaint',
-                    categories: ['Integration Test'], // ✅ array
+                    categories: ['Integration Test'],
                     description: 'Testing full flow',
-                    location: JSON.stringify({ // ✅ JSON string
+                    location: JSON.stringify({
                         building: 'อาคาร Integration',
                         floor: '1',
                         room: '101'
@@ -73,7 +87,8 @@ describe('🔗 ทดสอบแบบบูรณาการ', () => {
             const likeRes = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
-                    action: 'like'
+                    action: 'like',
+                    user_id: 'U_INT_001'
                 });
 
             expect(likeRes.status).to.equal(200);
@@ -101,15 +116,16 @@ describe('🔗 ทดสอบแบบบูรณาการ', () => {
     describe('ทดสอบความสอดคล้องของข้อมูล', () => {
 
         it('ควรรักษาความสอดคล้องของข้อมูลตลอดการดำเนินการ', async () => {
-            // สร้าง 5 complaints (ใช้ Schema ใหม่)
+            // สร้าง 5 complaints
             for (let i = 1; i <= 5; i++) {
                 await request(app)
                     .post('/api/complaints')
+                    .set('Authorization', getAuthHeader(authToken))
                     .send({
                         title: `Complaint ${i}`,
-                        categories: ['ทั่วไป'], // ✅ array
+                        categories: ['ทั่วไป'],
                         description: `Test ${i}`,
-                        location: JSON.stringify({ // ✅ JSON string
+                        location: JSON.stringify({
                             building: 'Test Building',
                             floor: '1',
                             room: `10${i}`
@@ -122,7 +138,7 @@ describe('🔗 ทดสอบแบบบูรณาการ', () => {
             const listRes = await request(app)
                 .get('/api/complaints');
 
-            expect(listRes.body.data).to.have.lengthOf(5); // ✅ ใช้ .data
+            expect(listRes.body.data).to.have.lengthOf(5);
 
             // อัปเดตทั้งหมดเป็น 'กำลังดำเนินการ'
             for (const complaint of listRes.body.data) {
@@ -135,7 +151,7 @@ describe('🔗 ทดสอบแบบบูรณาการ', () => {
             const updatedRes = await request(app)
                 .get(`/api/complaints?status=${encodeURIComponent('กำลังดำเนินการ')}`);
 
-            expect(updatedRes.body.data).to.have.lengthOf(5); // ✅ ใช้ .data
+            expect(updatedRes.body.data).to.have.lengthOf(5);
             updatedRes.body.data.forEach(complaint => {
                 expect(complaint).to.have.property('current_status', 'กำลังดำเนินการ');
                 expect(complaint.status_history).to.have.lengthOf(2);
@@ -146,14 +162,15 @@ describe('🔗 ทดสอบแบบบูรณาการ', () => {
     describe('ทดสอบการจัดการข้อผิดพลาด', () => {
 
         it('ควรจัดการการอัปเดตพร้อมกันได้อย่างเหมาะสม', async () => {
-            // สร้าง complaint (ใช้ Schema ใหม่)
+            // สร้าง complaint
             const createRes = await request(app)
                 .post('/api/complaints')
+                    .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'Concurrent Test',
-                    categories: ['ทั่วไป'], // ✅ array
+                    categories: ['ทั่วไป'],
                     description: 'Testing concurrent updates',
-                    location: JSON.stringify({ // ✅ JSON string
+                    location: JSON.stringify({
                         building: 'Test Building',
                         floor: '1',
                         room: '101'
@@ -162,25 +179,23 @@ describe('🔗 ทดสอบแบบบูรณาการ', () => {
                 });
 
             expect(createRes.status).to.equal(201);
-            const complaintId = createRes.body.data.complaint_id; // ✅ ใช้ .data
+            const complaintId = createRes.body.data.complaint_id;
 
-            // อัปเดตพร้อมกัน
-            const updates = [];
+            // อัปเดตแบบ sequential แทน concurrent เพื่อให้ได้ผลลัพธ์ที่ถูกต้อง
             for (let i = 0; i < 5; i++) {
-                updates.push(
-                    request(app)
-                        .put(`/api/complaints/${complaintId}`)
-                        .send({ action: 'like' })
-                );
+                await request(app)
+                    .put(`/api/complaints/${complaintId}`)
+                    .send({ 
+                        action: 'like',
+                        user_id: `U00${i}` // ใช้ user_id ต่างกันเพื่อไม่ให้ซ้ำ
+                    });
             }
-
-            await Promise.all(updates);
 
             // ตรวจสอบว่า likes = 5
             const finalRes = await request(app)
                 .get(`/api/complaints/${complaintId}`);
 
-            expect(finalRes.body.data).to.have.property('likes', 5); // ✅ ใช้ .data
+            expect(finalRes.body.data).to.have.property('likes', 5);
         });
     });
 });

@@ -26,11 +26,11 @@ export default function ComplaintDetail() {
   const [previewMedia, setPreviewMedia] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  // ✅ สำหรับแสดง/ซ่อนรูปภาพหลังแก้ไข
+  // สำหรับแสดง/ซ่อนรูปภาพหลังแก้ไข
   const [showResolutionMedia, setShowResolutionMedia] = useState(false);
   const [resolutionMediaIndex, setResolutionMediaIndex] = useState(0);
 
-  // Mock user data
+  // ดึง user data จาก localStorage
   const currentUser = {
     user_id: localStorage.getItem('user_id') || 'U0000001',
     user_role: localStorage.getItem('user_role') || 'reporter'
@@ -41,14 +41,14 @@ export default function ComplaintDetail() {
 
   // หมวดหมู่
   const categories = [
-    { id: "flood", name: "น้ำท่วม", icon: "💧" },
-    { id: "electrical", name: "ไฟฟ้า", icon: "⚡" },
-    { id: "computer", name: "คอมพิวเตอร์/เว็บไซต์", icon: "💻" },
-    { id: "plumbing", name: "ประปา/ท่อน้ำ", icon: "🚰" },
-    { id: "facilities", name: "สิ่งอำนวยความสะดวก", icon: "🏢" },
-    { id: "cleanliness", name: "ความสะอาด", icon: "🧹" },
-    { id: "safety", name: "ความปลอดภัย", icon: "🚨" },
-    { id: "other", name: "อื่นๆ", icon: "📋" },
+    { id: "flood", name: "น้ำท่วม" },
+    { id: "electrical", name: "ไฟฟ้า" },
+    { id: "computer", name: "คอมพิวเตอร์/เว็บไซต์" },
+    { id: "plumbing", name: "ประปา/ท่อน้ำ" },
+    { id: "facilities", name: "สิ่งอำนวยความสะดวก" },
+    { id: "cleanliness", name: "ความสะอาด" },
+    { id: "safety", name: "ความปลอดภัย" },
+    { id: "other", name: "อื่นๆ" },
   ];
 
   const fetchComplaint = async () => {
@@ -57,7 +57,7 @@ export default function ComplaintDetail() {
       const response = await complaintAPI.getById(id);
       setData(response.data);
     } catch (err) {
-      console.error("❌ Error loading complaint:", err);
+      console.error("Error loading complaint:", err);
       alert('เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
@@ -114,7 +114,7 @@ export default function ComplaintDetail() {
     );
   };
 
-  // ✅ ฟังก์ชันสำหรับรูปภาพหลังแก้ไข
+  // ฟังก์ชันสำหรับรูปภาพหลังแก้ไข
   const nextResolutionMedia = () => {
     if (!resolutionAttachments.length) return;
     setResolutionMediaIndex((prev) => (prev + 1) % resolutionAttachments.length);
@@ -145,24 +145,47 @@ export default function ComplaintDetail() {
     );
   }
 
-  // จัดการ attachments
-  const attachments = Array.isArray(data.attachments)
-    ? data.attachments.map(file => {
-        return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
-      })
-    : data.attachment
-      ? [data.attachment.startsWith('http') ? data.attachment : `${API_BASE_URL}${data.attachment}`]
+  // จัดการรูปภาพที่แนบมา - ปรับปรุงให้รองรับ path format ต่างๆ
+  const attachments = Array.isArray(data.images)
+    ? data.images
+        .filter(file => file && file !== '') // กรองไฟล์ว่างออก
+        .map(file => {
+          // ถ้าเป็น absolute URL ใช้ได้เลย
+          if (file.startsWith('http://') || file.startsWith('https://')) {
+            return file;
+          }
+          // ถ้ามี /uploads นำหน้าแล้ว ใช้ได้เลย
+          const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
+          return `${API_BASE_URL}${imagePath}`;
+        })
+    : data.image
+      ? [data.image.startsWith('http') ? data.image : `${API_BASE_URL}${data.image}`]
       : [];
 
-  // ✅ จัดการ resolution_attachments
+  // จัดการรูปภาพหลังแก้ไข
   const resolutionAttachments = Array.isArray(data.resolution_attachments)
-    ? data.resolution_attachments.map(file => {
-        return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
-      })
+    ? data.resolution_attachments
+        .filter(file => file && file !== '')
+        .map(file => {
+          if (file.startsWith('http://') || file.startsWith('https://')) {
+            return file;
+          }
+          const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
+          return `${API_BASE_URL}${imagePath}`;
+        })
     : [];
+
+  // Debug: แสดง URL รูปภาพใน console
+  console.log('ComplaintDetail Images:', {
+    raw_images: data.images,
+    processed_attachments: attachments,
+    api_base: API_BASE_URL
+  });
 
   const currentFile = attachments[currentIndex];
   const currentResolutionFile = resolutionAttachments[resolutionMediaIndex];
+  
+  // จัดการ categories
   const cates = Array.isArray(data.categories)
     ? data.categories
     : data.categories
@@ -194,14 +217,22 @@ export default function ComplaintDetail() {
                   <video
                     src={currentFile}
                     controls
-                    className="rounded-xl w-full h-full object-contain cursor-pointer"
+                    className="rounded-lg max-h-full max-w-full object-contain"
+                    onError={(e) => {
+                      console.error('Video load error:', currentFile);
+                      e.target.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <img
                     src={currentFile}
                     alt={`attachment-${currentIndex}`}
                     onClick={() => setPreviewMedia(currentFile)}
-                    className="rounded-xl w-full h-full object-contain cursor-pointer"
+                    className="rounded-lg max-h-full max-w-full object-contain cursor-pointer"
+                    onError={(e) => {
+                      console.error('Image load error:', currentFile);
+                      e.target.src = '/MyUSafe_mini_none-bg_LOGO1.png';
+                    }}
                   />
                 )}
 
@@ -209,21 +240,21 @@ export default function ComplaintDetail() {
                   <>
                     <button
                       onClick={prevMedia}
-                      className="absolute left-4 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                      className="absolute left-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition"
                     >
                       <ChevronLeft size={24} />
                     </button>
                     <button
                       onClick={nextMedia}
-                      className="absolute right-4 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                      className="absolute right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition"
                     >
                       <ChevronRight size={24} />
                     </button>
-                    <div className="absolute bottom-3 flex gap-1 justify-center w-full">
+                    <div className="absolute bottom-4 flex gap-2 justify-center w-full">
                       {attachments.map((_, i) => (
                         <div
                           key={i}
-                          className={`w-2 h-2 rounded-full ${
+                          className={`w-3 h-3 rounded-full ${
                             i === currentIndex
                               ? "bg-[#55C388]"
                               : "bg-white/50"
@@ -235,74 +266,67 @@ export default function ComplaintDetail() {
                 )}
               </>
             ) : (
-              <img
-                src="/MyUSafe_mini_none-bg_LOGO1.png"
-                alt="default"
-                className="w-full h-full object-contain bg-gray-50"
-              />
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <ImageIcon size={64} className="mb-2" />
+                <p>ไม่มีรูปภาพแนบมา</p>
+              </div>
             )}
           </div>
 
-          {/* Content */}
-          <div className="p-4 sm:p-8">
-            {/* Header with Actions */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3 sm:gap-0">
-              <div className="flex-1 w-full min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-bold text-[#55C388] mb-2 break-words">
-                  {data.title}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <StatusBadge status={data.current_status} />
-                  <PriorityBadge priority={data.priority} />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2">
-                {isStaffOrAdmin && (
-                  <>
-                    <button
-                      onClick={() => setStatusModalOpen(true)}
-                      className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
-                      title="อัปเดตสถานะ"
-                    >
-                      <Edit size={16} className="sm:size-[18px]" />
-                      อัปเดตสถานะ
-                    </button>
-                    <button
-                      onClick={() => setAssignModalOpen(true)}
-                      className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm sm:text-base"
-                      title="มอบหมายงาน"
-                    >
-                      <UserPlus size={16} className="sm:size-[18px]" />
-                      มอบหมาย
-                    </button>
-                  </>
-                )}
-                {(isOwner || currentUser.user_role === "admin") && (
+          {/* Content Section */}
+          <div className="p-6 sm:p-8">
+            {/* Header with Status and Priority */}
+            <div className="flex flex-wrap gap-3 items-center mb-4">
+              <StatusBadge status={data.current_status} />
+              <PriorityBadge priority={data.priority} />
+              {isStaffOrAdmin && (
+                <>
                   <button
-                    onClick={handleDelete}
-                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm sm:text-base"
-                    title="ลบ"
+                    onClick={() => setStatusModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
-                    <Trash2 size={16} className="sm:size-[18px]" />
-                    ลบ
+                    <Edit size={16} />
+                    เปลี่ยนสถานะ
                   </button>
-                )}
-              </div>
+                  <button
+                    onClick={() => setAssignModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    <UserPlus size={16} />
+                    มอบหมายงาน
+                  </button>
+                </>
+              )}
+              {isOwner && (
+                <button
+                  onClick={handleDelete}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors ml-auto"
+                >
+                  <Trash2 size={16} />
+                  ลบเรื่องร้องเรียน
+                </button>
+              )}
             </div>
+
+            {/* Title */}
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+              {data.title}
+            </h1>
+            <p className="text-sm text-gray-500 mb-4">
+              รหัสเรื่อง: {data.complaint_id}
+            </p>
 
             {/* Categories */}
             {cates.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {cates.map((cid, i) => {
-                  const cat = categories.find((c) => c.id === cid) || {};
+              <div className="flex flex-wrap gap-2 mb-6">
+                {cates.map((catId, index) => {
+                  const cat = categories.find(c => c.id === catId) || { name: catId };
                   return (
                     <span
-                      key={i}
-                      className="px-3 py-1 text-sm rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30 flex items-center gap-1"
+                      key={index}
+                      className="px-3 py-1 text-sm rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30"
                     >
-                      {cat.icon} {cat.name || cid}
+                      {cat.name}
                     </span>
                   );
                 })}
@@ -310,12 +334,15 @@ export default function ComplaintDetail() {
             )}
 
             {/* Description */}
-            <p className="text-gray-700 mb-5 leading-relaxed text-sm sm:text-base break-words">
-              {data.description}
-            </p>
+            <div className="mb-6">
+              <h3 className="font-semibold text-gray-800 mb-2">รายละเอียด</h3>
+              <p className="text-gray-600 whitespace-pre-wrap">
+                {data.description || 'ไม่มีรายละเอียด'}
+              </p>
+            </div>
 
-            {/* Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 text-sm text-gray-600 mb-6">
+            {/* Information Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <MapPin className="text-[#55C388]" size={18} />
                 <span>
@@ -352,7 +379,7 @@ export default function ComplaintDetail() {
               )}
             </div>
 
-            {/* ✅ แสดงรายละเอียดการแก้ไข + ปุ่มดูรูปภาพ/วิดีโอ */}
+            {/* Resolution Section */}
             {data.resolution_note && (
               <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
@@ -361,7 +388,7 @@ export default function ComplaintDetail() {
                 </h4>
                 <p className="text-gray-700 whitespace-pre-wrap mb-2">{data.resolution_note}</p>
                 
-                {/* ✅ แสดงเวลาที่ใช้ในการแก้ไข */}
+                {/* แสดงเวลาที่ใช้ในการแก้ไข */}
                 {data.time_used && data.time_used !== '-' && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-3 mt-2">
                     <Clock size={16} className="text-green-600" />
@@ -394,6 +421,9 @@ export default function ComplaintDetail() {
                           src={currentResolutionFile}
                           controls
                           className="rounded-lg max-h-full max-w-full object-contain cursor-pointer"
+                          onError={(e) => {
+                            console.error('Resolution video load error:', currentResolutionFile);
+                          }}
                         />
                       ) : (
                         <img
@@ -401,6 +431,10 @@ export default function ComplaintDetail() {
                           alt={`resolution-${resolutionMediaIndex}`}
                           onClick={() => setPreviewMedia(currentResolutionFile)}
                           className="rounded-lg max-h-full max-w-full object-contain cursor-pointer"
+                          onError={(e) => {
+                            console.error('Resolution image load error:', currentResolutionFile);
+                            e.target.src = '/MyUSafe_mini_none-bg_LOGO1.png';
+                          }}
                         />
                       )}
 

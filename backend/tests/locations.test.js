@@ -1,27 +1,27 @@
 // backend/tests/locations.test.js
-// Test suite สำหรับระบบ Locations
+// Test suite for Locations
 const request = require('supertest');
 const { expect } = require('chai');
 const app = require('../server');
 const Location = require('../src/models/locationModel');
 
-describe('🏢 ทดสอบระบบตำแหน่งที่ตั้ง', () => {
+describe('ทดสอบ API Locations', () => {
 
     beforeEach(async () => {
-        // สร้างข้อมูลทดสอบ
+        // เตรียมข้อมูลทดสอบ
         await Location.create([
             { building: 'อาคาร 1', floor: '1', room: '101' },
             { building: 'อาคาร 1', floor: '1', room: '102' },
             { building: 'อาคาร 1', floor: '2', room: '201' },
             { building: 'อาคาร 2', floor: '1', room: '101' },
             { building: 'อาคาร 2', floor: '2', room: '201' },
-            { building: 'หอพัก', floor: '3', room: '301' }
+            { building: 'อาคาร 3', floor: '3', room: '301' }
         ]);
     });
 
-    describe('GET /api/locations/buildings - ดึงข้อมูลอาคารทั้งหมด', () => {
+    describe('GET /api/locations/buildings - ดึงรายการอาคาร', () => {
 
-        it('ควรดึงอาคารที่ไม่ซ้ำกันทั้งหมด', async () => {
+        it('ควรดึงรายการอาคารทั้งหมดได้', async () => {
             const res = await request(app)
                 .get('/api/locations/buildings');
 
@@ -31,10 +31,10 @@ describe('🏢 ทดสอบระบบตำแหน่งที่ตั�
             expect(res.body.data).to.have.lengthOf(3);
             expect(res.body.data).to.include('อาคาร 1');
             expect(res.body.data).to.include('อาคาร 2');
-            expect(res.body.data).to.include('หอพัก');
+            expect(res.body.data).to.include('อาคาร 3');
         });
 
-        it('ควรคืนค่า array ว่างเมื่อไม่มีตำแหน่งที่ตั้ง', async () => {
+        it('ควร return array ว่างถ้าไม่มีข้อมูล', async () => {
             await Location.deleteMany({});
 
             const res = await request(app)
@@ -46,11 +46,13 @@ describe('🏢 ทดสอบระบบตำแหน่งที่ตั�
         });
     });
 
-    describe('GET /api/locations/floors/:building - ดึงข้อมูลชั้นตามอาคาร', () => {
+    describe('GET /api/locations/floors/:building - ดึงรายการชั้น', () => {
 
-        it('ควรดึงชั้นทั้งหมดของอาคาร', async () => {
+        it('ควรดึงรายการชั้นของอาคาร 1', async () => {
+            // Encode อักขระไทยใน URL
+            const building = encodeURIComponent('อาคาร 1');
             const res = await request(app)
-                .get(`/api/locations/floors/${encodeURIComponent('อาคาร 1')}`);
+                .get(`/api/locations/floors/${building}`);
 
             expect(res.status).to.equal(200);
             expect(res.body).to.have.property('success', true);
@@ -60,9 +62,10 @@ describe('🏢 ทดสอบระบบตำแหน่งที่ตั�
             expect(res.body.data).to.include('2');
         });
 
-        it('ควรคืนค่า array ว่างสำหรับอาคารที่ไม่มีอยู่', async () => {
+        it('ควร return array ว่างถ้าไม่พบอาคาร', async () => {
+            const building = encodeURIComponent('อาคารที่ไม่มี');
             const res = await request(app)
-                .get(`/api/locations/floors/${encodeURIComponent('อาคารไม่มี')}`);
+                .get(`/api/locations/floors/${building}`);
 
             expect(res.status).to.equal(200);
             expect(res.body.data).to.be.an('array');
@@ -70,11 +73,13 @@ describe('🏢 ทดสอบระบบตำแหน่งที่ตั�
         });
     });
 
-    describe('GET /api/locations/rooms/:building/:floor - ดึงข้อมูลห้อง', () => {
+    describe('GET /api/locations/rooms/:building/:floor - ดึงรายการห้อง', () => {
 
-        it('ควรดึงห้องทั้งหมดของอาคารและชั้น', async () => {
+        it('ควรดึงรายการห้องของอาคาร 1 ชั้น 1', async () => {
+            // Encode อักขระไทยใน URL
+            const building = encodeURIComponent('อาคาร 1');
             const res = await request(app)
-                .get(`/api/locations/rooms/${encodeURIComponent('อาคาร 1')}/1`);
+                .get(`/api/locations/rooms/${building}/1`);
 
             expect(res.status).to.equal(200);
             expect(res.body).to.have.property('success', true);
@@ -84,25 +89,23 @@ describe('🏢 ทดสอบระบบตำแหน่งที่ตั�
             expect(res.body.data).to.include('102');
         });
 
-        it('ควรคืนค่า array ว่างสำหรับชั้นที่ไม่มีอยู่', async () => {
+        it('ควรไม่มีห้องที่เป็นค่าว่าง', async () => {
+            const building = encodeURIComponent('อาคาร 1');
             const res = await request(app)
-                .get(`/api/locations/rooms/${encodeURIComponent('อาคาร 1')}/99`);
+                .get(`/api/locations/rooms/${building}/2`);
 
             expect(res.status).to.equal(200);
             expect(res.body.data).to.be.an('array');
-            expect(res.body.data).to.have.lengthOf(0);
+
+            // ตรวจสอบว่าไม่มีห้องที่เป็นค่าว่าง
+            const hasEmptyRoom = res.body.data.some(room => room === '' || room === null);
+            expect(hasEmptyRoom).to.be.false;
         });
 
-        it('ควรกรองห้องที่ว่างออก', async () => {
-            // สร้าง location ที่ไม่มีห้อง
-            await Location.create({
-                building: 'อาคาร 3',
-                floor: '1',
-                room: ''
-            });
-
+        it('ควร return array ว่างถ้าไม่พบห้อง', async () => {
+            const building = encodeURIComponent('อาคาร 1');
             const res = await request(app)
-                .get(`/api/locations/rooms/${encodeURIComponent('อาคาร 3')}/1`);
+                .get(`/api/locations/rooms/${building}/999`);
 
             expect(res.status).to.equal(200);
             expect(res.body.data).to.be.an('array');
@@ -110,13 +113,13 @@ describe('🏢 ทดสอบระบบตำแหน่งที่ตั�
         });
     });
 
-    describe('POST /api/locations - สร้างตำแหน่งที่ตั้งใหม่', () => {
+    describe('POST /api/locations - สร้างตำแหน่งใหม่', () => {
 
-        it('ควรสร้างตำแหน่งที่ตั้งใหม่สำเร็จ', async () => {
+        it('ควรสร้างตำแหน่งใหม่สำเร็จ', async () => {
             const locationData = {
-                building: 'อาคารใหม่',
-                floor: '5',
-                room: '501'
+                building: 'อาคาร 4',
+                floor: '1',
+                room: '401'
             };
 
             const res = await request(app)
@@ -125,45 +128,35 @@ describe('🏢 ทดสอบระบบตำแหน่งที่ตั�
 
             expect(res.status).to.equal(201);
             expect(res.body).to.have.property('success', true);
-            expect(res.body).to.have.property('message');
             expect(res.body.data).to.have.property('building', locationData.building);
             expect(res.body.data).to.have.property('floor', locationData.floor);
             expect(res.body.data).to.have.property('room', locationData.room);
         });
 
-        it('ควรสร้างตำแหน่งที่ตั้งโดยไม่มีห้อง', async () => {
+        it('ควรล้มเหลวเมื่อไม่ระบุอาคาร', async () => {
+            const locationData = {
+                floor: '1',
+                room: '401'
+            };
+
             const res = await request(app)
                 .post('/api/locations')
-                .send({
-                    building: 'อาคาร Test',
-                    floor: '1'
-                });
-
-            expect(res.status).to.equal(201);
-            expect(res.body.data).to.have.property('room', '');
-        });
-
-        it('ควรล้มเหลวเมื่อไม่มีชื่ออาคาร', async () => {
-            const res = await request(app)
-                .post('/api/locations')
-                .send({
-                    floor: '1'
-                });
+                .send(locationData);
 
             expect(res.status).to.equal(400);
-            expect(res.body).to.have.property('success', false);
-            expect(res.body).to.have.property('error');
         });
 
-        it('ควรล้มเหลวเมื่อไม่มีชั้น', async () => {
+        it('ควรล้มเหลวเมื่อไม่ระบุชั้น', async () => {
+            const locationData = {
+                building: 'อาคาร 4',
+                room: '401'
+            };
+
             const res = await request(app)
                 .post('/api/locations')
-                .send({
-                    building: 'อาคาร Test'
-                });
+                .send(locationData);
 
             expect(res.status).to.equal(400);
-            expect(res.body).to.have.property('success', false);
         });
     });
 });

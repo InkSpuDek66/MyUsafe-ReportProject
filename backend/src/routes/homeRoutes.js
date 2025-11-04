@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const complaintController = require('../controllers/homeController');
+const { protect } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -14,7 +15,7 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ตั้งค่า Multer
+// ตั้งค่า Multer สำหรับการอัพโหลดไฟล์
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
     filename: (req, file, cb) => {
@@ -24,6 +25,7 @@ const storage = multer.diskStorage({
     },
 });
 
+// กำหนดประเภทไฟล์ที่อนุญาต
 const fileFilter = (req, file, cb) => {
     const allowedMimeTypes = [
         'image/jpeg',
@@ -46,12 +48,13 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 20 * 1024 * 1024,
-        files: 5
+        fileSize: 20 * 1024 * 1024, // จำกัดขนาดไฟล์ 20MB
+        files: 5 // อัพโหลดได้สูงสุด 5 ไฟล์
     },
     fileFilter: fileFilter
 });
 
+// Middleware จัดการ error ของ Multer
 const handleMulterError = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
@@ -86,17 +89,21 @@ const handleMulterError = (err, req, res, next) => {
 };
 
 // ================= ROUTES =================
-// GET - Get all complaints
+
+// GET - ดึงรายการเรื่องร้องเรียนทั้งหมด
 router.get('/', complaintController.getComplaints);
 
-// Specific route - My Complaints
-router.get('/my-complaints', async (req, res) => {
+// GET - ดึงเรื่องร้องเรียนของตัวเอง (ต้อง login ก่อน)
+router.get('/my-complaints', protect, async (req, res) => {
     try {
-        const userId = req.user?.user_id || 'U0000001';
-        
+        // ดึง user id จาก req.user ที่ได้จาก protect middleware
+        // แปลงเป็น string เพราะ Complaint model เก็บ user_id เป็น string
+        const userId = req.user._id.toString();
+
+        // ค้นหาเรื่องร้องเรียนที่ user_id ตรงกับ user ที่ login
         const complaints = await Complaint.find({ user_id: userId })
-        .sort({ datetime_reported: -1 });
-        
+            .sort({ datetime_reported: -1 });
+
         res.json({
             success: true,
             data: complaints
@@ -110,19 +117,19 @@ router.get('/my-complaints', async (req, res) => {
     }
 });
 
-// Dynamic route
+// GET - ดึงรายละเอียดเรื่องร้องเรียนเดียว
 router.get('/:id', complaintController.getComplaintById);
 
-// POST - Create new complaint
-router.post('/', upload.array('images', 5), handleMulterError, complaintController.createComplaint);
+// POST - สร้างเรื่องร้องเรียนใหม่ (ต้อง login ก่อน)
+router.post('/', protect, upload.array('images', 5), handleMulterError, complaintController.createComplaint);
 
-// PUT - Update complaint
+// PUT - แก้ไขเรื่องร้องเรียน
 router.put('/:id', complaintController.updateComplaint);
 
-// DELETE - Delete complaint
+// DELETE - ลบเรื่องร้องเรียน
 router.delete('/:id', complaintController.deleteComplaint);
 
-// PATCH: เปลี่ยนสถานะ + บันทึกรายละเอียดการแก้ไข + แจ้งเตือน
+// PATCH - เปลี่ยนสถานะเรื่องร้องเรียน + สร้างการแจ้งเตือน
 router.patch('/:id/status', async (req, res) => {
     const { status, updated_by, resolution_details } = req.body;
     const notificationController = require('../controllers/notificationController');
@@ -132,17 +139,19 @@ router.patch('/:id/status', async (req, res) => {
         if (!complaint)
             return res.status(404).json({ success: false, error: 'ไม่พบเรื่องร้องเรียนนี้' });
 
-        const oldStatus = complaint.current_status; // ✅ เก็บสถานะเก่า
+        // เก็บสถานะเก่าไว้เพื่อเปรียบเทียบ
+        const oldStatus = complaint.current_status;
         const now = new Date();
         complaint.current_status = status;
-        
-        console.log('📝 Status change:', { 
-            complaint_id: req.params.id, 
-            old: oldStatus, 
+
+        console.log('Status change:', {
+            complaint_id: req.params.id,
+            old: oldStatus,
             new: status,
-            user_id: complaint.user_id 
-        }); // ✅ เพิ่ม log
-        
+            user_id: complaint.user_id
+        });
+
+        // บันทึกประวัติการเปลี่ยนสถานะ
         complaint.status_history.push({
             status_id: 'S' + Date.now().toString().slice(-7),
             status_name: status,
@@ -151,6 +160,7 @@ router.patch('/:id/status', async (req, res) => {
             resolution_details: resolution_details || ''
         });
 
+        // คำนวณเวลาที่ใช้ถ้าเสร็จสิ้น
         if (status === 'เสร็จสิ้น') {
             complaint.completed_date = now;
             const diff = now - complaint.datetime_reported;
@@ -160,13 +170,13 @@ router.patch('/:id/status', async (req, res) => {
         }
 
         await complaint.save();
-        console.log('✅ Status updated in DB'); // ✅ เพิ่ม log
+        console.log('Status updated in DB');
 
-        // 🔔 สร้างการแจ้งเตือนเมื่อเปลี่ยนสถานะ
+        // สร้างการแจ้งเตือนเมื่อสถานะเปลี่ยน
         if (status !== oldStatus) {
             let notifMessage = '';
             let notifType = 'status_change';
-            
+
             // กำหนดข้อความแจ้งเตือนตามสถานะ
             if (status === 'กำลังดำเนินการ') {
                 notifMessage = `เรื่องร้องเรียน "${complaint.title}" กำลังดำเนินการโดยเจ้าหน้าที่`;
@@ -180,9 +190,10 @@ router.patch('/:id/status', async (req, res) => {
             } else {
                 notifMessage = `เรื่องร้องเรียน "${complaint.title}" เปลี่ยนสถานะเป็น "${status}"`;
             }
-            
-            console.log('🔔 Creating notification:', notifMessage); // ✅ เพิ่ม log
-            
+
+            console.log('Creating notification:', notifMessage);
+
+            // บันทึกการแจ้งเตือนลง database
             await notificationController.createNotification(
                 complaint.user_id,
                 complaint.complaint_id,
@@ -196,29 +207,29 @@ router.patch('/:id/status', async (req, res) => {
                     time_used: complaint.time_used
                 }
             );
-            
-            console.log('✅ Notification created'); // ✅ เพิ่ม log
+
+            console.log('Notification created');
         }
 
         res.json({ success: true, message: 'อัปเดตสถานะสำเร็จ', data: complaint });
     } catch (err) {
-        console.error('❌ Change Status Error:', err);
-        res.status(500).json({ 
-            success: false, 
+        console.error('Change Status Error:', err);
+        res.status(500).json({
+            success: false,
             error: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ',
-            details: err.message 
+            details: err.message
         });
     }
 });
 
-// ✅ PATCH: เสร็จสิ้นงาน + อัปโหลดรูปภาพ/วิดีโอ
+// PATCH - เสร็จสิ้นงาน + อัปโหลดรูปภาพหลังแก้ไข
 router.patch('/:id/complete', (req, res, next) => {
     upload.array('resolution_images', 5)(req, res, (err) => {
         if (err) {
             console.error('Multer Error:', err);
-            return res.status(400).json({ 
-                success: false, 
-                error: err.message || 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' 
+            return res.status(400).json({
+                success: false,
+                error: err.message || 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์'
             });
         }
         next();
@@ -227,33 +238,35 @@ router.patch('/:id/complete', (req, res, next) => {
     try {
         const { resolution_note, updated_by } = req.body;
         const notificationController = require('../controllers/notificationController');
-        
-        console.log('📝 Complete request received:', {
+
+        console.log('Complete request received:', {
             id: req.params.id,
             resolution_note,
             updated_by,
             files: req.files ? req.files.length : 0
         });
 
+        // ตรวจสอบว่ามีรายละเอียดการแก้ไข
         if (!resolution_note || resolution_note.trim() === '') {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'กรุณากรอกรายละเอียดการแก้ไข' 
+            return res.status(400).json({
+                success: false,
+                error: 'กรุณากรอกรายละเอียดการแก้ไข'
             });
         }
 
         const complaint = await Complaint.findOne({ complaint_id: req.params.id });
         if (!complaint) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'ไม่พบเรื่องร้องเรียนนี้' 
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบเรื่องร้องเรียนนี้'
             });
         }
 
+        // ตรวจสอบว่าเรื่องนี้อยู่ในสถานะ "กำลังดำเนินการ" หรือไม่
         if (complaint.current_status !== 'กำลังดำเนินการ') {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'สามารถเปลี่ยนเป็นเสร็จสิ้นได้เฉพาะเรื่องที่กำลังดำเนินการเท่านั้น' 
+            return res.status(400).json({
+                success: false,
+                error: 'สามารถเปลี่ยนเป็นเสร็จสิ้นได้เฉพาะเรื่องที่กำลังดำเนินการเท่านั้น'
             });
         }
 
@@ -261,19 +274,22 @@ router.patch('/:id/complete', (req, res, next) => {
         complaint.current_status = 'เสร็จสิ้น';
         complaint.resolution_note = resolution_note.trim();
         complaint.completed_date = now;
-        
+
+        // อัพโหลดรูปภาพหลังแก้ไข (ถ้ามี)
         let resolutionAttachments = [];
         if (req.files && Array.isArray(req.files) && req.files.length > 0) {
             resolutionAttachments = req.files.map(file => `/uploads/${file.filename}`);
-            console.log('✅ Files uploaded:', resolutionAttachments);
+            console.log('Files uploaded:', resolutionAttachments);
         }
         complaint.resolution_attachments = resolutionAttachments;
-        
+
+        // คำนวณเวลาที่ใช้ในการแก้ไข
         const diff = now - complaint.datetime_reported;
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         complaint.time_used = `${days} วัน ${hours} ชั่วโมง`;
 
+        // บันทึกประวัติการเปลี่ยนสถานะ
         complaint.status_history.push({
             status_id: 'S' + Date.now().toString().slice(-7),
             status_name: 'เสร็จสิ้น',
@@ -283,7 +299,7 @@ router.patch('/:id/complete', (req, res, next) => {
 
         await complaint.save();
 
-        // 🔔 สร้างการแจ้งเตือน
+        // สร้างการแจ้งเตือน
         await notificationController.createNotification(
             complaint.user_id,
             complaint.complaint_id,
@@ -295,20 +311,20 @@ router.patch('/:id/complete', (req, res, next) => {
                 time_used: complaint.time_used
             }
         );
-        
-        console.log('✅ Complaint completed successfully');
-        
-        res.json({ 
-            success: true, 
-            message: 'เปลี่ยนสถานะเป็นเสร็จสิ้นสำเร็จ', 
-            data: complaint 
+
+        console.log('Complaint completed successfully');
+
+        res.json({
+            success: true,
+            message: 'เปลี่ยนสถานะเป็นเสร็จสิ้นสำเร็จ',
+            data: complaint
         });
     } catch (err) {
-        console.error('❌ Complete Task Error:', err);
-        res.status(500).json({ 
-            success: false, 
+        console.error('Complete Task Error:', err);
+        res.status(500).json({
+            success: false,
             error: 'เกิดข้อผิดพลาดในการอัปเดตสถานะ',
-            details: err.message 
+            details: err.message
         });
     }
 });
