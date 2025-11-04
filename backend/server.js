@@ -1,142 +1,206 @@
 // backend/server.js
-// ไฟล์หลักของ Backend Server
+// ไฟล์หลักของ Backend Application สำหรับระบบรับเรื่องร้องเรียน
+
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
 const mongoose = require('mongoose');
-require('dotenv').config();
+const { Server } = require('socket.io');
+const path = require('path');
+const dotenv = require('dotenv');
 
-// สร้าง Express app
-const app = express();
+// โหลด environment variables จากไฟล์ .env
+dotenv.config();
 
-// ================================
-// Middleware Configuration
-// ================================
-
-// CORS - อนุญาตให้ Frontend เรียกใช้ API
-app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true
-}));
-
-// Body Parser - แปลง JSON และ URL-encoded data
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Static Files - สำหรับเสิร์ฟไฟล์รูปภาพที่อัพโหลด
-app.use('/uploads', express.static('uploads'));
-
-// ================================
-// Database Connection
-// ================================
-
-const connectDB = async () => {
-    try {
-        // ใช้ MONGODB_URI จาก environment variable
-        const dbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/MyUSafe_db';
-        
-        await mongoose.connect(dbUri);
-        
-        console.log('✅ เชื่อมต่อ MongoDB สำเร็จ:', dbUri);
-    } catch (error) {
-        console.error('❌ เชื่อมต่อ MongoDB ล้มเหลว:', error.message);
-        // ไม่ exit ในโหมด test
-        if (process.env.NODE_ENV !== 'test') {
-            process.exit(1);
-        }
-    }
-};
-
-// เชื่อมต่อ database (ยกเว้นถ้าอยู่ในโหมด test จะให้ test suite เป็นคนจัดการ)
-if (process.env.NODE_ENV !== 'test') {
-    connectDB();
-}
-
-// ================================
-// Routes Registration
-// ================================
-
-// Import routes (ไฟล์อยู่ในโฟลเดอร์เดียวกัน)
+// Import Routes ทั้งหมด
 const authRoutes = require('./src/routes/authRoutes');
-const homeRoutes = require('./src/routes/homeRoutes');
+const complaintRoutes = require('./src/routes/homeRoutes');
 const locationRoutes = require('./src/routes/locationRoutes');
 const categoryRoutes = require('./src/routes/categoryRoutes');
+const uploadRoutes = require('./src/routes/uploadRoutes');
 const commentRoutes = require('./src/routes/commentRoutes');
 const assignmentRoutes = require('./src/routes/assignmentRoutes');
-const notificationRoutes = require('./src/routes/notificationRoutes');
 const profileRoutes = require('./src/routes/profileRoutes');
-const uploadRoutes = require('./src/routes/uploadRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
 
-// Register routes
-app.use('/api/auth', authRoutes);              // Authentication routes
-app.use('/api/complaints', homeRoutes);        // Complaints routes
-app.use('/api/locations', locationRoutes);     // Locations routes
-app.use('/api/categories', categoryRoutes);    // Categories routes
-app.use('/api/comments', commentRoutes);       // Comments routes
-app.use('/api/assignments', assignmentRoutes); // Assignments routes
-app.use('/api/notifications', notificationRoutes); // Notifications routes
-app.use('/api/profile', profileRoutes);        // Profile routes
-app.use('/api/upload', uploadRoutes);          // Upload routes
+// Import Models
+const Complaint = require('./src/models/homeModel');
 
-// ================================
-// Health Check Endpoint
-// ================================
+// สร้าง Express app และ HTTP server
+const app = express();
+const server = http.createServer(app);
 
-app.get('/', (req, res) => {
-    res.json({
-        success: true,
-        message: 'MyUSafe Backend API',
-        version: '1.0.0',
-        status: 'running'
-    });
+// ตั้งค่า Socket.IO สำหรับ real-time communication
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  },
 });
 
-app.get('/api/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Server is healthy',
-        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-        timestamp: new Date().toISOString()
-    });
-});
+// ทำให้ io เป็น global variable เพื่อใช้งานในไฟล์อื่นๆ
+global.io = io;
 
-// ================================
-// Error Handling Middleware
-// ================================
-
-// 404 Handler - จัดการ routes ที่ไม่พบ
-app.use((req, res, next) => {
-    res.status(404).json({
-        success: false,
-        error: 'Route not found',
-        path: req.path
-    });
-});
-
-// Global Error Handler - จัดการ errors ทั้งหมด
-app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    
-    res.status(err.status || 500).json({
-        success: false,
-        error: err.message || 'Internal Server Error',
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-});
-
-// ================================
-// Server Start
-// ================================
-
-// เริ่มต้น server เฉพาะเมื่อไม่ได้อยู่ในโหมด test
-if (process.env.NODE_ENV !== 'test') {
-    const PORT = process.env.PORT || 5000;
-    
-    app.listen(PORT, () => {
-        console.log(`🚀 Server กำลังทำงานที่ port ${PORT}`);
-        console.log(`📍 URL: http://localhost:${PORT}`);
-        console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
+// ================= เชื่อมต่อ MongoDB ==================
+if (process.env.NODE_ENV !== 'test' && mongoose.connection.readyState === 0) {
+  mongoose
+    .connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    })
+    .then(() => console.log('Connected to MongoDB successfully'))
+    .catch((err) => console.error('MongoDB connection error:', err));
 }
 
-// Export app สำหรับใช้ใน testing
+// ================= Middleware Configuration ===================
+
+// ตั้งค่า CORS
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// ตั้งค่า Express middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ตั้งค่า Static files สำหรับรูปภาพและไฟล์ต่างๆ
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/profile', express.static(path.join(__dirname, 'profile')));
+
+// Request Logger - บันทึก log ทุกครั้งที่มี request เข้ามา
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+// ================= API Routes ===================
+app.use('/auth', authRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ================= Socket.IO Configuration ===================
+// เก็บรายการ socket ที่เคยดูเรื่องร้องเรียนแล้ว เพื่อไม่ให้นับซ้ำ
+const viewedMap = new Map();
+
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  // ให้ user เข้าร่วม room ส่วนตัวของตัวเองสำหรับรับ notification
+  socket.on('join', (userId) => {
+    socket.join(userId);
+    console.log(`User ${userId} joined room`);
+  });
+
+  // เมื่อมีการดูเรื่องร้องเรียน ให้เพิ่ม view count
+  socket.on('view_complaint', async (complaintId) => {
+    if (!complaintId) return;
+
+    // ตรวจสอบว่า socket นี้เคยดูเรื่องนี้แล้วหรือยัง
+    const key = `${socket.id}_${complaintId}`;
+    if (viewedMap.has(key)) return;
+
+    // บันทึกว่าดูแล้ว
+    viewedMap.set(key, true);
+
+    try {
+      const complaint = await Complaint.findOne({ complaint_id: complaintId });
+      if (!complaint) return;
+
+      // เพิ่ม view count
+      complaint.views = (complaint.views || 0) + 1;
+      await complaint.save();
+
+      // แจ้ง client ทุกคนว่า view count เปลี่ยน
+      io.emit('update_views', { id: complaintId, views: complaint.views });
+    } catch (error) {
+      console.error('Socket view_complaint error:', error);
+    }
+  });
+
+  // เมื่อ socket disconnect ให้ลบข้อมูลการดูออกจาก Map
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+    for (const key of viewedMap.keys()) {
+      if (key.startsWith(socket.id)) viewedMap.delete(key);
+    }
+  });
+});
+
+// ================= Error Handling ===================
+
+// 404 Handler - จัดการเมื่อไม่พบ route ที่ต้องการ
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    path: req.url
+  });
+});
+
+// Global Error Handler - จัดการ error ทั้งหมด
+app.use((err, req, res, next) => {
+  console.error('Global Error Handler:');
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+
+  // จัดการ Multer Error (การอัพโหลดไฟล์)
+  if (err.name === 'MulterError') {
+    return res.status(400).json({
+      success: false,
+      error: `Upload Error: ${err.message}`
+    });
+  }
+
+  // จัดการ Validation Error (การตรวจสอบข้อมูล)
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation Error',
+      details: Object.values(err.errors).map(e => e.message)
+    });
+  }
+
+  // จัดการ Error อื่นๆ
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.message || 'Internal Server Error',
+  });
+});
+
+// ================= เริ่มต้น Server ===================
+const PORT = process.env.PORT || 5000;
+
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Uploads directory: ${path.join(__dirname, 'uploads')}`);
+  });
+}
+
+// Graceful shutdown - ปิด server อย่างเป็นระเบียบ
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      process.exit(0);
+    });
+  });
+});
+
 module.exports = app;
