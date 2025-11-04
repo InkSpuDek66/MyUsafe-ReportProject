@@ -1,16 +1,15 @@
-// backend/src/controllers/profileController.js
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const User = require('../models/userModel'); // ✅ ใช้ MongoDB User model
+const https = require('https');
+const http = require('http');
+const User = require('../models/userModel');
 
-// สร้างโฟลเดอร์ profile ถ้ายังไม่มี
 const profileDir = path.join(__dirname, '../../profile');
 if (!fs.existsSync(profileDir)) {
     fs.mkdirSync(profileDir, { recursive: true });
 }
 
-// กำหนดที่เก็บไฟล์โปรไฟล์
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, profileDir);
@@ -21,7 +20,6 @@ const storage = multer.diskStorage({
     }
 });
 
-// ตรวจสอบประเภทไฟล์
 const fileFilter = (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -34,19 +32,68 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// สร้าง upload middleware สำหรับโปรไฟล์
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: fileFilter
 });
 
 exports.uploadMiddleware = upload.single('profileImage');
 
-// ดึงข้อมูลโปรไฟล์
+// ✅ ฟังก์ชันสำหรับดาวน์โหลดรูป OAuth (Helper function)
+const downloadOAuthImageFile = (imageUrl) => {
+    return new Promise((resolve, reject) => {
+        try {
+            const fileName = `profile-oauth-${Date.now()}.jpg`;
+            const filePath = path.join(profileDir, fileName);
+            const file = fs.createWriteStream(filePath);
+
+            console.log('📥 Downloading OAuth image from:', imageUrl);
+
+            const protocol = imageUrl.startsWith('https') ? https : http;
+
+            protocol.get(imageUrl, (response) => {
+                console.log('📡 Response Status:', response.statusCode);
+
+                if (response.statusCode === 301 || response.statusCode === 302) {
+                    console.log('🔄 Redirecting to:', response.headers.location);
+                    return downloadOAuthImageFile(response.headers.location)
+                        .then(resolve)
+                        .catch(reject);
+                }
+
+                if (response.statusCode !== 200) {
+                    reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+                    return;
+                }
+
+                response.pipe(file);
+
+                file.on('finish', () => {
+                    file.close();
+                    const localUrl = `/profile/${fileName}`;
+                    console.log('✅ OAuth image downloaded successfully:', localUrl);
+                    resolve(localUrl);
+                });
+
+                file.on('error', (err) => {
+                    fs.unlink(filePath, () => {});
+                    reject(err);
+                });
+            }).on('error', (err) => {
+                fs.unlink(filePath, () => {});
+                reject(err);
+            });
+        } catch (err) {
+            console.error('❌ Download error:', err);
+            reject(err);
+        }
+    });
+};
+
 exports.getProfile = async (req, res) => {
     try {
-        const userId = req.user._id; // ✅ MongoDB ใช้ _id
+        const userId = req.user._id;
         
         const user = await User.findById(userId).select('-password');
 
@@ -57,7 +104,6 @@ exports.getProfile = async (req, res) => {
             });
         }
 
-        // แปลงข้อมูลให้ตรงกับที่ frontend ต้องการ
         const profileData = {
             id: user._id,
             name: user.name,
@@ -82,7 +128,6 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-// อัปเดตรูปโปรไฟล์
 exports.updateProfileImage = async (req, res) => {
     try {
         if (!req.file) {
@@ -95,25 +140,23 @@ exports.updateProfileImage = async (req, res) => {
         const userId = req.user._id;
         const newImageUrl = `/profile/${req.file.filename}`;
 
-        // ดึงรูปเก่า
         const user = await User.findById(userId);
         const oldImageUrl = user.profile_image;
 
-        // อัปเดตรูปใหม่
-        user.profile_image = newImageUrl;
-        await user.save();
-
-        // ลบรูปเก่า (ถ้ามี)
-        if (oldImageUrl) {
+        if (oldImageUrl && oldImageUrl.startsWith('/profile/')) {
             const oldImagePath = path.join(profileDir, path.basename(oldImageUrl));
             if (fs.existsSync(oldImagePath)) {
                 try {
                     fs.unlinkSync(oldImagePath);
+                    console.log('🗑️ ลบรูปเก่า:', oldImageUrl);
                 } catch (err) {
                     console.warn('Could not delete old image:', err.message);
                 }
             }
         }
+
+        user.profile_image = newImageUrl;
+        await user.save();
 
         res.json({
             success: true,
@@ -122,7 +165,6 @@ exports.updateProfileImage = async (req, res) => {
         });
 
     } catch (err) {
-        // ลบไฟล์ที่อัปโหลดถ้าเกิดข้อผิดพลาด
         if (req.file) {
             const filePath = path.join(profileDir, req.file.filename);
             if (fs.existsSync(filePath)) {
@@ -142,19 +184,25 @@ exports.updateProfileImage = async (req, res) => {
     }
 };
 
-// อัปเดตข้อมูลโปรไฟล์
-// backend/src/controllers/profileController.js
-
-// ในส่วน updateProfile ให้เหลือแค่นี้:
 exports.updateProfile = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { name, phone } = req.body; // ✅ เอา student_id ออก
+        const { name, phone, profile_image } = req.body;
 
         const updateData = {};
 
         if (name) updateData.name = name;
         if (phone) updateData.phone = phone;
+
+        if (profile_image && (profile_image.startsWith('http://') || profile_image.startsWith('https://'))) {
+            try {
+                console.log('📥 Downloading OAuth profile image...');
+                const localImageUrl = await downloadOAuthImageFile(profile_image);
+                updateData.profile_image = localImageUrl;
+            } catch (err) {
+                console.warn('⚠️ Failed to download OAuth image:', err.message);
+            }
+        }
 
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({
@@ -184,15 +232,11 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
-// เพิ่มฟังก์ชันนี้ใน backend/src/controllers/profileController.js
-
-// อัปเดตรหัสผ่าน
 exports.updatePassword = async (req, res) => {
     try {
         const userId = req.user._id;
         const { currentPassword, newPassword } = req.body;
 
-        // Validation
         if (!currentPassword || !newPassword) {
             return res.status(400).json({
                 success: false,
@@ -207,7 +251,6 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-        // ดึงข้อมูลผู้ใช้พร้อมรหัสผ่าน
         const user = await User.findById(userId).select('+password');
 
         if (!user) {
@@ -217,7 +260,6 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-        // ตรวจสอบรหัสผ่านปัจจุบัน
         const isPasswordCorrect = await user.comparePassword(currentPassword);
         
         if (!isPasswordCorrect) {
@@ -227,7 +269,6 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-        // ตรวจสอบว่ารหัสผ่านใหม่ซ้ำกับรหัสผ่านเดิมหรือไม่
         const isSamePassword = await user.comparePassword(newPassword);
         
         if (isSamePassword) {
@@ -237,7 +278,6 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-        // อัปเดตรหัสผ่าน
         user.password = newPassword;
         await user.save();
 
@@ -254,3 +294,51 @@ exports.updatePassword = async (req, res) => {
         });
     }
 };
+
+// ✅ ดาวน์โหลดรูป OAuth (API endpoint)
+exports.downloadOAuthImage = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { imageUrl } = req.body;
+
+        if (!imageUrl) {
+            return res.status(400).json({
+                success: false,
+                error: 'ไม่พบ imageUrl'
+            });
+        }
+
+        if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+            return res.status(400).json({
+                success: false,
+                error: 'URL ไม่ถูกต้อง'
+            });
+        }
+
+        console.log('📥 Downloading OAuth image:', imageUrl);
+
+        const localImagePath = await downloadOAuthImageFile(imageUrl);
+
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { profile_image: localImagePath },
+            { new: true }
+        ).select('-password');
+
+        res.json({
+            success: true,
+            message: 'ดาวน์โหลดรูป OAuth สำเร็จ',
+            data: {
+                profile_image: localImagePath
+            }
+        });
+
+    } catch (err) {
+        console.error('Download OAuth Image Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการดาวน์โหลดรูป'
+        });
+    }
+};
+exports.downloadOAuthImage

@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import { Routes, Route, useLocation } from "react-router-dom";
 import './App.css'
 
@@ -8,6 +7,7 @@ import Navbar from './components/common/Navbar/Navbar'
 // Auth Components
 import LoginForm from './components/LoginForm/LoginForm'
 import SignUpForm from './components/LoginForm/SignUpForm'
+import AuthSuccess from './pages/AuthSuccess'; // ✅ เพิ่มบรรทัดนี้
 
 // Pages
 import Home from './pages/Home/Home'
@@ -24,38 +24,40 @@ import CategoryManagement from './pages/admin/CategoryManagement';
 
 function App() {
   const location = useLocation();
-  
-  const hideNavbarAndButtons = ['/login', '/signup'].includes(location.pathname);
+
+  // ✅ เพิ่ม '/auth-success' เข้าไปในรายการ
+  const hideNavbarAndButtons = ['/login', '/signup', '/auth-success'].includes(location.pathname);
 
   return (
     <>
       {!hideNavbarAndButtons && <Navbar />}
-      
-<Routes>
-  {/* หน้าหลัก */}
-  <Route path="/" element={<Home />} />
-  
-  {/* หน้า Auth */}
-  <Route path="/login" element={<LoginForm />} />
-  <Route path="/signup" element={<SignUpForm />} />
-  <Route path="/profile" element={<Profile />} />
 
-  {/* หน้าเรื่องร้องเรียน */}
-  <Route path="/complaints/new" element={<CreateComplaint />} />
-  <Route path="/my-complaints" element={<MyComplaints />} />
-  <Route path="/complaint/:id" element={<ComplaintDetail />} />
-  <Route path="/assignment/:id" element={<AssignmentDetail />} />
-  
-  {/* หน้า Admin */}
-  <Route path="/admin/reports" element={<Reports />} />
-  <Route path="/admin/staff-performance" element={<StaffPerformanceReports />} />
-  <Route path="/admin/complaint-list" element={<ComplaintsListManagement />} />
-  <Route path="/admin/assignments" element={<Assignments />} />
-  <Route path="/admin/categories" element={<CategoryManagement />} /> {/* ⬅️ เพิ่มบรรทัดนี้ */}
-  
-  {/* หน้า Staff */}
-  <Route path="/assignments" element={<Assignments />} />
-</Routes>
+      <Routes>
+        {/* หน้าหลัก */}
+        <Route path="/" element={<Home />} />
+
+        {/* หน้า Auth */}
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/signup" element={<SignUpForm />} />
+        <Route path="/auth-success" element={<AuthSuccess />} /> {/* ✅ เพิ่มเส้นทางนี้ */}
+        <Route path="/profile" element={<Profile />} />
+
+        {/* หน้าเรื่องร้องเรียน */}
+        <Route path="/complaints/new" element={<CreateComplaint />} />
+        <Route path="/my-complaints" element={<MyComplaints />} />
+        <Route path="/complaint/:id" element={<ComplaintDetail />} />
+        <Route path="/assignment/:id" element={<AssignmentDetail />} />
+
+        {/* หน้า Admin */}
+        <Route path="/admin/reports" element={<Reports />} />
+        <Route path="/admin/staff-performance" element={<StaffPerformanceReports />} />
+        <Route path="/admin/complaint-list" element={<ComplaintsListManagement />} />
+        <Route path="/admin/assignments" element={<Assignments />} />
+        <Route path="/admin/categories" element={<CategoryManagement />} /> {/* ⬅️ เพิ่มบรรทัดนี้ */}
+
+        {/* หน้า Staff */}
+        <Route path="/assignments" element={<Assignments />} />
+      </Routes>
     </>
   );
 }

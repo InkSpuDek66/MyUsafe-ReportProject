@@ -1,3 +1,8 @@
+// ============================================
+// FILE: backend/server.js
+// (แก้ไขเพิ่มเติม - COPY ทั้งหมด)
+// ============================================
+
 // backend/server.js
 // ไฟล์หลักของ Backend Application สำหรับระบบรับเรื่องร้องเรียน
 
@@ -8,9 +13,15 @@ const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
+const bcrypt = require('bcryptjs');
+const session = require('express-session');
+const passport = require('passport');
+const cookieParser = require('cookie-parser');
+const oauthRoutes = require('./src/routes/oauth');
 
 // โหลด environment variables จากไฟล์ .env
 dotenv.config();
+require('./src/config/passport'); // Load Passport Strategies
 
 // Import Routes ทั้งหมด
 const authRoutes = require('./src/routes/authRoutes');
@@ -25,6 +36,10 @@ const notificationRoutes = require('./src/routes/notificationRoutes');
 
 // Import Models
 const Complaint = require('./src/models/homeModel');
+const { Server } = require('socket.io');
+
+// ✅ Import Routes & Models
+const authRoutes = require('./src/routes/auth'); 
 
 // สร้าง Express app และ HTTP server
 const app = express();
@@ -44,12 +59,11 @@ global.io = io;
 // ================= เชื่อมต่อ MongoDB ==================
 if (process.env.NODE_ENV !== 'test' && mongoose.connection.readyState === 0) {
   mongoose
-    .connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    })
-    .then(() => console.log('Connected to MongoDB successfully'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,})
+    .then(() => console.log('🟢 Connected to MongoDB'))
+    .catch((err) => console.error('🔴 MongoDB connection error:', err));
 }
 
 // ================= Middleware Configuration ===================
@@ -66,18 +80,39 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ตั้งค่า Static files สำหรับรูปภาพและไฟล์ต่างๆ
+// ✅ เพิ่ม 4 บรรทัดนี้ (MISSING)
+app.use(cookieParser());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'default-secret-key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { 
+    secure: false,
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24
+  }
+}));
+
+// ✅ เพิ่ม 2 บรรทัดนี้ (MISSING)
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/profile', express.static(path.join(__dirname, 'profile')));
 
-// Request Logger - บันทึก log ทุกครั้งที่มี request เข้ามา
+// Request Logger
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
-// ================= API Routes ===================
-app.use('/auth', authRoutes);
+// ================= Routes ===================
+
+// ✅ เพิ่มบรรทัดนี้ FIRST (MISSING)
+app.use('/', oauthRoutes);
+
+app.use('/auth', authRoutes); 
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/categories', categoryRoutes);

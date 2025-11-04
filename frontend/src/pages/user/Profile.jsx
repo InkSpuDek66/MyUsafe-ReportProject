@@ -33,32 +33,58 @@ export default function Profile() {
         fetchProfile();
     }, []);
 
-    const fetchProfile = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/profile`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+   const fetchProfile = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_URL}/profile`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
-            if (response.data.success) {
-                const userData = response.data.data;
-                setProfile(userData);
+        if (response.data.success) {
+            const userData = response.data.data;
+            setProfile(userData);
 
-                const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
-                setFormData({
-                    firstName: nameParts[0] || '',
-                    lastName: nameParts.slice(1).join(' ') || '',
-                    phone: userData.phone || ''
-                });
+            // ✅ ถ้าเป็น OAuth URL ให้ดาวน์โหลดที่ Backend
+            if (userData.profile_image && 
+                (userData.profile_image.startsWith('http://') || userData.profile_image.startsWith('https://'))) {
+                
+                console.log('📥 Detected OAuth image, downloading to server...');
+                
+                try {
+                    const downloadRes = await axios.post(
+                        `${API_URL}/profile/download-oauth-image`,
+                        { imageUrl: userData.profile_image },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+
+                    if (downloadRes.data.success) {
+                        console.log('✅ OAuth image downloaded successfully');
+                        // อัปเดต state ด้วย local path
+                        setProfile(prev => ({
+                            ...prev,
+                            profile_image: downloadRes.data.data.profile_image
+                        }));
+                    }
+                } catch (err) {
+                    console.warn('⚠️ Failed to download OAuth image:', err);
+                    // ยังใช้ OAuth URL ได้ ถึงแม้ดาวน์โหลดไม่ได้
+                }
             }
-        } catch (err) {
-            console.error('Error fetching profile:', err);
-            setError('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
-        } finally {
-            setLoading(false);
-        }
-    };
 
+            const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
+            setFormData({
+                firstName: nameParts[0] || '',
+                lastName: nameParts.slice(1).join(' ') || '',
+                phone: userData.phone || ''
+            });
+        }
+    } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
+    } finally {
+        setLoading(false);
+    }
+};
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -214,6 +240,36 @@ export default function Profile() {
         }));
     };
 
+    // ✅ ฟังก์ชันสำหรับสร้าง Profile Image URL
+    // ✅ แทนที่ฟังก์ชันนี้ใน Profile.jsx (line ~190-200)
+
+const getProfileImageUrl = () => {
+    if (!profile?.profile_image) {
+        console.log('⚠️ No profile_image');
+        return null;
+    }
+
+    const imageUrl = profile.profile_image;
+    console.log('🖼️ Raw profile_image:', imageUrl);
+
+    // ✅ ถ้าเป็น URL เต็ม (OAuth หรือ http/https)
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        console.log('✅ Using OAuth/HTTP URL directly:', imageUrl);
+        return imageUrl;
+    }
+
+    // ✅ ถ้าเป็น path ของเซิร์ฟเวอร์ (เช่น /profile/...)
+    if (imageUrl.startsWith('/')) {
+        const fullUrl = `http://localhost:5000${imageUrl}`;
+        console.log('✅ Server path detected, full URL:', fullUrl);
+        return fullUrl;
+    }
+
+    // ✅ Fallback
+    const fallbackUrl = `http://localhost:5000/profile/${imageUrl}`;
+    console.log('⚠️ Using fallback URL:', fallbackUrl);
+    return fallbackUrl;
+};
     if (loading) {
         return (
             <div className="min-h-screen bg-base-200 flex items-center justify-center">
@@ -253,11 +309,16 @@ export default function Profile() {
                         <div className="flex flex-col items-center">
                             <div className="relative">
                                 <div className="w-32 h-32 rounded-full border-4 border-base-100 shadow-lg overflow-hidden bg-base-300">
-                                    {profile?.profile_image ? (
+                                    {/* ✅ แสดงรูปจาก OAuth หรือเซิร์ฟเวอร์ */}
+                                    {getProfileImageUrl() ? (
                                         <img
-                                            src={`${API_URL.replace('/api', '')}${profile.profile_image}`}
+                                            src={getProfileImageUrl()}
                                             alt="Profile"
                                             className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                console.error('Error loading image:', e);
+                                                e.target.style.display = 'none';
+                                            }}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-base-300">

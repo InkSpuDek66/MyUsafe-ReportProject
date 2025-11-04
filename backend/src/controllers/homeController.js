@@ -160,6 +160,7 @@ exports.createComplaint = async (req, res) => {
       });
     }
 
+    // Parse categories
     let categoriesArray = [];
     if (categories) {
       try {
@@ -288,6 +289,15 @@ exports.createComplaint = async (req, res) => {
       console.error("❌ Full error:", notifError.message);
     }
 
+    // ✅ สร้างแจ้งเตือนเมื่อผู้ใช้ส่งเรื่องร้องเรียนใหม่
+    try {
+      await notifyComplaintSubmitted(user_id, newComplaint);
+      console.log('✅ Notification sent for complaint submitted');
+    } catch (notifyErr) {
+      console.error('⚠️ Error sending notification:', notifyErr.message);
+      // ไม่หยุดการสร้าง complaint แม้ notification ล้มเหลว
+    }
+
     res.status(201).json({
       success: true,
       message: "สร้างเรื่องร้องเรียนสำเร็จ",
@@ -306,7 +316,7 @@ exports.createComplaint = async (req, res) => {
 // PUT: แก้ไขเรื่องร้องเรียน (อัปเดตสถานะ + บันทึกผู้เปลี่ยน)
 exports.updateComplaint = async (req, res) => {
   try {
-    const { status, action, set, priority, updated_by } = req.body;
+    const { status, action, set, priority, updated_by, assigned_to } = req.body;
 
     const complaint = await Complaint.findOne({
       complaint_id: req.params.id,
@@ -353,7 +363,6 @@ exports.updateComplaint = async (req, res) => {
 
       if (status === "เสร็จสิ้น") {
         complaint.completed_date = now;
-
         const timeDiff = now - complaint.datetime_reported;
         const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
         const hours = Math.floor(
