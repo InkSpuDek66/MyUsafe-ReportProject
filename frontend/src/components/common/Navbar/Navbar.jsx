@@ -324,7 +324,7 @@ const handleNotificationClick = (notification) => {
     email: "user@example.com",
     imageUrl: profileImage 
       ? `${API_URL.replace('/api', '')}${profileImage}`
-      : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+      : "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
   };
 
   const NotificationButton = () => (
