@@ -295,17 +295,18 @@ const handleNotificationClick = (notification) => {
   };
 
   const navigation = [
-    { name: "Dashboard", href: "/" },
-    ...(role === 'admin' ? [
-      { name: "Admin Reports", href: "/admin/reports" },
-      { name: "Staff Performance", href: "/admin/staff-performance" },
-      { name: "Complaint List", href: "/admin/complaint-list" }
-    ] : []),
-    ...(role === 'admin' || role === 'staff' ? [
-      { name: "Assignments", href: "/admin/assignments" }
-    ] : []),
-    { name: "Reports", href: "/complaints/new" },
-  ];
+  { name: "Dashboard", href: "/" },
+  ...(role === 'admin' ? [
+    { name: "Admin Reports", href: "/admin/reports" },
+    { name: "Staff Performance", href: "/admin/staff-performance" },
+    { name: "Complaint List", href: "/admin/complaint-list" },
+    { name: "Categories", href: "/admin/categories" }  // ⬅️ เพิ่มบรรทัดนี้
+  ] : []),
+  ...(role === 'admin' || role === 'staff' ? [
+    { name: "Assignments", href: "/admin/assignments" }
+  ] : []),
+  { name: "Reports", href: "/complaints/new" },
+];
 
   const canSeeWork = role === 'admin' || role === 'staff';
   const baseItems = [

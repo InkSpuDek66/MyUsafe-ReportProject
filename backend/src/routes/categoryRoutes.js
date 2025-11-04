@@ -7,13 +7,19 @@ const categoryController = require('../controllers/categoryController');
 // GET: ดึงรายการหมวดหมู่ทั้งหมด
 router.get('/', categoryController.getCategories);
 
-// POST: สร้างหมวดหมู่ใหม่
+// GET: ดึงหมวดหมู่ตาม ID
+router.get('/:id', categoryController.getCategoryById);
+
+// POST: เพิ่มหมวดหมู่ใหม่
 router.post('/', categoryController.createCategory);
 
-// PUT: อัพเดทหมวดหมู่
+// PUT: แก้ไขหมวดหมู่ ✅ เพิ่มใหม่
 router.put('/:id', categoryController.updateCategory);
 
-// DELETE: ลบหมวดหมู่
+// DELETE: ลบหมวดหมู่ ✅ เพิ่มใหม่
 router.delete('/:id', categoryController.deleteCategory);
+
+// PATCH: เปลี่ยนสถานะการใช้งาน (ถ้าต้องการใช้ในอนาคต)
+router.patch('/:id/toggle', categoryController.toggleCategoryStatus);
 
 module.exports = router;
