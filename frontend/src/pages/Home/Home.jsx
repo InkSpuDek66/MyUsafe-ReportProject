@@ -23,6 +23,7 @@ const getUserId = () => {
 
 export default function Home() {
     const [complaints, setComplaints] = useState([]);
+    const [categories, setCategories] = useState([]); // ✅ เปลี่ยนจาก hardcode เป็น state
     const [filterStatus, setFilterStatus] = useState("ทั้งหมด");
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [showCategoryMenu, setShowCategoryMenu] = useState(false);
@@ -34,17 +35,18 @@ export default function Home() {
     const navigate = useNavigate();
     const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-    // หมวดหมู่ (ลบ emoji ออกแล้ว)
-    const categories = [
-        { id: "flood", name: "น้ำท่วม" },
-        { id: "electrical", name: "ไฟฟ้า" },
-        { id: "computer", name: "คอมพิวเตอร์/เว็บไซต์" },
-        { id: "plumbing", name: "ประปา/ท่อน้ำ" },
-        { id: "facilities", name: "สิ่งอำนวยความสะดวก" },
-        { id: "cleanliness", name: "ความสะอาด" },
-        { id: "safety", name: "ความปลอดภัย" },
-        { id: "other", name: "อื่นๆ" },
-    ];
+    // ✅ เพิ่มฟังก์ชันโหลด categories จาก DB
+    const loadCategories = async () => {
+        try {
+            const res = await fetch(`${API}/api/categories`);
+            const json = await res.json();
+            if (json.success) {
+                setCategories(json.data);
+            }
+        } catch (e) {
+            console.error('Error loading categories:', e);
+        }
+    };
 
     // โหลดข้อมูลเรื่องร้องเรียน
     const load = async () => {
@@ -64,12 +66,13 @@ export default function Home() {
 
     useEffect(() => {
         load();
+        loadCategories(); // ✅ เพิ่มการโหลด categories
     }, []);
 
-    // เปิด/ปิดหมวดหมู่
-    const toggleCategory = (id) => {
+    // ✅ แก้ไข toggleCategory ให้ใช้ name แทน id
+    const toggleCategory = (name) => {
         setSelectedCategories((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+            prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
         );
     };
 
@@ -86,17 +89,17 @@ export default function Home() {
         return { total, counts, percentCompleted };
     }, [complaints]);
 
-    // กรองข้อมูล
+    // ✅ แก้ไขการกรองให้ใช้ name แทน id
     const filtered = useMemo(() => {
         return complaints.filter((c) => {
             // กรองตามสถานะ
             if (filterStatus !== "ทั้งหมด" && c.current_status !== filterStatus)
                 return false;
 
-            // กรองตามหมวดหมู่
+            // กรองตามหมวดหมู่ (ใช้ name)
             if (selectedCategories.length > 0) {
                 const cates = Array.isArray(c.categories) ? c.categories : [];
-                if (!selectedCategories.some((id) => cates.includes(id))) return false;
+                if (!selectedCategories.some((name) => cates.includes(name))) return false;
             }
 
             // ค้นหา
@@ -290,21 +293,26 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* Category Menu */}
+            {/* Category Menu - ✅ ใช้ข้อมูลจาก DB */}
             {showCategoryMenu && (
                 <div className="flex flex-wrap justify-center gap-3 mb-6 bg-white border border-green-200 rounded-2xl p-4 shadow-md">
-                    {categories.map((cat) => (
-                        <button
-                            key={cat.id}
-                            onClick={() => toggleCategory(cat.id)}
-                            className={`px-4 py-2 rounded-full border transition-all ${selectedCategories.includes(cat.id)
-                                    ? "bg-[#55C388] text-white border-[#55C388]"
-                                    : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
-                                }`}
-                        >
-                            {cat.name}
-                        </button>
-                    ))}
+                    {categories.length > 0 ? (
+                        categories.map((cat) => (
+                            <button
+                                key={cat._id}
+                                onClick={() => toggleCategory(cat.name)}
+                                className={`px-4 py-2 rounded-full border transition-all flex items-center gap-2 ${selectedCategories.includes(cat.name)
+                                        ? "bg-[#55C388] text-white border-[#55C388]"
+                                        : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
+                                    }`}
+                            >
+                                <span>{cat.icon || '📋'}</span>
+                                {cat.name}
+                            </button>
+                        ))
+                    ) : (
+                        <p className="text-gray-500 text-sm">กำลังโหลดหมวดหมู่...</p>
+                    )}
                 </div>
             )}
 
@@ -332,14 +340,6 @@ export default function Home() {
                         const imageUrl = imageFile
                             ? `${API}${imageFile}`
                             : "/MyUSafe_mini_none-bg_LOGO1.png";
-
-                        // Debug: แสดง URL รูปภาพใน console
-                        console.log('Home Card Image:', {
-                            complaint_id: c.complaint_id,
-                            raw_images: c.images,
-                            imageFile: imageFile,
-                            imageUrl: imageUrl
-                        });
 
                         // จัดการ categories
                         const cates = Array.isArray(c.categories)
@@ -394,17 +394,18 @@ export default function Home() {
                                         {c.description}
                                     </p>
 
-                                    {/* Category Tags */}
+                                    {/* Category Tags - ✅ แสดงพร้อมไอคอนจาก DB */}
                                     {cates.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mb-3">
-                                            {cates.map((cid, i) => {
-                                                const cat = categories.find((cat) => cat.id === cid) || { name: cid };
+                                            {cates.map((catName, i) => {
+                                                const cat = categories.find((c) => c.name === catName);
                                                 return (
                                                     <span
                                                         key={i}
-                                                        className="px-2 py-1 text-xs rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30"
+                                                        className="px-2 py-1 text-xs rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30 flex items-center gap-1"
                                                     >
-                                                        {cat.name || cid}
+                                                        {cat && <span>{cat.icon}</span>}
+                                                        <span>{catName}</span>
                                                     </span>
                                                 );
                                             })}

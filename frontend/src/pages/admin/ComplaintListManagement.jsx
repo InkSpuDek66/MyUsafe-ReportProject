@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FunnelIcon,
   ArrowPathIcon,
@@ -9,6 +10,7 @@ import {
 import * as XLSX from "xlsx";
 
 export default function ComplaintsListManagement() {
+  const navigate = useNavigate();
   const [complaints, setComplaints] = useState([]);
   const [filterStatus, setFilterStatus] = useState("ทั้งหมด");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -17,26 +19,19 @@ export default function ComplaintsListManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [staffList, setStaffList] = useState([]);
+  const [categories, setCategories] = useState([]); // ✅ เปลี่ยนจาก hardcode เป็นดึงจาก DB
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedComplaintId, setSelectedComplaintId] = useState(null);
   const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [currentAdmin, setCurrentAdmin] = useState(null); // ✅ เพิ่มข้อมูล Admin ปัจจุบัน
 
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
-  const categories = [
-    { id: "flood", name: "น้ำท่วม", icon: "💧" },
-    { id: "electrical", name: "ไฟฟ้า", icon: "⚡" },
-    { id: "computer", name: "คอมพิวเตอร์/เว็บไซต์", icon: "💻" },
-    { id: "plumbing", name: "ประปา/ท่อน้ำ", icon: "🚰" },
-    { id: "facilities", name: "สิ่งอำนวยความสะดวก", icon: "🏢" },
-    { id: "cleanliness", name: "ความสะอาด", icon: "🧹" },
-    { id: "safety", name: "ความปลอดภัย", icon: "🚨" },
-    { id: "other", name: "อื่นๆ", icon: "📝" },
-  ];
 
   useEffect(() => {
     loadData();
     loadStaffList();
+    loadCategories(); // ✅ เพิ่มการโหลด categories
+    loadCurrentAdmin(); // ✅ เพิ่มการโหลดข้อมูล admin
   }, []);
 
   const loadData = async () => {
@@ -62,9 +57,50 @@ export default function ComplaintsListManagement() {
     }
   };
 
-  const toggleCategory = (id) => {
+  // ✅ เพิ่มฟังก์ชันโหลด categories จาก DB
+  const loadCategories = async () => {
+    try {
+      const res = await fetch(`${API}/api/categories`);
+      const json = await res.json();
+      if (json.success) {
+        setCategories(json.data);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
+
+  // ✅ เพิ่มฟังก์ชันโหลดข้อมูล Admin ปัจจุบัน
+  const loadCurrentAdmin = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
+      
+      if (!token || !userId) {
+        console.error('No token or userId found');
+        return;
+      }
+
+      const res = await fetch(`${API}/api/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setCurrentAdmin(json.data);
+        console.log('Current admin loaded:', json.data);
+      }
+    } catch (err) {
+      console.error('Error fetching current admin:', err);
+    }
+  };
+
+  // ✅ แก้ไข toggleCategory ให้ใช้ name แทน id
+  const toggleCategory = (name) => {
     setSelectedCategories((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
     );
   };
 
@@ -73,9 +109,10 @@ export default function ComplaintsListManagement() {
       .filter((c) => {
         if (filterStatus !== "ทั้งหมด" && c.current_status !== filterStatus)
           return false;
+        // ✅ แก้ไขการ filter ตาม category name
         if (selectedCategories.length > 0) {
           const cates = Array.isArray(c.categories) ? c.categories : [];
-          if (!selectedCategories.some((id) => cates.includes(id))) return false;
+          if (!selectedCategories.some((name) => cates.includes(name))) return false;
         }
         if (searchQuery && searchQuery.trim() !== "") {
           const q = searchQuery.trim().toLowerCase();
@@ -110,15 +147,23 @@ export default function ComplaintsListManagement() {
     return "bg-gray-100 text-black";
   };
 
+  // ✅ แก้ไขให้ส่ง token และ userId จริง
   const handleStatusChange = async (id, newStatus) => {
     if (!confirm(`ยืนยันเปลี่ยนสถานะเป็น "${newStatus}" ?`)) return;
+    
     try {
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
+      
       const res = await fetch(`${API}/api/complaints/${id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           status: newStatus,
-          updated_by: "Admin001",
+          updated_by: userId || "system",
         }),
       });
 
@@ -134,14 +179,21 @@ export default function ComplaintsListManagement() {
     }
   };
 
+  // ✅ แก้ไขให้ส่ง token และ userId จริง
   const handlePriorityChange = async (id, newPriority) => {
     try {
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
+      
       const res = await fetch(`${API}/api/complaints/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           priority: newPriority,
-          updated_by: "Admin001",
+          updated_by: userId || "system",
         }),
       });
 
@@ -157,21 +209,40 @@ export default function ComplaintsListManagement() {
     }
   };
 
+  // ✅ แก้ไขให้บันทึก admin ID จริง
   const handleAssign = async () => {
     if (!selectedStaffId) {
       alert('กรุณาเลือกเจ้าหน้าที่');
       return;
     }
 
+    if (!currentAdmin || !currentAdmin._id) {
+      alert('ไม่พบข้อมูล Admin กรุณาเข้าสู่ระบบใหม่');
+      return;
+    }
+
     try {
+      const token = localStorage.getItem('token');
+      
+      console.log('Assigning with:', {
+        complaint_id: selectedComplaintId,
+        assigned_to: selectedStaffId,
+        assigned_by: currentAdmin._id
+      });
+
       const res = await fetch(`${API}/api/assignments/${selectedComplaintId}/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           assigned_to: selectedStaffId,
-          assigned_by: 'Admin001'
+          assigned_by: currentAdmin._id // ✅ ส่ง ObjectId ของ Admin จริง
         })
       });
+
+      const data = await res.json();
 
       if (res.ok) {
         await loadData();
@@ -180,12 +251,17 @@ export default function ComplaintsListManagement() {
         setSelectedStaffId('');
         alert('มอบหมายงานสำเร็จ');
       } else {
-        alert('มอบหมายงานไม่สำเร็จ');
+        console.error('Assignment failed:', data);
+        alert(data.error || 'มอบหมายงานไม่สำเร็จ');
       }
     } catch (err) {
       console.error('Error assigning:', err);
       alert('เกิดข้อผิดพลาด');
     }
+  };
+
+  const handleRowClick = (complaintId) => {
+    navigate(`/complaint/${complaintId}`);
   };
 
   const exportData = (type) => {
@@ -264,20 +340,20 @@ export default function ComplaintsListManagement() {
           </div>
         </div>
 
-        {/* Category Menu */}
+        {/* Category Menu - ✅ ใช้ข้อมูลจาก DB */}
         {showCategoryMenu && (
           <div className="flex flex-wrap justify-center gap-3 mb-6 bg-white border border-green-200 rounded-2xl p-4 shadow-md">
             {categories.map((cat) => (
               <button
-                key={cat.id}
-                onClick={() => toggleCategory(cat.id)}
+                key={cat._id}
+                onClick={() => toggleCategory(cat.name)}
                 className={`px-4 py-2 rounded-full border flex items-center gap-2 transition-all ${
-                  selectedCategories.includes(cat.id)
+                  selectedCategories.includes(cat.name)
                     ? "bg-[#55C388] text-white border-[#55C388]"
                     : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
                 }`}
               >
-                <span>{cat.icon}</span> {cat.name}
+                <span>{cat.icon || '📋'}</span> {cat.name}
               </button>
             ))}
           </div>
@@ -344,27 +420,32 @@ export default function ComplaintsListManagement() {
             <tbody>
               {currentItems.length > 0 ? (
                 currentItems.map((c) => (
-                  <tr key={c.complaint_id} className="border-b hover:bg-green-50 transition">
+                  <tr 
+                    key={c.complaint_id} 
+                    className="border-b hover:bg-green-50 transition cursor-pointer"
+                    onClick={() => handleRowClick(c.complaint_id)}
+                  >
                     <td className="px-4 py-2 align-top">{c.complaint_id}</td>
                     <td className="px-4 py-2 align-top font-medium">{c.title}</td>
 
+                    {/* ✅ แก้ไขการแสดง category ให้ใช้ข้อมูลจาก DB */}
                     <td className="px-4 py-2 align-top">
                       <div className="flex flex-wrap gap-1">
-                        {(c.categories || []).map((cat, i) => {
-                          const categoryInfo = categories.find(category => category.id === cat);
-                          const displayName = categoryInfo ? categoryInfo.name : cat;
-
+                        {(c.categories || []).map((catName, i) => {
+                          const categoryInfo = categories.find(category => category.name === catName);
+                          
                           return (
                             <span
                               key={i}
-                              className="px-2 py-1 text-xs rounded-full"
+                              className="px-2 py-1 text-xs rounded-full flex items-center gap-1"
                               style={{
                                 background: "#F0FDF4",
                                 color: "#064E3B",
                                 border: "1px solid rgba(0,0,0,0.04)",
                               }}
                             >
-                              {displayName}
+                              {categoryInfo && <span>{categoryInfo.icon}</span>}
+                              <span>{catName}</span>
                             </span>
                           );
                         })}
@@ -388,11 +469,12 @@ export default function ComplaintsListManagement() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-2 align-top">
+                    <td className="px-4 py-2 align-top" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-col gap-2">
                         {!c.assigned_to && c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedComplaintId(c.complaint_id);
                               setShowAssignModal(true);
                             }}
@@ -405,7 +487,10 @@ export default function ComplaintsListManagement() {
 
                         {c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
                           <button
-                            onClick={() => handleStatusChange(c.complaint_id, "ยกเลิก")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusChange(c.complaint_id, "ยกเลิก");
+                            }}
                             className="px-3 py-1.5 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
                           >
                             ยกเลิก
@@ -425,10 +510,13 @@ export default function ComplaintsListManagement() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-2 align-top">
+                    <td className="px-4 py-2 align-top" onClick={(e) => e.stopPropagation()}>
                       <select
                         value={c.priority || "low"}
-                        onChange={(e) => handlePriorityChange(c.complaint_id, e.target.value)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handlePriorityChange(c.complaint_id, e.target.value);
+                        }}
                         className="border border-green-200 rounded-lg px-2 py-1 text-sm text-[#55C388] focus:outline-none focus:ring-2 focus:ring-[#55C388]"
                         disabled={c.current_status === 'เสร็จสิ้น' || c.current_status === 'ยกเลิก'}
                       >
@@ -503,7 +591,7 @@ export default function ComplaintsListManagement() {
         )}
       </div>
 
-      {/* Assignment Modal */}
+      {/* Assignment Modal - ✅ แสดงข้อมูล Admin */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -511,6 +599,13 @@ export default function ComplaintsListManagement() {
               <UserGroupIcon className="h-6 w-6 text-[#55C388]" />
               เลือกเจ้าหน้าที่
             </h3>
+
+            {currentAdmin && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-600">มอบหมายโดย:</p>
+                <p className="font-medium text-gray-800">{currentAdmin.name}</p>
+              </div>
+            )}
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
