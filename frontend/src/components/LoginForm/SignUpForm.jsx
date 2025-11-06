@@ -5,7 +5,7 @@ import { EyeIcon, EyeSlashIcon, CheckCircleIcon } from "@heroicons/react/24/outl
 const BASE_URL = "http://localhost:5000"; 
 const LOGO_URL = "/MyUSafe_LOGO1.png";
 
-// 🔹 Input รหัสผ่านที่มีปุ่มเปิด/ปิด
+// 🔹 Input สำหรับรหัสผ่านที่มีปุ่มเปิด/ปิด
 const PasswordInput = ({ label, name, value, onChange, isShown, toggleFunc }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700">{label}</label>
@@ -57,12 +57,21 @@ const SignUpForm = () => {
     });
   };
 
+  // ✅ จัดการเบอร์โทรศัพท์ - อนุญาตเฉพาะตัวเลขสูงสุด 10 ตัว
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, "").slice(0, 10);
+    setFormData({
+      ...formData,
+      phone: value,
+    });
+  };
+
   const togglePasswordVisibility = (field) => {
     if (field === "password") setShowPassword((prev) => !prev);
     else if (field === "confirmPassword") setShowConfirmPassword((prev) => !prev);
   };
 
-  // ✅ ตรวจสอบรหัสผ่านให้เป็นไปตามเงื่อนไข
+  // ✅ ตรวจสอบรหัสผ่านให้เป็นไปตามเงื่อนไขไข
   const validatePassword = (password) => {
     const regex =
       /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+[\]{};:'",.<>?/\\|`~=-]).{8,10}$/;
@@ -81,7 +90,7 @@ const SignUpForm = () => {
 
     // ✅ ตรวจสอบรูปแบบรหัสผ่าน
     if (!validatePassword(formData.password)) {
-      setError("รหัสผ่านต้องมี 8–10 ตัว ประกอบด้วย ตัวใหญ่ 1 ตัว ตัวเลข 1 ตัว และอักขระพิเศษ 1 ตัว");
+      setError("รหัสผ่านต้องมี 8–10 ตัว ประกอบด้วย ตัวใหญ่ 1 ตัว ตัวเล็ก 1 ตัว และอักขระพิเศษ 1 ตัว");
       return;
     }
 
@@ -104,7 +113,7 @@ const SignUpForm = () => {
 
       if (response.ok) {
         console.log("✅ Sign Up success:", data);
-        setSuccessMessage("สมัครสมาชิกสำเร็จ! กำลังนำทางไปยังหน้าเข้าสู่ระบบ...");
+        setSuccessMessage("สมัครสมาชิกสำเร็จ! อำเนินนำทางไปยังหน้าเข้าสู่ระบบ...");
         setTimeout(() => navigate("/login"), 1500);
       } else {
         setError(data.message || "มีข้อผิดพลาดในการสมัครสมาชิก");
@@ -174,18 +183,20 @@ const SignUpForm = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์ (ไม่บังคับ)</label>
+            <label className="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์ (ไม่บังคับ) - สูงสุด 10 ตัวเลข</label>
             <input
               type="tel"
               name="phone"
               value={formData.phone}
-              onChange={handleChange}
+              onChange={handlePhoneChange}
+              placeholder="เช่น 0812345678"
+              inputMode="numeric"
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
             />
           </div>
 
           <PasswordInput
-            label="รหัสผ่าน (8–10 ตัว ต้องมีตัวใหญ่ ตัวเลข และอักขระพิเศษ)"
+            label="รหัสผ่าน (8–10 ตัว ต้องมีตัวใหญ่ ตัวเล็ก และอักขระพิเศษ)"
             name="password"
             value={formData.password}
             onChange={handleChange}
@@ -212,7 +223,7 @@ const SignUpForm = () => {
                 loading || successMessage ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"
               }`}
             >
-              {loading ? "กำลังสมัคร..." : "สมัครสมาชิก"}
+              {loading ? "อำเนินสมัคร..." : "สมัครสมาชิก"}
             </button>
             <button
               type="button"

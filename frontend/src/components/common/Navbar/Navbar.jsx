@@ -12,11 +12,6 @@ import {
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { LogIn } from "lucide-react";
 import NotificationBell from "../../NotificationBell/NotificationBell";
-
-
-
-
-
 import './Navbar.css'
 
 function classNames(...classes) {
@@ -27,6 +22,8 @@ export default function Navbar() {
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -38,42 +35,59 @@ export default function Navbar() {
     setToken(storedToken);
     setRole(storedRole);
 
-    // โหลดรูปโปรไฟล์
     if (storedToken) {
-      fetchProfileImage(storedToken);
+      fetchProfileData(storedToken);
     }
 
     console.log("Navbar: Loaded role:", storedRole);
   }, []);
 
-  // ✅ เพิ่ม useEffect เพื่อฟัง event การอัปเดตโปรไฟล์
+  // ✅ เพิ่ม useEffect เพื่อฟังเหตุการณ์อัปเดตโปรไฟล์
   useEffect(() => {
     const handleProfileUpdate = (event) => {
+      console.log('✅ profileUpdated event received in Navbar:', event.detail);
+      
       if (event.detail?.profile_image) {
         setProfileImage(event.detail.profile_image);
       }
+      if (event.detail?.name) {
+        setUserName(event.detail.name);
+      }
+      if (event.detail?.email) {
+        setUserEmail(event.detail.email);
+      }
     };
 
-    // ฟัง custom event
     window.addEventListener('profileUpdated', handleProfileUpdate);
 
-    // Cleanup
     return () => {
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
   }, []);
 
-  const fetchProfileImage = async (authToken) => {
+  const fetchProfileData = async (authToken) => {
     try {
       const response = await fetch(`${API_URL}/profile`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       const data = await response.json();
-      if (data.success && data.data.profile_image) {
-        setProfileImage(data.data.profile_image);
+      
+      if (data.success && data.data) {
+        setUserName(data.data.name || "");
+        setUserEmail(data.data.email || "");
+        
+        if (data.data.profile_image) {
+          setProfileImage(data.data.profile_image);
+        }
+        
+        console.log("✅ Profile data loaded:", {
+          name: data.data.name,
+          email: data.data.email,
+          role: data.data.role
+        });
       }
     } catch (err) {
-      console.error('Error fetching profile image:', err);
+      console.error('Error fetching profile data:', err);
     }
   };
 
@@ -84,6 +98,8 @@ export default function Navbar() {
     setToken(null);
     setRole(null);
     setProfileImage(null);
+    setUserName("");
+    setUserEmail("");
     navigate("/login");
   };
 
@@ -129,12 +145,26 @@ export default function Navbar() {
     ]
     : [];
 
+  const getProfileImageUrl = () => {
+    if (!profileImage) {
+      return "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
+    }
+
+    if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
+      return profileImage;
+    }
+
+    if (profileImage.startsWith('/')) {
+      return `${API_URL.replace('/api', '')}${profileImage}`;
+    }
+
+    return `${API_URL.replace('/api', '')}/profile/${profileImage}`;
+  };
+
   const user = {
-    name: "User Name",
-    email: "user@example.com",
-    imageUrl: profileImage 
-      ? `${API_URL.replace('/api', '')}${profileImage}`
-      : "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
+    name: userName || "ผู้ใช้ระบบ",
+    email: userEmail || "ไม่ระบุ",
+    imageUrl: getProfileImageUrl(),
   };
 
   return (
@@ -180,7 +210,7 @@ export default function Navbar() {
 
             {/* Right */}
             <div className="hidden lg:flex items-center md:ml-6 gap-3">
-              {/* ✅ NotificationBell - แทนที่ NotificationPlaceholder */}
+              {/* ✅ NotificationBell */}
               {token && <NotificationBell />}
 
               {!token && (
@@ -205,9 +235,12 @@ export default function Navbar() {
                   <MenuButton className="relative flex max-w-xs items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
                     <span className="sr-only">Open user menu</span>
                     <img
-                      alt=""
+                      alt="Profile"
                       src={user.imageUrl}
                       className="border border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10 object-cover"
+                      onError={(e) => {
+                        e.target.src = "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
+                      }}
                     />
                   </MenuButton>
                   <MenuItems
@@ -275,7 +308,14 @@ export default function Navbar() {
             <div className="flex items-center px-5">
               {token && (
                 <>
-                  <img alt="" src={user.imageUrl} className="size-10 rounded-full outline -outline-offset-1 outline-white/10 object-cover" />
+                  <img 
+                    alt="Profile"
+                    src={user.imageUrl}
+                    className="size-10 rounded-full outline -outline-offset-1 outline-white/10 object-cover"
+                    onError={(e) => {
+                      e.target.src = "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
+                    }}
+                  />
                   <div className="ml-3">
                     <div className="text-base font-medium text-white">{user.name}</div>
                     <div className="text-sm font-medium text-gray-700">{user.email}</div>
