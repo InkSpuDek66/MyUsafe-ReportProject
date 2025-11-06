@@ -287,7 +287,7 @@ const handleNotificationClick = (notification) => {
       console.log('🔌 Logging out, disconnecting socket');
       socket.disconnect();
     }
-    navigate("/login");
+    navigate("/");
   };
 
   const isActive = (href) => {

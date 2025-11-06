@@ -33,58 +33,57 @@ export default function Profile() {
         fetchProfile();
     }, []);
 
-   const fetchProfile = async () => {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/profile`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (response.data.success) {
-            const userData = response.data.data;
-            setProfile(userData);
-
-            // ✅ ถ้าเป็น OAuth URL ให้ดาวน์โหลดที่ Backend
-            if (userData.profile_image && 
-                (userData.profile_image.startsWith('http://') || userData.profile_image.startsWith('https://'))) {
-                
-                console.log('📥 Detected OAuth image, downloading to server...');
-                
-                try {
-                    const downloadRes = await axios.post(
-                        `${API_URL}/profile/download-oauth-image`,
-                        { imageUrl: userData.profile_image },
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
-
-                    if (downloadRes.data.success) {
-                        console.log('✅ OAuth image downloaded successfully');
-                        // อัปเดต state ด้วย local path
-                        setProfile(prev => ({
-                            ...prev,
-                            profile_image: downloadRes.data.data.profile_image
-                        }));
-                    }
-                } catch (err) {
-                    console.warn('⚠️ Failed to download OAuth image:', err);
-                    // ยังใช้ OAuth URL ได้ ถึงแม้ดาวน์โหลดไม่ได้
-                }
-            }
-
-            const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
-            setFormData({
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
-                phone: userData.phone || ''
+    const fetchProfile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/profile`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
+
+            if (response.data.success) {
+                const userData = response.data.data;
+                setProfile(userData);
+
+                // ✅ ถ้าเป็น OAuth URL ให้ดาวน์โหลดที่ Backend
+                if (userData.profile_image && 
+                    (userData.profile_image.startsWith('http://') || userData.profile_image.startsWith('https://'))) {
+                    
+                    console.log('📥 Detected OAuth image, downloading to server...');
+                    
+                    try {
+                        const downloadRes = await axios.post(
+                            `${API_URL}/profile/download-oauth-image`,
+                            { imageUrl: userData.profile_image },
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
+
+                        if (downloadRes.data.success) {
+                            console.log('✅ OAuth image downloaded successfully');
+                            setProfile(prev => ({
+                                ...prev,
+                                profile_image: downloadRes.data.data.profile_image
+                            }));
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ Failed to download OAuth image:', err);
+                    }
+                }
+
+                const nameParts = userData.name ? userData.name.split(' ') : ['', ''];
+                setFormData({
+                    firstName: nameParts[0] || '',
+                    lastName: nameParts.slice(1).join(' ') || '',
+                    phone: userData.phone || ''
+                });
+            }
+        } catch (err) {
+            console.error('Error fetching profile:', err);
+            setError('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
+        } finally {
+            setLoading(false);
         }
-    } catch (err) {
-        console.error('Error fetching profile:', err);
-        setError('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
-    } finally {
-        setLoading(false);
-    }
-};
+    };
+
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -240,36 +239,24 @@ export default function Profile() {
         }));
     };
 
-    // ✅ ฟังก์ชันสำหรับสร้าง Profile Image URL
-    // ✅ แทนที่ฟังก์ชันนี้ใน Profile.jsx (line ~190-200)
+    const getProfileImageUrl = () => {
+        if (!profile?.profile_image) {
+            return null;
+        }
 
-const getProfileImageUrl = () => {
-    if (!profile?.profile_image) {
-        console.log('⚠️ No profile_image');
-        return null;
-    }
+        const imageUrl = profile.profile_image;
 
-    const imageUrl = profile.profile_image;
-    console.log('🖼️ Raw profile_image:', imageUrl);
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
 
-    // ✅ ถ้าเป็น URL เต็ม (OAuth หรือ http/https)
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-        console.log('✅ Using OAuth/HTTP URL directly:', imageUrl);
-        return imageUrl;
-    }
+        if (imageUrl.startsWith('/')) {
+            return `http://localhost:5000${imageUrl}`;
+        }
 
-    // ✅ ถ้าเป็น path ของเซิร์ฟเวอร์ (เช่น /profile/...)
-    if (imageUrl.startsWith('/')) {
-        const fullUrl = `http://localhost:5000${imageUrl}`;
-        console.log('✅ Server path detected, full URL:', fullUrl);
-        return fullUrl;
-    }
+        return `http://localhost:5000/profile/${imageUrl}`;
+    };
 
-    // ✅ Fallback
-    const fallbackUrl = `http://localhost:5000/profile/${imageUrl}`;
-    console.log('⚠️ Using fallback URL:', fallbackUrl);
-    return fallbackUrl;
-};
     if (loading) {
         return (
             <div className="min-h-screen bg-base-200 flex items-center justify-center">
@@ -309,14 +296,12 @@ const getProfileImageUrl = () => {
                         <div className="flex flex-col items-center">
                             <div className="relative">
                                 <div className="w-32 h-32 rounded-full border-4 border-base-100 shadow-lg overflow-hidden bg-base-300">
-                                    {/* ✅ แสดงรูปจาก OAuth หรือเซิร์ฟเวอร์ */}
                                     {getProfileImageUrl() ? (
                                         <img
                                             src={getProfileImageUrl()}
                                             alt="Profile"
                                             className="w-full h-full object-cover"
                                             onError={(e) => {
-                                                console.error('Error loading image:', e);
                                                 e.target.style.display = 'none';
                                             }}
                                         />
@@ -389,6 +374,7 @@ const getProfileImageUrl = () => {
                                     </div>
                                 </div>
 
+                                {/* ✅ ปุ่มแก้ไข - แสดง "เปลี่ยนรหัสผ่าน" เฉพาะ Non-OAuth User */}
                                 <div className="mt-6 flex gap-3">
                                     <button
                                         onClick={() => setEditing(true)}
@@ -396,13 +382,25 @@ const getProfileImageUrl = () => {
                                     >
                                         แก้ไขข้อมูล
                                     </button>
-                                    <button
-                                        onClick={() => setChangingPassword(true)}
-                                        className="btn flex-1 btn-ghost"
-                                    >
-                                        <Lock className="w-4 h-4" />
-                                        เปลี่ยนรหัสผ่าน
-                                    </button>
+                                    
+                                    {/* ✅ แสดงปุ่มเปลี่ยนรหัสผ่านเฉพาะ Non-OAuth User */}
+                                    {!profile?.is_oauth_user && (
+                                        <button
+                                            onClick={() => setChangingPassword(true)}
+                                            className="btn flex-1 btn-ghost"
+                                        >
+                                            <Lock className="w-4 h-4" />
+                                            เปลี่ยนรหัสผ่าน
+                                        </button>
+                                    )}
+                                    
+                                    {/* ✅ แสดงข้อความแจ้งเตือนสำหรับ OAuth User */}
+                                    {profile?.is_oauth_user && (
+                                        <div className="flex-1 flex items-center justify-center text-sm text-base-content/50">
+                                            <Lock className="w-4 h-4 mr-2" />
+                                            ไม่สามารถเปลี่ยนรหัสผ่านได้ (OAuth)
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         ) : editing ? (
@@ -411,7 +409,7 @@ const getProfileImageUrl = () => {
                                     <div className="form-control">
                                         <label className="label">
                                             <span className="label-text">ชื่อ <span className="text-error">*</span></span>
-                                        </label><br />
+                                        </label>
                                         <input
                                             type="text"
                                             value={formData.firstName}
@@ -424,7 +422,7 @@ const getProfileImageUrl = () => {
                                     <div className="form-control">
                                         <label className="label">
                                             <span className="label-text">นามสกุล <span className="text-error">*</span></span>
-                                        </label><br />
+                                        </label>
                                         <input
                                             type="text"
                                             value={formData.lastName}
@@ -438,14 +436,15 @@ const getProfileImageUrl = () => {
                                 <div className="form-control">
                                     <label className="label">
                                         <span className="label-text">เบอร์โทรศัพท์</span>
-                                    </label><br />
+                                    </label>
                                     <input
                                         type="tel"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        className="input input-bordered focus:input-primary w-180"
+                                        className="input input-bordered focus:input-primary"
                                     />
                                 </div>
+
                                 <div className="flex gap-3 pt-4">
                                     <button
                                         type="submit"

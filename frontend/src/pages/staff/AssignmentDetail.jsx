@@ -189,13 +189,18 @@ export default function AssignmentDetail() {
         );
     }
 
-    const attachments = Array.isArray(data.attachments)
-        ? data.attachments.map(file => {
-            return file.startsWith('http') ? file : `${API_BASE_URL}${file}`;
-        })
-        : data.attachment
-            ? [data.attachment.startsWith('http') ? data.attachment : `${API_BASE_URL}${data.attachment}`]
+    const attachments = Array.isArray(data.images)
+        ? data.images
+            .filter(file => file && file !== '')
+            .map(file => {
+                if (file.startsWith('http://') || file.startsWith('https://')) return file;
+                const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
+                return `${API_BASE_URL}${imagePath}`;
+            })
+        : data.image
+            ? [data.image.startsWith('http') ? data.image : `${API_BASE_URL}${data.image}`]
             : [];
+
 
     const currentFile = attachments[currentIndex];
     const cates = Array.isArray(data.categories)
@@ -257,8 +262,8 @@ export default function AssignmentDetail() {
                                                 <div
                                                     key={i}
                                                     className={`w-2 h-2 rounded-full ${i === currentIndex
-                                                            ? "bg-[#55C388]"
-                                                            : "bg-white/50"
+                                                        ? "bg-[#55C388]"
+                                                        : "bg-white/50"
                                                         }`}
                                                 />
                                             ))}
@@ -357,6 +362,24 @@ export default function AssignmentDetail() {
                                     รายละเอียดการแก้ไข
                                 </h4>
                                 <p className="text-gray-700 whitespace-pre-wrap">{data.resolution_note}</p>
+                            </div>
+                        )}
+                        {/* แสดงรูปภาพ/วิดีโอหลังการแก้ไข */}
+                        {Array.isArray(data.resolution_attachments) && data.resolution_attachments.length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                                    <CheckCircle size={18} />
+                                    รูปภาพ/วิดีโอหลังการแก้ไข
+                                </h4>
+                                <div className="relative bg-gray-100 rounded-lg p-4 flex justify-center items-center">
+                                    <img
+                                        src={`${API_BASE_URL}${data.resolution_attachments[0]}`}
+                                        alt="resolution"
+                                        className="rounded-lg max-h-80 object-contain cursor-pointer"
+                                        onClick={() => setPreviewMedia(`${API_BASE_URL}${data.resolution_attachments[0]}`)}
+                                        onError={(e) => (e.target.src = '/MyUSafe_mini_none-bg_LOGO1.png')}
+                                    />
+                                </div>
                             </div>
                         )}
 
