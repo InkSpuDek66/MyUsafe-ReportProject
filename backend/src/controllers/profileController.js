@@ -1,3 +1,120 @@
+// ✅ เพิ่ม method ตรวจสอบว่าเป็น OAuth user หรือไม่
+exports.getProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        
+        const user = await User.findById(userId).select('-password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบข้อมูลผู้ใช้'
+            });
+        }
+
+        // ✅ ตรวจสอบว่าเป็น OAuth user (ไม่มี password)
+        const userWithPassword = await User.findById(userId).select('+password');
+        const isOAuthUser = !userWithPassword.password;
+
+        const profileData = {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            student_id: user.university_id || '',
+            phone: user.phone || '',
+            role: user.role,
+            profile_image: user.profile_image || null,
+            created_at: user.created_at,
+            is_oauth_user: isOAuthUser  // ✅ ส่งค่านี้ไปให้ frontend
+        };
+
+        res.json({
+            success: true,
+            data: profileData
+        });
+    } catch (err) {
+        console.error('Get Profile Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์'
+        });
+    }
+};
+
+// ✅ แก้ไข updatePassword ให้ตรวจสอบ OAuth user
+exports.updatePassword = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                error: 'กรุณากรอกข้อมูลให้ครบถ้วน'
+            });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'
+            });
+        }
+
+        const user = await User.findById(userId).select('+password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบข้อมูลผู้ใช้'
+            });
+        }
+
+        // ✅ ตรวจสอบว่าเป็น OAuth user หรือไม่
+        if (!user.password) {
+            return res.status(403).json({
+                success: false,
+                error: 'ไม่สามารถเปลี่ยนรหัสผ่านได้ เนื่องจากคุณเข้าสู่ระบบผ่าน Google/GitHub',
+                is_oauth_user: true
+            });
+        }
+
+        const isPasswordCorrect = await user.comparePassword(currentPassword);
+        
+        if (!isPasswordCorrect) {
+            return res.status(401).json({
+                success: false,
+                error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง'
+            });
+        }
+
+        const isSamePassword = await user.comparePassword(newPassword);
+        
+        if (isSamePassword) {
+            return res.status(400).json({
+                success: false,
+                error: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม'
+            });
+        }
+
+        user.password = newPassword;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'เปลี่ยนรหัสผ่านสำเร็จ'
+        });
+
+    } catch (err) {
+        console.error('Update Password Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
+        });
+    }
+};
+
+// ... เก็บ functions อื่นๆ ไว้เหมือนเดิม
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -40,7 +157,6 @@ const upload = multer({
 
 exports.uploadMiddleware = upload.single('profileImage');
 
-// ✅ ฟังก์ชันสำหรับดาวน์โหลดรูป OAuth (Helper function)
 const downloadOAuthImageFile = (imageUrl) => {
     return new Promise((resolve, reject) => {
         try {
@@ -89,43 +205,6 @@ const downloadOAuthImageFile = (imageUrl) => {
             reject(err);
         }
     });
-};
-
-exports.getProfile = async (req, res) => {
-    try {
-        const userId = req.user._id;
-        
-        const user = await User.findById(userId).select('-password');
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: 'ไม่พบข้อมูลผู้ใช้'
-            });
-        }
-
-        const profileData = {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            student_id: user.university_id || '',
-            phone: user.phone || '',
-            role: user.role,
-            profile_image: user.profile_image || null,
-            created_at: user.created_at
-        };
-
-        res.json({
-            success: true,
-            data: profileData
-        });
-    } catch (err) {
-        console.error('Get Profile Error:', err);
-        res.status(500).json({
-            success: false,
-            error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์'
-        });
-    }
 };
 
 exports.updateProfileImage = async (req, res) => {
@@ -232,70 +311,6 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
-exports.updatePassword = async (req, res) => {
-    try {
-        const userId = req.user._id;
-        const { currentPassword, newPassword } = req.body;
-
-        if (!currentPassword || !newPassword) {
-            return res.status(400).json({
-                success: false,
-                error: 'กรุณากรอกข้อมูลให้ครบถ้วน'
-            });
-        }
-
-        if (newPassword.length < 6) {
-            return res.status(400).json({
-                success: false,
-                error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'
-            });
-        }
-
-        const user = await User.findById(userId).select('+password');
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: 'ไม่พบข้อมูลผู้ใช้'
-            });
-        }
-
-        const isPasswordCorrect = await user.comparePassword(currentPassword);
-        
-        if (!isPasswordCorrect) {
-            return res.status(401).json({
-                success: false,
-                error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง'
-            });
-        }
-
-        const isSamePassword = await user.comparePassword(newPassword);
-        
-        if (isSamePassword) {
-            return res.status(400).json({
-                success: false,
-                error: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม'
-            });
-        }
-
-        user.password = newPassword;
-        await user.save();
-
-        res.json({
-            success: true,
-            message: 'เปลี่ยนรหัสผ่านสำเร็จ'
-        });
-
-    } catch (err) {
-        console.error('Update Password Error:', err);
-        res.status(500).json({
-            success: false,
-            error: 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
-        });
-    }
-};
-
-// ✅ ดาวน์โหลดรูป OAuth (API endpoint)
 exports.downloadOAuthImage = async (req, res) => {
     try {
         const userId = req.user._id;
@@ -341,4 +356,3 @@ exports.downloadOAuthImage = async (req, res) => {
         });
     }
 };
-exports.downloadOAuthImage

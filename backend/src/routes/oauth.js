@@ -32,8 +32,8 @@ router.get(
 
     console.log('🎫 JWT Token Created:', token);
 
-    // ✅ Redirect ไปหน้า Frontend พร้อม Token
-    const redirectUrl = `http://localhost:5173/auth-success?token=${token}&userId=${req.user._id}&email=${req.user.email}`;
+    // ✅ Redirect ไปหน้า Frontend พร้อม Token + role
+    const redirectUrl = `http://localhost:5173/auth-success?token=${token}&userId=${req.user._id}&email=${req.user.email}&role=${req.user.role}`;
     console.log('🔄 Redirecting to:', redirectUrl);
     res.redirect(redirectUrl);
   }
@@ -68,8 +68,8 @@ router.get(
 
     console.log('🎫 JWT Token Created:', token);
 
-    // ✅ Redirect ไปหน้า Frontend พร้อม Token
-    const redirectUrl = `http://localhost:5173/auth-success?token=${token}&userId=${req.user._id}&email=${req.user.email}`;
+    // ✅ Redirect ไปหน้า Frontend พร้อม Token + role
+    const redirectUrl = `http://localhost:5173/auth-success?token=${token}&userId=${req.user._id}&email=${req.user.email}&role=${req.user.role}`;
     console.log('🔄 Redirecting to:', redirectUrl);
     res.redirect(redirectUrl);
   }
