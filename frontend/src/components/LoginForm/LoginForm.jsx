@@ -218,7 +218,7 @@ const LoginForm = () => {
         </div>
 
         {/* ✅ OAuth Buttons - เรียก handleOAuthClick แทน */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <button
             type="button"
             onClick={() => handleOAuthClick("google")}
@@ -385,7 +385,7 @@ const LoginForm = () => {
                   <br />
                   สามารถติดต่อได้ที่: <br />
                   📧 Myusafe@gmail.com <br />
-                  🌐 www.Myusafe@gmail.com
+                  🌐 www.Myusafe.com
 
 
                 </p>

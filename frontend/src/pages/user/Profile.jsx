@@ -45,11 +45,11 @@ export default function Profile() {
                 setProfile(userData);
 
                 // ✅ ถ้าเป็น OAuth URL ให้ดาวน์โหลดที่ Backend
-                if (userData.profile_image && 
+                if (userData.profile_image &&
                     (userData.profile_image.startsWith('http://') || userData.profile_image.startsWith('https://'))) {
-                    
+
                     console.log('📥 Detected OAuth image, downloading to server...');
-                    
+
                     try {
                         const downloadRes = await axios.post(
                             `${API_URL}/profile/download-oauth-image`,
@@ -175,8 +175,9 @@ export default function Profile() {
             return;
         }
 
-        if (passwordData.newPassword.length < 6) {
-            setError('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/;
+        if (!passwordRegex.test(passwordData.newPassword)) {
+            setError('รหัสผ่านใหม่ต้องมี 8–10 ตัว และต้องมีตัวพิมพ์เล็ก พิมพ์ใหญ่ ตัวเลข และสัญลักษณ์อย่างน้อย 1 ตัว');
             return;
         }
 
@@ -276,7 +277,7 @@ export default function Profile() {
                     <h1 className="text-3xl font-bold text-base-content">โปรไฟล์</h1>
                     <p className="mt-1 text-sm text-base-content/70">จัดการข้อมูลส่วนตัวของคุณ</p>
                 </div>
-                
+
                 {/* Alert Messages */}
                 {error && (
                     <div className="alert alert-error mb-6">
@@ -382,7 +383,7 @@ export default function Profile() {
                                     >
                                         แก้ไขข้อมูล
                                     </button>
-                                    
+
                                     {/* ✅ แสดงปุ่มเปลี่ยนรหัสผ่านเฉพาะ Non-OAuth User */}
                                     {!profile?.is_oauth_user && (
                                         <button
@@ -393,7 +394,7 @@ export default function Profile() {
                                             เปลี่ยนรหัสผ่าน
                                         </button>
                                     )}
-                                    
+
                                     {/* ✅ แสดงข้อความแจ้งเตือนสำหรับ OAuth User */}
                                     {profile?.is_oauth_user && (
                                         <div className="flex-1 flex items-center justify-center text-sm text-base-content/50">
@@ -515,7 +516,9 @@ export default function Profile() {
                                         </button>
                                     </div>
                                     <label className="label">
-                                        <span className="label-text-alt text-base-content/60">รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร</span>
+                                        <span className="label-text-alt text-base-content/60">
+                                            ต้องมี 8–10 ตัว (ตัวพิมพ์เล็ก–ใหญ่, ตัวเลข และสัญลักษณ์)
+                                        </span>
                                     </label>
                                 </div>
 

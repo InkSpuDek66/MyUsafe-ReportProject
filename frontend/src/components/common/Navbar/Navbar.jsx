@@ -313,7 +313,7 @@ const handleNotificationClick = (notification) => {
     navigate("/");
     setUserName("");
     setUserEmail("");
-    navigate("/login");
+    navigate("/");
   };
 
   const isActive = (href) => {
