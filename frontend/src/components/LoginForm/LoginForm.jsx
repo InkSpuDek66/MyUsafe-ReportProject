@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 const BASE_URL = "http://localhost:5000";
-const LOGO_URL = "../../../public/MyUSafe_LOGO1.png";
+const LOGO_URL = "../../../public/MyUSafe_LOGO2.png";
 
 const LoginForm = () => {
   const navigate = useNavigate();

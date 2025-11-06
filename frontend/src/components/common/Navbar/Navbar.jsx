@@ -277,6 +277,7 @@ const handleNotificationClick = (notification) => {
     localStorage.removeItem("role");
     localStorage.removeItem("userId");
     localStorage.removeItem("user_id");
+    localStorage.removeItem("email");
     setToken(null);
     setRole(null);
     setProfileImage(null);

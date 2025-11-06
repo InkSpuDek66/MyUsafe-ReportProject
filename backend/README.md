@@ -5,6 +5,12 @@ npm install multer  # สำหรับ upload ไฟล์
 ## 📦 ติดตั้ง Testing Dependencies
 npm install --save-dev chai mocha mochawesome
 
+passport - ไลบรารีสำหรับ Authentication
+passport-google-oauth20 - Strategy สำหรับ Google
+<!-- passport-github2 - Strategy สำหรับ GitHub -->
+express-session - จัดการ Session
+cookie-parser - จัดการ Cookies
+
 รัน npm run seed เพื่อสร้างข้อมูลเริ่มต้น
 รัน npm start เพื่อเริ่ม server
 

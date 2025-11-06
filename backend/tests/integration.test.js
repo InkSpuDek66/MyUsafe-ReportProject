@@ -1,5 +1,11 @@
 // backend/tests/integration.test.js
-// Test suite สำหรับการทดสอบแบบบูรณาการ (Integration Tests)
+// ===============================================
+// ทดสอบแบบบูรณาการ (Integration Tests)
+// ===============================================
+// ทดสอบการทำงานร่วมกันของ APIs หลายตัว
+// เพื่อให้แน่ใจว่าระบบทำงานได้อย่างสมบูรณ์
+// ===============================================
+
 const request = require('supertest');
 const { expect } = require('chai');
 const app = require('../server');
@@ -8,7 +14,7 @@ const Location = require('../src/models/locationModel');
 const Category = require('../src/models/categoryModel');
 const { createAuthenticatedUser, getAuthHeader } = require('./testHelpers');
 
-describe('ทดสอบแบบบูรณาการ', () => {
+describe('🔗 ทดสอบแบบบูรณาการ', () => {
     // ตัวแปรเก็บข้อมูล authentication
     let authToken;
     let testUserId;
@@ -16,16 +22,25 @@ describe('ทดสอบแบบบูรณาการ', () => {
     // สร้างผู้ใช้ทดสอบและ login ก่อนเริ่มเทสต์
     before(async function() {
         this.timeout(10000);
+        console.log('  📝 กำลังเตรียมข้อมูลสำหรับ Integration Tests...');
+        
         const authData = await createAuthenticatedUser();
         authToken = authData.token;
         testUserId = authData.userId;
+        
+        console.log('   เตรียมข้อมูลเสร็จสิ้น');
     });
 
-
+    // ==================================================
+    // ทดสอบกระบวนการเรื่องร้องเรียนแบบสมบูรณ์
+    // ==================================================
     describe('กระบวนการเรื่องร้องเรียนแบบสมบูรณ์', () => {
 
-        it('ควรทำงานผ่านวงจรชีวิตเรื่องร้องเรียนแบบเต็มรูปแบบ', async () => {
+        it(' ควรทำงานผ่านวงจรชีวิตเรื่องร้องเรียนแบบเต็มรูปแบบ', async function() {
+            this.timeout(15000);
+            
             // 1. สร้าง Location
+            console.log('  📍 กำลังสร้าง Location...');
             const locationRes = await request(app)
                 .post('/api/locations')
                 .send({
@@ -37,19 +52,22 @@ describe('ทดสอบแบบบูรณาการ', () => {
             expect(locationRes.status).to.equal(201);
 
             // 2. สร้าง Category
+            console.log('  📁 กำลังสร้าง Category...');
             const categoryRes = await request(app)
                 .post('/api/categories')
                 .send({
                     name: 'Integration Test',
-                    description: 'Category for testing'
+                    description: 'Category for testing',
+                    icon: 'test'
                 });
 
             expect(categoryRes.status).to.equal(201);
 
             // 3. สร้าง Complaint
+            console.log('  📋 กำลังสร้าง Complaint...');
             const complaintRes = await request(app)
                 .post('/api/complaints')
-                    .set('Authorization', getAuthHeader(authToken))
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
                     title: 'Integration Test Complaint',
                     categories: ['Integration Test'],
@@ -59,7 +77,7 @@ describe('ทดสอบแบบบูรณาการ', () => {
                         floor: '1',
                         room: '101'
                     }),
-                    user_id: 'U_INT_001'
+                    user_id: testUserId
                 });
 
             expect(complaintRes.status).to.equal(201);
@@ -67,6 +85,7 @@ describe('ทดสอบแบบบูรณาการ', () => {
             const complaintId = complaintRes.body.data.complaint_id;
 
             // 4. ดึงข้อมูล Complaint
+            console.log('  🔍 กำลังดึงข้อมูล Complaint...');
             const getRes = await request(app)
                 .get(`/api/complaints/${complaintId}`);
 
@@ -74,6 +93,7 @@ describe('ทดสอบแบบบูรณาการ', () => {
             expect(getRes.body.data).to.have.property('title', 'Integration Test Complaint');
 
             // 5. อัปเดตสถานะ
+            console.log('  🔄 กำลังอัปเดตสถานะ...');
             const updateRes = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
@@ -84,17 +104,19 @@ describe('ทดสอบแบบบูรณาการ', () => {
             expect(updateRes.body.data).to.have.property('current_status', 'กำลังดำเนินการ');
 
             // 6. เพิ่มไลค์
+            console.log('  👍 กำลังเพิ่มไลค์...');
             const likeRes = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
                     action: 'like',
-                    user_id: 'U_INT_001'
+                    user_id: testUserId
                 });
 
             expect(likeRes.status).to.equal(200);
             expect(likeRes.body.data).to.have.property('likes', 1);
 
             // 7. ทำเรื่องร้องเรียนให้เสร็จสิ้น
+            console.log('   กำลังทำให้เสร็จสิ้น...');
             const completeRes = await request(app)
                 .put(`/api/complaints/${complaintId}`)
                 .send({
@@ -106,17 +128,26 @@ describe('ทดสอบแบบบูรณาการ', () => {
             expect(completeRes.body.data.completed_date).to.not.equal('-');
 
             // 8. ลบ Complaint
+            console.log('  🗑️  กำลังลบ Complaint...');
             const deleteRes = await request(app)
                 .delete(`/api/complaints/${complaintId}`);
 
             expect(deleteRes.status).to.equal(200);
+            
+            console.log('วงจรชีวิตเสร็จสมบูรณ์!');
         });
     });
 
+    // ==================================================
+    // ทดสอบความสอดคล้องของข้อมูล
+    // ==================================================
     describe('ทดสอบความสอดคล้องของข้อมูล', () => {
 
-        it('ควรรักษาความสอดคล้องของข้อมูลตลอดการดำเนินการ', async () => {
+        it(' ควรรักษาความสอดคล้องของข้อมูลตลอดการดำเนินการ', async function() {
+            this.timeout(10000);
+            
             // สร้าง 5 complaints
+            console.log('  📋 กำลังสร้าง 5 เรื่องร้องเรียน...');
             for (let i = 1; i <= 5; i++) {
                 await request(app)
                     .post('/api/complaints')
@@ -130,7 +161,7 @@ describe('ทดสอบแบบบูรณาการ', () => {
                             floor: '1',
                             room: `10${i}`
                         }),
-                        user_id: 'U001'
+                        user_id: testUserId
                     });
             }
 
@@ -141,6 +172,7 @@ describe('ทดสอบแบบบูรณาการ', () => {
             expect(listRes.body.data).to.have.lengthOf(5);
 
             // อัปเดตทั้งหมดเป็น 'กำลังดำเนินการ'
+            console.log('  🔄 กำลังอัปเดตสถานะทั้งหมด...');
             for (const complaint of listRes.body.data) {
                 await request(app)
                     .put(`/api/complaints/${complaint.complaint_id}`)
@@ -156,32 +188,40 @@ describe('ทดสอบแบบบูรณาการ', () => {
                 expect(complaint).to.have.property('current_status', 'กำลังดำเนินการ');
                 expect(complaint.status_history).to.have.lengthOf(2);
             });
+            
+            console.log('   ความสอดคล้องของข้อมูลถูกรักษาไว้!');
         });
     });
 
+    // ==================================================
+    // ทดสอบการจัดการข้อผิดพลาด
+    // ==================================================
     describe('ทดสอบการจัดการข้อผิดพลาด', () => {
 
-        it('ควรจัดการการอัปเดตพร้อมกันได้อย่างเหมาะสม', async () => {
+        it(' ควรจัดการการอัปเดตหลายครั้งได้อย่างเหมาะสม', async function() {
+            this.timeout(10000);
+            
             // สร้าง complaint
             const createRes = await request(app)
                 .post('/api/complaints')
-                    .set('Authorization', getAuthHeader(authToken))
+                .set('Authorization', getAuthHeader(authToken))
                 .send({
-                    title: 'Concurrent Test',
+                    title: 'Multiple Update Test',
                     categories: ['ทั่วไป'],
-                    description: 'Testing concurrent updates',
+                    description: 'Testing multiple updates',
                     location: JSON.stringify({
                         building: 'Test Building',
                         floor: '1',
                         room: '101'
                     }),
-                    user_id: 'U001'
+                    user_id: testUserId
                 });
 
             expect(createRes.status).to.equal(201);
             const complaintId = createRes.body.data.complaint_id;
 
-            // อัปเดตแบบ sequential แทน concurrent เพื่อให้ได้ผลลัพธ์ที่ถูกต้อง
+            // อัปเดตแบบ sequential แทน concurrent
+            console.log('  🔄 กำลังทดสอบการอัปเดตหลายครั้ง...');
             for (let i = 0; i < 5; i++) {
                 await request(app)
                     .put(`/api/complaints/${complaintId}`)
@@ -196,6 +236,55 @@ describe('ทดสอบแบบบูรณาการ', () => {
                 .get(`/api/complaints/${complaintId}`);
 
             expect(finalRes.body.data).to.have.property('likes', 5);
+            
+            console.log('   การอัปเดตหลายครั้งสำเร็จ!');
+        });
+    });
+
+    // ==================================================
+    // ทดสอบการทำงานแบบ End-to-End
+    // ==================================================
+    describe('🎯 ทดสอบการทำงานแบบ End-to-End', () => {
+
+        it(' ควรทำงานได้ตั้งแต่สร้างจนเสร็จสิ้น', async function() {
+            this.timeout(10000);
+            
+            // สร้างเรื่องร้องเรียนใหม่
+            const createRes = await request(app)
+                .post('/api/complaints')
+                .set('Authorization', getAuthHeader(authToken))
+                .send({
+                    title: 'End-to-End Test',
+                    categories: ['ทั่วไป'],
+                    description: 'Complete workflow test',
+                    location: JSON.stringify({
+                        building: 'Test Building',
+                        floor: '1',
+                        room: '101'
+                    }),
+                    user_id: testUserId
+                });
+
+            const complaintId = createRes.body.data.complaint_id;
+
+            // เปลี่ยนสถานะเป็น กำลังดำเนินการ
+            await request(app)
+                .put(`/api/complaints/${complaintId}`)
+                .send({ status: 'กำลังดำเนินการ' });
+
+            // เปลี่ยนสถานะเป็น เสร็จสิ้น
+            const completeRes = await request(app)
+                .put(`/api/complaints/${complaintId}`)
+                .send({ status: 'เสร็จสิ้น' });
+
+            expect(completeRes.status).to.equal(200);
+            expect(completeRes.body.data.current_status).to.equal('เสร็จสิ้น');
+            
+            // ตรวจสอบ history
+            const complaint = await Complaint.findOne({ complaint_id: complaintId });
+            expect(complaint.status_history).to.have.lengthOf(3);
+            
+            console.log('End-to-End test สำเร็จ!');
         });
     });
 });

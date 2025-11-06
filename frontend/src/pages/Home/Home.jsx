@@ -185,7 +185,7 @@ export default function Home() {
         <div className="p-6 max-w-7xl mx-auto min-h-screen">
             {/* Header */}
             <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-[#55C388] to-[#43A874] bg-clip-text text-transparent mb-2">
+                <h1 className="text-4xl py-1  font-bold bg-gradient-to-r from-[#55C388] to-[#43A874] bg-clip-text text-transparent mb-2">
                     ระบบรายงานปัญหามหาวิทยาลัย
                 </h1>
                 <p className="text-gray-600">
