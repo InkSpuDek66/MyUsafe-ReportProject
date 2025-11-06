@@ -30,6 +30,8 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [socket, setSocket] = useState(null);
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -129,10 +131,19 @@ export default function Navbar() {
     }
   }, []);
 
+  // ✅ เพิ่ม useEffect เพื่อฟังเหตุการณ์อัปเดตโปรไฟล์
   useEffect(() => {
     const handleProfileUpdate = (event) => {
+      console.log('✅ profileUpdated event received in Navbar:', event.detail);
+      
       if (event.detail?.profile_image) {
         setProfileImage(event.detail.profile_image);
+      }
+      if (event.detail?.name) {
+        setUserName(event.detail.name);
+      }
+      if (event.detail?.email) {
+        setUserEmail(event.detail.email);
       }
     };
     window.addEventListener('profileUpdated', handleProfileUpdate);
@@ -154,11 +165,23 @@ export default function Navbar() {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       const data = await response.json();
-      if (data.success && data.data.profile_image) {
-        setProfileImage(data.data.profile_image);
+      
+      if (data.success && data.data) {
+        setUserName(data.data.name || "");
+        setUserEmail(data.data.email || "");
+        
+        if (data.data.profile_image) {
+          setProfileImage(data.data.profile_image);
+        }
+        
+        console.log("✅ Profile data loaded:", {
+          name: data.data.name,
+          email: data.data.email,
+          role: data.data.role
+        });
       }
     } catch (err) {
-      console.error('Error fetching profile image:', err);
+      console.error('Error fetching profile data:', err);
     }
   };
 
@@ -287,7 +310,10 @@ const handleNotificationClick = (notification) => {
       console.log('🔌 Logging out, disconnecting socket');
       socket.disconnect();
     }
-    navigate("/login");
+    navigate("/");
+    setUserName("");
+    setUserEmail("");
+    navigate("/");
   };
 
   const isActive = (href) => {
@@ -320,12 +346,26 @@ const handleNotificationClick = (notification) => {
     ? [...baseItems, ...(canSeeWork ? [workItem] : []), signOutItem]
     : [];
 
+  const getProfileImageUrl = () => {
+    if (!profileImage) {
+      return "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
+    }
+
+    if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
+      return profileImage;
+    }
+
+    if (profileImage.startsWith('/')) {
+      return `${API_URL.replace('/api', '')}${profileImage}`;
+    }
+
+    return `${API_URL.replace('/api', '')}/profile/${profileImage}`;
+  };
+
   const user = {
-    name: "User Name",
-    email: "user@example.com",
-    imageUrl: profileImage 
-      ? `${API_URL.replace('/api', '')}${profileImage}`
-      : "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
+    name: userName || "ผู้ใช้ระบบ",
+    email: userEmail || "ไม่ระบุ",
+    imageUrl: getProfileImageUrl(),
   };
 
   const NotificationButton = () => (
@@ -485,9 +525,12 @@ const handleNotificationClick = (notification) => {
                   <MenuButton className="relative flex max-w-xs items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
                     <span className="sr-only">Open user menu</span>
                     <img
-                      alt=""
+                      alt="Profile"
                       src={user.imageUrl}
                       className="border border-gray-200 size-8 rounded-full outline -outline-offset-1 outline-white/10 object-cover"
+                      onError={(e) => {
+                        e.target.src = "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
+                      }}
                     />
                   </MenuButton>
                   <MenuItems
@@ -555,7 +598,14 @@ const handleNotificationClick = (notification) => {
             <div className="flex items-center px-5">
               {token && (
                 <>
-                  <img alt="" src={user.imageUrl} className="size-10 rounded-full outline -outline-offset-1 outline-white/10 object-cover" />
+                  <img 
+                    alt="Profile"
+                    src={user.imageUrl}
+                    className="size-10 rounded-full outline -outline-offset-1 outline-white/10 object-cover"
+                    onError={(e) => {
+                      e.target.src = "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png";
+                    }}
+                  />
                   <div className="ml-3">
                     <div className="text-base font-medium text-white">{user.name}</div>
                     <div className="text-sm font-medium text-gray-700">{user.email}</div>

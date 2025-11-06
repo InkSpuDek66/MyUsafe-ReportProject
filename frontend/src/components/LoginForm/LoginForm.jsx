@@ -1,7 +1,3 @@
-// ============================================
-// FILE: src/components/LoginForm.jsx
-// ============================================
-
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
@@ -18,13 +14,13 @@ const LoginForm = () => {
   const [showPolicy, setShowPolicy] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [canAccept, setCanAccept] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState(null); // ✅ เก็บ provider ปัจจุบัน
   const policyRef = useRef(null);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ ตรวจสอบความแข็งแรงของรหัสผ่าน
   const validatePassword = (password) => {
     const passwordRegex =
       /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+[\]{};:'",.<>?/\\|`~=-]).{8,10}$/;
@@ -36,13 +32,15 @@ const LoginForm = () => {
     setError("");
 
     if (!policyAccepted) {
-      setError("กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนเข้าสู่ระบบ");
+      setError(
+        "กรุณายอมรับนโยบายความเป็นส่วนตัวเป็นส่วนก่อนเข้าสู่ระบบ"
+      );
       return;
     }
 
     if (!validatePassword(formData.password)) {
       setError(
-        "รหัสผ่านต้องมี 8–10 ตัว ประกอบด้วย ตัวใหญ่ 1 ตัว ตัวเลข 1 ตัว และอักขระพิเศษ 1 ตัว"
+        "รหัสผ่านต้องมี 8–10 ตัว ประกอบด้วย ตัวใหญ่ 1 ตัว ตัวเล็ก 1 ตัว และอักขระพิเศษ 1 ตัว"
       );
       return;
     }
@@ -81,10 +79,22 @@ const LoginForm = () => {
   };
 
   const handleSignUp = () => navigate("/signup");
-  const handleGoogleLogin = () =>
-    (window.location.href = `${BASE_URL}/auth/google`);
-  const handleGithubLogin = () =>
-    (window.location.href = `${BASE_URL}/auth/github`);
+
+  // ✅ ฟังก์ชันจัดการ OAuth โดยแสดง Policy ก่อน
+  const handleOAuthClick = (provider) => {
+    setOauthProvider(provider);
+    setShowPolicy(true);
+    setCanAccept(false);
+  };
+
+  // ✅ ฟังก์ชันยืนยัน OAuth หลังจากยอมรับ Policy
+  const confirmOAuthLogin = () => {
+    if (oauthProvider === "google") {
+      window.location.href = `${BASE_URL}/auth/google`;
+    } else if (oauthProvider === "github") {
+      window.location.href = `${BASE_URL}/auth/github`;
+    }
+  };
 
   const togglePasswordVisibility = () => setShowPassword((prev) => !prev);
 
@@ -93,6 +103,12 @@ const LoginForm = () => {
     if (box.scrollTop + box.clientHeight >= box.scrollHeight - 10) {
       setCanAccept(true);
     }
+  };
+
+  const closePolicy = () => {
+    setShowPolicy(false);
+    setOauthProvider(null);
+    setCanAccept(false);
   };
 
   return (
@@ -147,7 +163,6 @@ const LoginForm = () => {
             </div>
           </div>
 
-          {/* ✅ Checkbox นโยบาย */}
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2">
               <input
@@ -159,7 +174,10 @@ const LoginForm = () => {
               />
               <button
                 type="button"
-                onClick={() => setShowPolicy(true)}
+                onClick={() => {
+                  setShowPolicy(true);
+                  setOauthProvider(null);
+                }}
                 className="text-green-600 underline hover:text-green-500"
               >
                 นโยบายความเป็นส่วนตัว
@@ -188,7 +206,6 @@ const LoginForm = () => {
           </div>
         </form>
 
-        {/* แบ่งเส้น */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>
@@ -200,11 +217,11 @@ const LoginForm = () => {
           </div>
         </div>
 
-        {/* ✅ OAuth Login */}
+        {/* ✅ OAuth Buttons - เรียก handleOAuthClick แทน */}
         <div className="grid grid-cols-1 gap-3">
           <button
             type="button"
-            onClick={handleGoogleLogin}
+            onClick={() => handleOAuthClick("google")}
             className="py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2"
           >
             <img
@@ -216,7 +233,7 @@ const LoginForm = () => {
           </button>
           {/* <button
             type="button"
-            onClick={handleGithubLogin}
+            onClick={() => handleOAuthClick("github")}
             className="py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -236,7 +253,7 @@ const LoginForm = () => {
           </button>
         </p>
 
-        {/* ✅ Popup Modal */}
+        {/* ✅ Policy Modal - ใช้ได้ทั้ง Email Login และ OAuth */}
         {showPolicy && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
             <div className="bg-white w-full max-w-3xl rounded-lg shadow-2xl p-6 relative">
@@ -248,27 +265,27 @@ const LoginForm = () => {
                 onScroll={handleScrollPolicy}
                 className="overflow-y-auto h-[60vh] border border-gray-200 rounded-lg p-4 bg-gray-50 text-sm text-gray-700 leading-relaxed"
               >
-                {/* ✨ ใส่ข้อความนโยบายฉบับเต็มของคุณตรงนี้ ✨ */}
                 <p>
-                  นโยบายความเป็นส่วนตัว (Privacy Policy)
+                  นโยบายความเป็นส่วนตัว (Privacy Policy) <br />
 
-                  นโยบายความเป็นส่วนตัวนี้จัดทำขึ้นโดย [ชื่อเว็บไซต์ของคุณ] (“บริษัท”, “เรา”, “ของเรา”)
-                  เพื่ออธิบายถึงวิธีการที่เราจัดเก็บ ใช้ เปิดเผย และคุ้มครองข้อมูลส่วนบุคคลของผู้ใช้บริการ (“ท่าน”)
-                  โดยเป็นไปตาม พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA) และกฎหมายที่เกี่ยวข้อง
-
-                  การที่ท่านเข้าใช้บริการเว็บไซต์หรือสมัครสมาชิก ถือว่าท่านได้อ่าน เข้าใจ และยอมรับนโยบายนี้แล้ว
+                  นโยบายความเป็นส่วนตัวนี้จัดทำขึ้นโดย [MyuSafe]
+                  เพื่ออธิบายวิธีการเปิดเผยและคุ้มครองข้อมูลส่วนบุคคลของผู้ใช้บริการ
+                  โดยเป็นไปตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA) และกฎหมายที่เกี่ยวข้องอื่นๆ ของ
+                  การที่ท่านเข้ามาใช้บริการเว็บไซต์หรือสมัครสมาชิกถือว่าท่านได้อ่านและยอมรับนโยบายนี้แล้ว
+                  <br /><br />
 
                   ข้อ 1: การเก็บรวบรวมข้อมูลส่วนบุคคล
 
-                  เราจะเก็บข้อมูลส่วนบุคคลเฉพาะเท่าที่จำเป็น ได้แก่:
+                  เรากำลังเก็บข้อมูลส่วนบุคคลเฉพาะเท่าที่เราจำเป็น ได้แก่:
 
                   ชื่อ และ อีเมล ที่ท่านกรอกขณะสมัครสมาชิก หรือเข้าสู่ระบบผ่านบริการของบุคคลที่สาม (OAuth2.0 เช่น Google, Facebook, GitHub)
 
                   รหัสผู้ใช้ (User ID) หรือ รหัสบัญชีจาก OAuth Provider เพื่อใช้เชื่อมโยงบัญชีของท่าน
 
-                  ข้อมูลทางเทคนิคบางส่วน เช่น หมายเลข IP, ประเภทของอุปกรณ์, เบราว์เซอร์, วันที่และเวลาที่เข้าใช้งาน เพื่อการรักษาความปลอดภัยและปรับปรุงประสบการณ์ใช้งาน
+                  ข้อมูลทางเทคนิคบางส่วน เช่น หมายเลข IP, ประเภทของอุปกรณ์, เบราว์เซอร์, วันที่และเวลาที่เข้ามาใช้งาน เพื่อการรักษาความปลอดภัยและปรับปรุงประสบการณ์ใช้งาน
 
                   เรา ไม่เก็บข้อมูลละเอียดอ่อน (Sensitive Data) เช่น หมายเลขบัตรประชาชน เลขบัญชีธนาคาร หรือข้อมูลสุขภาพ
+                  <br /><br />
 
                   ข้อ 2: แหล่งที่มาของข้อมูล
 
@@ -279,103 +296,127 @@ const LoginForm = () => {
                   ระบบ OAuth 2.0 ที่ท่านอนุญาตให้เข้าถึงข้อมูล เช่น ชื่อและอีเมลจาก Google
 
                   การใช้ คุกกี้ (Cookies) และ เทคโนโลยีติดตาม (Tracking Technologies) เพื่อปรับปรุงคุณภาพเว็บไซต์
+                  <br /><br />
 
                   ข้อ 3: การใช้คุกกี้ (Cookies) และเทคโนโลยีติดตาม
 
-                  เว็บไซต์ของเราใช้คุกกี้เพื่อ:
+                  เว็บไซต์ของเรา ใช้คุกกี้เพื่อ:
 
                   เก็บการตั้งค่าการใช้งานของผู้ใช้
 
                   วิเคราะห์การใช้งานของเว็บไซต์ (ผ่าน Google Analytics)
 
-                  ปรับปรุงประสบการณ์ของผู้ใช้และการนำเสนอเนื้อหา
+                  ปรับปรุงประสบการณ์ของผู้ใช้และการนำเสนออื่นๆ
 
-                  ท่านสามารถปิดการใช้คุกกี้ได้ในเบราว์เซอร์ของท่าน แต่บางฟังก์ชันอาจไม่สามารถใช้งานได้อย่างเต็มที่
+                  ท่านสามารถปิดการใช้คุกกี้ได้ในเบราว์เซอร์เซอร์ของท่าน แต่บางฟังก์ชันอาจจะไม่สามารถใช้งานได้อย่างเต็มที่
 
+                  <br /><br />
                   ข้อ 4: วัตถุประสงค์ในการใช้ข้อมูล
 
-                  เราจะใช้ข้อมูลของท่านเพื่อ:
+                  เรากำลังใช้ข้อมูลของท่านเพื่อ:
 
                   จัดทำบัญชีผู้ใช้งาน และให้บริการเข้าสู่ระบบ
 
-                  จัดการสิทธิ์การเข้าถึง ฟีเจอร์ หรือเนื้อหาส่วนบุคคล
+                  จัดการระเบียบข้อมูล เช่น ฟีเจอร์ หรือเนื้อหาส่วนบุคคล
 
                   ปรับปรุงคุณภาพบริการ ประสบการณ์ใช้งาน และความปลอดภัย
 
-                  ติดต่อหรือแจ้งข้อมูลสำคัญที่เกี่ยวข้องกับบัญชีของท่าน
+                  ติดตามอื่นๆ หรือแจ้งข้อมูลสำคัญเกี่ยวกับการเปลี่ยนแปลง
+                  บริการ
+                  <br /><br />
 
                   ข้อ 5: การเปิดเผยข้อมูลส่วนบุคคล
 
-                  เราจะไม่เปิดเผยข้อมูลของท่านให้บุคคลอื่น เว้นแต่ในกรณีต่อไปนี้:
+                  เรา ไม่เปิดเผยข้อมูลของท่านให้บุคคลอื่น เว้นแต่ในกรณีดังต่อไปนี้:
 
-                  เพื่อให้บริการทางเทคนิค เช่น เซิร์ฟเวอร์ โฮสติ้ง หรือระบบเก็บข้อมูล (ซึ่งมีข้อตกลงคุ้มครองข้อมูลอย่างเหมาะสม)
+                  เพื่อให้บริการทางเทคนิค เช่น เซิร์ฟเวอร์ โฮสติ้ง หรือระบบเก็บข้อมูล (ซึ่งมีข้อตกลงคุ้มครองข้อมูลอยู่เหมาะสม)
 
-                  เมื่อมีคำสั่งจากศาลหรือหน่วยงานของรัฐตามกฎหมาย
+                  เมื่อมีคำสั่งศาลหรือสิ่งบังคับเหล่านี้
 
-                  เพื่อปกป้องสิทธิ์ ความปลอดภัย หรือทรัพย์สินของเว็บไซต์
+                  เพื่อป้องกันสิทธิ คุณภาพ หรือทรัพย์สินของเว็บไซต์
+                  หรือผู้ใช้บริการของเรา
+
+                  เมื่อท่านได้ให้ความยินยอมเป็นลายลักษณ์อักษร
+                  <br /><br />
 
                   ข้อ 6: ระยะเวลาในการเก็บข้อมูล
 
-                  เราจะเก็บข้อมูลส่วนบุคคลของท่านไว้ตราบเท่าที่ท่านยังคงใช้บริการของเรา
-                  หรือจนกว่าจะมีการยกเลิกบัญชีของท่าน
-                  หลังจากนั้น ข้อมูลของท่านจะถูกลบออกจากระบบอย่างถาวรภายในระยะเวลาที่เหมาะสม (โดยทั่วไปไม่เกิน 90 วัน)
+                  เรา จะเก็บข้อมูลส่วนบุคคลของท่านไว้ตราบเท่าที่ท่านยังคงใช้บริการของเรา
+                  หรือจนกว่าจะมีการยกเลิกบัญชี
+                  หลังจากนั้น ข้อมูลของท่านจะถูกลบออกจากระบบในระยะเวลาที่เหมาะสม (โดยทั่วไปไม่เกิน 90 วัน)
+                  เพื่อป้องกันการเข้าถึงโดยไม่ได้รับอนุญาต
+                  และปฏิบัติตามข้อกำหนดทางกฎหมาย
+                  <br /><br />
 
                   ข้อ 7: สิทธิของเจ้าของข้อมูล
 
                   ท่านมีสิทธิตามกฎหมาย ดังนี้:
 
-                  ขอเข้าถึงข้อมูลส่วนบุคคลของตน
+                  ข้อเข้าถึงถึงข้อมูลส่วนบุคคลของตน
 
-                  ขอให้แก้ไขข้อมูลให้ถูกต้อง
+                  ข้อให้แก้ไข เพิ่มเติม หรือลบข้อมูลให้ถูกต้อง
+                  โดยใช้ระบบเข้าถึงข้อมูลรหัสและการตรวจสอบสิทธิ์การเข้าถึง
 
-                  ขอให้ลบ หรือระงับการใช้ข้อมูล
+                  ข้อมิให้เก็บ คำสั่ง ศาล เรีย หรือระงับการใช้ข้อมูล
 
-                  ถอนความยินยอมเมื่อใดก็ได้
+                  ถ้อนความยินยอมเมื่อมีอำนาจหาก พบว่ามีการละเมิดข้อมูลส่วนบุคคล
 
-                  ร้องเรียนต่อหน่วยงานที่มีอำนาจหากพบว่ามีการละเมิดข้อมูลส่วนบุคคล
-
-                  สามารถติดต่อเพื่อดำเนินการสิทธิเหล่านี้ได้ที่อีเมลของเรา
+                  สามารถติดต่อเราเพื่อดำเนินการตามสิทธิเหล่านี้ได้ที่อีเมลของเรา
+                  <br /><br />
 
                   ข้อ 8: การรักษาความปลอดภัยของข้อมูล
 
                   เรามีมาตรการทางเทคนิคและการจัดการเพื่อป้องกัน:
 
-                  การเข้าถึงข้อมูลโดยไม่ได้รับอนุญาต
+                  การเข้าถึงถึงข้อมูลโดยไม่ได้รับอนุญาต
 
                   การสูญหาย การทำลาย หรือการเปลี่ยนแปลงข้อมูลโดยมิชอบ
-                  โดยใช้ระบบเข้ารหัสและการตรวจสอบสิทธิ์การเข้าถึง
+                  โดยใช้ระบบเข้าถึงข้อมูลรหัสและการตรวจสอบสิทธิ์การเข้าถึง
+                  <br /><br />
 
                   ข้อ 9: การปรับปรุงนโยบาย
 
-                  เราอาจปรับปรุงนโยบายนี้เป็นครั้งคราว เพื่อให้สอดคล้องกับกฎหมายหรือการให้บริการใหม่ ๆ
-                  โดยจะประกาศเวอร์ชันล่าสุดบนเว็บไซต์นี้ และถือว่าท่านยอมรับการเปลี่ยนแปลงเมื่อใช้งานเว็บไซต์ต่อไป
+                  เรา อาจปรับปรุงนโยบายนี้เป็นครั้งคราว เพื่อให้สอดคล้องกับข้อกำหนดการให้บริการใหม่ ๆ
+                  โดยจะประกาศเวอร์ชันชันล่าสุดบนเว็บไซต์นี้ และถือว่าท่านยอมรับการเปลี่ยนแปลงเมื่อใช้งานเว็บไซต์ต่อไป
+                  <br /><br />
 
-                  ข้อ 10: การติดต่อเรา
 
-                  หากท่านมีข้อสงสัย ข้อร้องเรียน หรือคำแนะนำเกี่ยวกับนโยบายความเป็นส่วนตัวนี้
-                  สามารถติดต่อได้ที่:
-                  📧 [อีเมลติดต่อของคุณ]
-                  🌐 เว็บไซต์: [ชื่อโดเมนของคุณ]
+                  หากท่านมีข้อสงสัย ข้อเรียนร้อง หรือคำแนะนำเกี่ยวกับนโยบายความเป็นส่วนตัวนี้
+                  <br />
+                  สามารถติดต่อได้ที่: <br />
+                  📧 Myusafe@gmail.com <br />
+                  🌐 www.Myusafe.com
 
-                  อัปเดตล่าสุด: [เดือน ปี] <strong>MyUSafe</strong> ...
+
                 </p>
-                {/* ...วางเนื้อหานโยบายเต็มที่คุณให้มาได้เลย... */}
                 <p className="text-gray-500 text-xs mt-4">
-                  อัปเดตล่าสุด: พฤศจิกายน 2568
+                  อัพเดตล่าสุด: 6 พฤศจิกายน 2568
                 </p>
               </div>
 
-              <div className="text-center mt-6">
+              <div className="text-center mt-6 flex gap-3 justify-center">
+                <button
+                  onClick={closePolicy}
+                  className="px-8 py-2 rounded-md font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                >
+                  ยกเลิก
+                </button>
                 <button
                   disabled={!canAccept}
                   onClick={() => {
-                    setShowPolicy(false);
-                    setPolicyAccepted(true);
-                    setCanAccept(false);
+                    if (oauthProvider) {
+                      // OAuth flow
+                      confirmOAuthLogin();
+                    } else {
+                      // Email login flow
+                      setShowPolicy(false);
+                      setPolicyAccepted(true);
+                      setCanAccept(false);
+                    }
                   }}
                   className={`px-8 py-2 rounded-md font-semibold text-white transition ${canAccept
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-gray-400 cursor-not-allowed"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-gray-400 cursor-not-allowed"
                     }`}
                 >
                   ยอมรับ

@@ -28,15 +28,20 @@ passport.use(
         
         const profileImage = profile.photos[0]?.value || null;
         
-        user = await User.create({
+        // ✅ ใช้ insertOne แทน create เพื่อข้าม validation
+        const result = await User.collection.insertOne({
           name: profile.displayName,
           email: profile.emails[0].value,
-          password: 'oauth-google-' + Math.random().toString(36).substr(2, 9),
+          password: null, // ✅ ไม่มี password (OAuth user)
           role: 'reporter',
           profile_image: profileImage,
           phone: '',
+          is_active: true,
+          created_at: new Date(),
+          updated_at: new Date()
         });
 
+        user = await User.findById(result.insertedId);
         console.log('✅ User สร้างสำเร็จ:', user.email);
         console.log('📸 Profile Image:', profileImage);
         return done(null, user);
@@ -73,15 +78,20 @@ passport.use(
         
         const profileImage = profile.photos[0]?.value || null;
         
-        user = await User.create({
+        // ✅ ใช้ insertOne แทน create เพื่อข้าม validation
+        const result = await User.collection.insertOne({
           name: profile.displayName || profile.username,
           email: profile.emails[0].value,
-          password: 'oauth-github-' + Math.random().toString(36).substr(2, 9),
+          password: null, // ✅ ไม่มี password (OAuth user)
           role: 'reporter',
           profile_image: profileImage,
           phone: '',
+          is_active: true,
+          created_at: new Date(),
+          updated_at: new Date()
         });
 
+        user = await User.findById(result.insertedId);
         console.log('✅ User สร้างสำเร็จ:', user.email);
         console.log('📸 Profile Image:', profileImage);
         return done(null, user);

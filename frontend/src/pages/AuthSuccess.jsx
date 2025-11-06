@@ -1,60 +1,69 @@
+// frontend/src/pages/AuthSuccess.jsx
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-const AuthSuccess = () => {
+export default function AuthSuccess() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    console.log('📍 AuthSuccess component mounted');
-    
-    // ✅ อ่าน Token จาก URL
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const userId = params.get('userId');
-    const email = params.get('email');
+    const token = searchParams.get('token');
+    const userId = searchParams.get('userId');
+    const email = searchParams.get('email');
+    const role = searchParams.get('role'); // ✅ รับ role มาด้วย
 
-    console.log('🔍 URL Params:');
-    console.log('- token:', token);
-    console.log('- userId:', userId);
-    console.log('- email:', email);
+    console.log('🔐 OAuth Callback Received:');
+    console.log('- Token:', token);
+    console.log('- UserId:', userId);
+    console.log('- Email:', email);
+    console.log('- Role:', role);
 
     if (token && userId) {
-      console.log('✅ OAuth Success! Saving to localStorage...');
+      // ✅ ลบข้อมูลเก่าก่อน (ถ้ามี)
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('email');
+      localStorage.removeItem('role');
 
-      // ✅ บันทึก Token ใน localStorage
+      // ✅ บันทึกข้อมูลใหม่
       localStorage.setItem('token', token);
       localStorage.setItem('userId', userId);
-      localStorage.setItem('email', email);
-      localStorage.setItem('role', 'reporter'); // Default role for OAuth users
+      localStorage.setItem('user_id', userId); // เก็บทั้ง 2 format
+      
+      if (email) {
+        localStorage.setItem('email', email);
+      }
+      
+      if (role) {
+        localStorage.setItem('role', role); // ✅ บันทึก role
+        console.log('✅ Role saved to localStorage:', role);
+      }
 
-      console.log('✅ Saved to localStorage');
-      console.log('Token:', localStorage.getItem('token'));
-      console.log('UserID:', localStorage.getItem('userId'));
-      console.log('Email:', localStorage.getItem('email'));
+      // ✅ ตรวจสอบว่าบันทึกสำเร็จหรือไม่
+      console.log('📦 localStorage after save:');
+      console.log('- token:', localStorage.getItem('token'));
+      console.log('- userId:', localStorage.getItem('userId'));
+      console.log('- role:', localStorage.getItem('role'));
 
-      // ✅ ล้างค่า URL
-      window.history.replaceState({}, document.title, '/');
-
-      // ✅ รอ 1 วินาที แล้วไปหน้า Home
+      // ✅ Redirect ไปหน้าแรก
       setTimeout(() => {
-        console.log('🔄 Navigating to home...');
-        navigate('/');
-      }, 1000);
+        navigate('/', { replace: true });
+        window.location.reload(); // Force reload เพื่อให้ Navbar อ่าน role ใหม่
+      }, 500);
     } else {
-      console.log('❌ No token found. Redirecting to login...');
-      navigate('/login');
+      console.error('❌ Missing token or userId');
+      navigate('/login', { replace: true });
     }
-  }, [navigate]);
+  }, [searchParams, navigate]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-        <p className="text-gray-600 text-lg font-medium">กำลังเข้าสู่ระบบ...</p>
-        <p className="text-gray-500 text-sm mt-2">กรุณารอสักครู่</p>
+        <div className="w-16 h-16 border-4 border-[#55C388] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-lg font-medium text-gray-700">กำลังเข้าสู่ระบบ...</p>
+        <p className="text-sm text-gray-500 mt-2">กรุณารอสักครู่</p>
       </div>
     </div>
   );
-};
-
-export default AuthSuccess;
+}

@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
   email: { 
     type: String, 
     required: [true, 'กรุณาใส่อีเมล'], 
-    unique: true,  // สร้าง unique index อัตโนมัติ
+    unique: true,
     lowercase: true,
     trim: true,
     match: [
@@ -26,9 +26,12 @@ const userSchema = new mongoose.Schema({
   },
   password: { 
     type: String, 
-    required: [true, 'กรุณาใส่รหัสผ่าน'],
+    // ✅ ปรับให้ไม่ required เพื่อรองรับ OAuth (ที่ไม่มี password)
+    required: function() {
+      return !this.isOAuthUser();
+    },
     minlength: [6, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'],
-    select: false  // ไม่ส่ง password กลับไปใน query
+    select: false
   }, 
   role: {
     type: String,
@@ -62,6 +65,13 @@ const userSchema = new mongoose.Schema({
 });
 
 // ===================================
+// Method: ตรวจสอบว่าเป็น OAuth user หรือไม่
+// ===================================
+userSchema.methods.isOAuthUser = function() {
+  return !this.password || this.password === null;
+};
+
+// ===================================
 // Middleware: Hash password และ update timestamp
 // ===================================
 userSchema.pre('save', async function (next) {
@@ -70,8 +80,8 @@ userSchema.pre('save', async function (next) {
     this.updated_at = new Date();
   }
   
-  // Hash password ถ้ามีการเปลี่ยนแปลง
-  if (!this.isModified('password')) {
+  // ✅ ข้าม hash ถ้าเป็น OAuth user (ไม่มี password)
+  if (!this.password || !this.isModified('password')) {
     return next();
   }
   
@@ -84,6 +94,10 @@ userSchema.pre('save', async function (next) {
 // Method: เปรียบเทียบรหัสผ่าน
 // ===================================
 userSchema.methods.comparePassword = async function(candidatePassword) {
+    // ✅ ถ้าไม่มี password (OAuth user) ให้ return false
+    if (!this.password) {
+      return false;
+    }
     return await bcrypt.compare(candidatePassword, this.password); 
 };
 
