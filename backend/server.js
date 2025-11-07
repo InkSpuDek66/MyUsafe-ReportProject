@@ -104,10 +104,7 @@ app.use((req, res, next) => {
 });
 
 // ================= Routes ===================
-
-// ✅ เพิ่มบรรทัดนี้ FIRST (MISSING)
 app.use('/', oauthRoutes);
-
 app.use('/auth', authRoutes); 
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/locations', locationRoutes);

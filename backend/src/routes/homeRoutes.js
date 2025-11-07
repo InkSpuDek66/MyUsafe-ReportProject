@@ -1,5 +1,13 @@
 // backend/src/routes/homeRoutes.js
 // Routes สำหรับจัดการเรื่องร้องเรียน (Complaints)
+// ================================
+// Home APIs Checklist
+// 1. [GET] /api/complaints - ดึงรายการเรื่องร้องเรียนทั้งหมด
+// 2. [GET] /api/complaints/:id - ดึงเรื่องร้องเรียนตาม ID
+// 3. [POST] /api/complaints - สร้างเรื่องร้องเรียนใหม่
+// 4. [PUT] /api/complaints/:id - แก้ไขเรื่องร้องเรียน
+// 5. [DELETE] /api/complaints/:id - ลบเรื่องร้องเรียน
+// ================================
 const express = require('express');
 const router = express.Router();
 const complaintController = require('../controllers/homeController');

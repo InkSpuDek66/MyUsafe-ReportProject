@@ -1,3 +1,12 @@
+// backend/src/routes/oauth.js
+// Routes สำหรับจัดการ OAuth Login (Google, GitHub)
+// ================================
+// OAuth APIs Checklist
+// 1. [GET] /auth/google - เริ่มต้น Google OAuth Login
+// 2. [GET] /auth/google/callback - Callback หลังจาก Google ตรวจสอบ
+// 3. [GET] /auth/github - เริ่มต้น GitHub OAuth Login
+// 4. [GET] /auth/github/callback - Callback หลังจาก GitHub ตรวจสอบ
+// ================================
 const express = require('express');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');

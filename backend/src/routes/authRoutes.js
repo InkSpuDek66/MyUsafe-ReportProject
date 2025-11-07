@@ -1,5 +1,10 @@
 // backend/src/routes/authRoutes.js
 // Routes สำหรับจัดการการสมัครสมาชิกและการเข้าสู่ระบบ
+// ================================
+// Auth APIs Checklist
+// 1. [POST] /auth/signup - สมัครสมาชิก
+// 2. [POST] /auth/login - เข้าสู่ระบบ
+// ================================
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken'); 

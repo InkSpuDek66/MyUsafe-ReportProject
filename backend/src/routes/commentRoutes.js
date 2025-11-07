@@ -1,6 +1,12 @@
 // backend/src/routes/commentRoutes.js
 // Routes สำหรับจัดการความคิดเห็น
-
+// ================================
+// Comment APIs Checklist
+// 1. [GET] /api/comments/complaint/:complaintId - ดึงความคิดเห็นทั้งหมดของเรื่องร้องเรียนนั้นๆ
+// 2. [POST] /api/comments - เพิ่มความคิดเห็นใหม่
+// 3. [PUT] /api/comments/:id - แก้ไขความคิดเห็น
+// 4. [DELETE] /api/comments/:id - ลบความคิดเห็น
+// ================================
 const express = require('express');
 const router = express.Router();
 const commentController = require('../controllers/commentController');
