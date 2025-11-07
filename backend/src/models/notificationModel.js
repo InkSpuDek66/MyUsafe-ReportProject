@@ -1,4 +1,5 @@
 // backend/src/models/notificationModel.js
+// Model สำหรับเก็บข้อมูลการแจ้งเตือน (Notifications)
 const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema(
@@ -22,7 +23,7 @@ const notificationSchema = new mongoose.Schema(
         "completed",
         "cancelled",
         "created",
-      ], // ✅ มีแค่ 'created' ก็พอ
+      ],
       required: true,
     },
     message: {

@@ -26,7 +26,6 @@ const userSchema = new mongoose.Schema({
   },
   password: { 
     type: String, 
-    // ✅ ปรับให้ไม่ required เพื่อรองรับ OAuth (ที่ไม่มี password)
     required: function() {
       return !this.isOAuthUser();
     },
