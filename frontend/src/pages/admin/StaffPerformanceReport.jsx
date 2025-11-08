@@ -11,6 +11,7 @@ import {
   ArrowDownTrayIcon,
   UserGroupIcon,
   TrophyIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/solid";
 import {
   BarChart,
@@ -213,7 +214,7 @@ export default function StaffPerformanceReports() {
       </h1>
 
       {/* สรุปภาพรวม */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
         {[
           {
             title: "ทั้งหมด",
@@ -242,6 +243,13 @@ export default function StaffPerformanceReports() {
             subtitle: "อยู่ระหว่างแก้ไขปัญหา",
             color: "from-blue-400 to-blue-600",
             icon: <Cog6ToothIcon className="h-10 w-10 text-white animate-spin-slow" />,
+          },
+          {
+            title: "ยกเลิก",
+            value: counts.canceled,
+            subtitle: `ถูกยกเลิกโดยผู้ดูแลระบบ`,
+            color: "from-red-500 to-red-600",
+            icon: <XCircleIcon className="h-10 w-10 text-white" />,
           },
         ].map((card, i) => (
           <div

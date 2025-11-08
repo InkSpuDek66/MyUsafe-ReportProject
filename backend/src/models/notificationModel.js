@@ -19,6 +19,7 @@ const notificationSchema = new mongoose.Schema(
       enum: [
         "status_change",
         "assigned",
+        "unassigned", // ✅ เพิ่ม type นี้
         "comment",
         "completed",
         "cancelled",

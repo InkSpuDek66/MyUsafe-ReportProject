@@ -39,13 +39,13 @@ export default function Navbar() {
     const storedToken = localStorage.getItem("token");
     const storedRole = localStorage.getItem("role");
     const storedUserId = localStorage.getItem("userId") || localStorage.getItem("user_id");
-    
-    console.log('👤 User info:', { 
-      storedUserId, 
+
+    console.log('👤 User info:', {
+      storedUserId,
       storedRole,
-      hasToken: !!storedToken 
+      hasToken: !!storedToken
     });
-    
+
     setToken(storedToken);
     setRole(storedRole);
     setUserId(storedUserId);
@@ -53,7 +53,7 @@ export default function Navbar() {
     if (storedToken && storedUserId) {
       fetchProfileImage(storedToken);
       fetchNotifications(storedUserId);
-      
+
       // เชื่อมต่อ Socket.IO
       console.log('🔌 Connecting to socket:', SOCKET_URL);
       const socketConnection = io(SOCKET_URL, {
@@ -62,7 +62,7 @@ export default function Navbar() {
         reconnectionDelay: 1000,
         reconnectionAttempts: 5
       });
-      
+
       socketConnection.on('connect', () => {
         console.log('✅ Socket connected:', socketConnection.id);
         console.log('📤 Joining room:', storedUserId);
@@ -82,28 +82,28 @@ export default function Navbar() {
         console.log('🔔 New notification received:', notification);
         console.log('🔔 Notification type:', notification.type);
         console.log('🔔 Notification message:', notification.message);
-        
+
         // อัพเดท state
         setNotifications(prev => {
           console.log('📝 Updating notifications, prev count:', prev.length);
           return [notification, ...prev];
         });
-        
+
         setUnreadCount(prev => {
           console.log('📝 Updating unread count from', prev, 'to', prev + 1);
           return prev + 1;
         });
-        
+
         // แสดง browser notification
         if (Notification.permission === 'granted') {
           console.log('🔔 Showing browser notification');
           new Notification('MyUSafe - การแจ้งเตือนใหม่', {
-            
+
             body: notification.message,
             icon: '/MyUSafe_mini_none-bg_LOGO1.png'
-          });socketConnection.onAny((eventName, ...args) => {
-  console.log('📨 Socket event received:', eventName, args);
-});
+          }); socketConnection.onAny((eventName, ...args) => {
+            console.log('📨 Socket event received:', eventName, args);
+          });
         } else if (Notification.permission === 'default') {
           console.log('❓ Requesting notification permission');
           Notification.requestPermission();
@@ -114,9 +114,9 @@ export default function Navbar() {
       socketConnection.on('test', (data) => {
         console.log('🧪 Test event received:', data);
       });
-      
+
       setSocket(socketConnection);
-      
+
       return () => {
         console.log('🔌 Disconnecting socket...');
         socketConnection.off('new_notification');
@@ -135,7 +135,7 @@ export default function Navbar() {
   useEffect(() => {
     const handleProfileUpdate = (event) => {
       console.log('✅ profileUpdated event received in Navbar:', event.detail);
-      
+
       if (event.detail?.profile_image) {
         setProfileImage(event.detail.profile_image);
       }
@@ -165,15 +165,15 @@ export default function Navbar() {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setUserName(data.data.name || "");
         setUserEmail(data.data.email || "");
-        
+
         if (data.data.profile_image) {
           setProfileImage(data.data.profile_image);
         }
-        
+
         console.log("✅ Profile data loaded:", {
           name: data.data.name,
           email: data.data.email,
@@ -207,7 +207,7 @@ export default function Navbar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
       });
-      
+
       if (response.ok) {
         setNotifications(prev =>
           prev.map(n => n._id === notificationId ? { ...n, is_read: true } : n)
@@ -226,7 +226,7 @@ export default function Navbar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
       });
-      
+
       if (response.ok) {
         setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
         setUnreadCount(0);
@@ -243,7 +243,7 @@ export default function Navbar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
       });
-      
+
       if (response.ok) {
         const wasUnread = notifications.find(n => n._id === notificationId)?.is_read === false;
         setNotifications(prev => prev.filter(n => n._id !== notificationId));
@@ -256,27 +256,28 @@ export default function Navbar() {
     }
   };
 
-const handleNotificationClick = (notification) => {
-  console.log('🖱️ Notification clicked:', notification);
-  if (!notification.is_read) {
-    markAsRead(notification._id);
-  }
-  setShowNotifications(false);
-  
-  // ✅ ตรวจสอบว่าเป็น Staff หรือไม่ และ notification เป็นประเภท assigned
-  if (role === 'staff' && notification.type === 'assigned') {
-    // Staff ที่ได้รับมอบหมายงาน → ไปที่ AssignmentDetail
-    navigate(`/assignment/${notification.complaint_id}`);
-  } else {
-    // User ปกติ → ไปที่ ComplaintDetail
-    navigate(`/complaint/${notification.complaint_id}`);
-  }
-};
+  const handleNotificationClick = (notification) => {
+    console.log('🖱️ Notification clicked:', notification);
+    if (!notification.is_read) {
+      markAsRead(notification._id);
+    }
+    setShowNotifications(false);
+
+    // ✅ ตรวจสอบว่าเป็น Staff หรือไม่ และ notification เป็นประเภท assigned
+    if (role === 'staff' && notification.type === 'assigned') {
+      // Staff ที่ได้รับมอบหมายงาน → ไปที่ AssignmentDetail
+      navigate(`/assignment/${notification.complaint_id}`);
+    } else {
+      // User ปกติ → ไปที่ ComplaintDetail
+      navigate(`/complaint/${notification.complaint_id}`);
+    }
+  };
 
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'completed': return '✅';
       case 'assigned': return '👤';
+      case 'unassigned': return '🔄';
       case 'status_change': return '🔄';
       case 'comment': return '💬';
       case 'cancelled': return '❌';
@@ -322,18 +323,18 @@ const handleNotificationClick = (notification) => {
   };
 
   const navigation = [
-  { name: "หน้าหลัก", href: "/" },
-  ...(role === 'admin' ? [
-    { name: "สถิติ", href: "/admin/reports" },
-    { name: "รายงานการปฏิบัติงาน", href: "/admin/staff-performance" },
-    { name: "รายการเรื่องร้องเรียน", href: "/admin/complaint-list" },
-    { name: "หมวดหมู่", href: "/admin/categories" }
-  ] : []),
-  ...(role === 'staff' ? [
-    { name: "งานที่ถูกมอบหมาย", href: "/admin/assignments" }
-  ] : []),
-  { name: "ร้องเรียน", href: "/complaints/new" },
-];
+    { name: "หน้าหลัก", href: "/" },
+    ...(role === 'admin' ? [
+      { name: "สถิติ", href: "/admin/reports" },
+      { name: "รายงานการปฏิบัติงาน", href: "/admin/staff-performance" },
+      { name: "รายการเรื่องร้องเรียน", href: "/admin/complaint-list" },
+      { name: "หมวดหมู่", href: "/admin/categories" }
+    ] : []),
+    ...(role === 'staff' ? [
+      { name: "งานที่ถูกมอบหมาย", href: "/admin/assignments" }
+    ] : []),
+    { name: "ร้องเรียน", href: "/complaints/new" },
+  ];
 
   const canSeeWork = role === 'staff';
   const baseItems = [
@@ -414,9 +415,8 @@ const handleNotificationClick = (notification) => {
               notifications.map((notif) => (
                 <div
                   key={notif._id}
-                  className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    !notif.is_read ? 'bg-blue-50' : ''
-                  }`}
+                  className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${!notif.is_read ? 'bg-blue-50' : ''
+                    }`}
                   onClick={() => handleNotificationClick(notif)}
                 >
                   <div className="flex items-start gap-3">
@@ -447,7 +447,7 @@ const handleNotificationClick = (notification) => {
           </div>
 
           {/* Footer */}
-          {notifications.length > 0 }
+          {notifications.length > 0}
         </div>
       )}
     </div>
@@ -586,7 +586,7 @@ const handleNotificationClick = (notification) => {
             <div className="flex items-center px-5">
               {token && (
                 <>
-                  <img 
+                  <img
                     alt="Profile"
                     src={user.imageUrl}
                     className="size-10 rounded-full outline -outline-offset-1 outline-white/10 object-cover"

@@ -6,6 +6,7 @@ import {
   ArrowDownTrayIcon,
   UserGroupIcon,
   MagnifyingGlassIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/solid";
 import * as XLSX from "xlsx";
 
@@ -19,19 +20,19 @@ export default function ComplaintsListManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [staffList, setStaffList] = useState([]);
-  const [categories, setCategories] = useState([]); // ✅ เปลี่ยนจาก hardcode เป็นดึงจาก DB
+  const [categories, setCategories] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedComplaintId, setSelectedComplaintId] = useState(null);
   const [selectedStaffId, setSelectedStaffId] = useState('');
-  const [currentAdmin, setCurrentAdmin] = useState(null); // ✅ เพิ่มข้อมูล Admin ปัจจุบัน
+  const [currentAdmin, setCurrentAdmin] = useState(null);
 
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     loadData();
     loadStaffList();
-    loadCategories(); // ✅ เพิ่มการโหลด categories
-    loadCurrentAdmin(); // ✅ เพิ่มการโหลดข้อมูล admin
+    loadCategories();
+    loadCurrentAdmin();
   }, []);
 
   const loadData = async () => {
@@ -57,7 +58,6 @@ export default function ComplaintsListManagement() {
     }
   };
 
-  // ✅ เพิ่มฟังก์ชันโหลด categories จาก DB
   const loadCategories = async () => {
     try {
       const res = await fetch(`${API}/api/categories`);
@@ -70,34 +70,34 @@ export default function ComplaintsListManagement() {
     }
   };
 
-  // ✅ เพิ่มฟังก์ชันโหลดข้อมูล Admin ปัจจุบัน
   const loadCurrentAdmin = async () => {
     try {
-      const token = localStorage.getItem('token');
       const userId = localStorage.getItem('userId');
+      const userName = localStorage.getItem('name');
+      const userEmail = localStorage.getItem('email');
       
-      if (!token || !userId) {
-        console.error('No token or userId found');
+      if (!userId) {
+        console.error('No userId found');
         return;
       }
 
-      const res = await fetch(`${API}/api/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      // ใช้ข้อมูลจาก localStorage โดยตรง
+      setCurrentAdmin({
+        _id: userId,
+        name: userName || 'Admin',
+        email: userEmail || ''
       });
-
-      const json = await res.json();
-      if (json.success) {
-        setCurrentAdmin(json.data);
-        console.log('Current admin loaded:', json.data);
-      }
+      
+      console.log('Current admin loaded from localStorage:', {
+        _id: userId,
+        name: userName,
+        email: userEmail
+      });
     } catch (err) {
-      console.error('Error fetching current admin:', err);
+      console.error('Error loading current admin:', err);
     }
   };
 
-  // ✅ แก้ไข toggleCategory ให้ใช้ name แทน id
   const toggleCategory = (name) => {
     setSelectedCategories((prev) =>
       prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
@@ -109,7 +109,6 @@ export default function ComplaintsListManagement() {
       .filter((c) => {
         if (filterStatus !== "ทั้งหมด" && c.current_status !== filterStatus)
           return false;
-        // ✅ แก้ไขการ filter ตาม category name
         if (selectedCategories.length > 0) {
           const cates = Array.isArray(c.categories) ? c.categories : [];
           if (!selectedCategories.some((name) => cates.includes(name))) return false;
@@ -147,7 +146,6 @@ export default function ComplaintsListManagement() {
     return "bg-gray-100 text-black";
   };
 
-  // ✅ แก้ไขให้ส่ง token และ userId จริง
   const handleStatusChange = async (id, newStatus) => {
     if (!confirm(`ยืนยันเปลี่ยนสถานะเป็น "${newStatus}" ?`)) return;
     
@@ -179,7 +177,6 @@ export default function ComplaintsListManagement() {
     }
   };
 
-  // ✅ แก้ไขให้ส่ง token และ userId จริง
   const handlePriorityChange = async (id, newPriority) => {
     try {
       const token = localStorage.getItem('token');
@@ -209,7 +206,6 @@ export default function ComplaintsListManagement() {
     }
   };
 
-  // ✅ แก้ไขให้บันทึก admin ID จริง
   const handleAssign = async () => {
     if (!selectedStaffId) {
       alert('กรุณาเลือกเจ้าหน้าที่');
@@ -238,7 +234,7 @@ export default function ComplaintsListManagement() {
         },
         body: JSON.stringify({
           assigned_to: selectedStaffId,
-          assigned_by: currentAdmin._id // ✅ ส่ง ObjectId ของ Admin จริง
+          assigned_by: currentAdmin._id
         })
       });
 
@@ -257,6 +253,54 @@ export default function ComplaintsListManagement() {
     } catch (err) {
       console.error('Error assigning:', err);
       alert('เกิดข้อผิดพลาด');
+    }
+  };
+
+  // ✅ ฟังก์ชันยกเลิกการมอบหมาย - แก้ไขแล้ว
+  const handleUnassign = async (complaintId, event) => {
+    // ⭐ ป้องกัน event bubbling อย่างเข้มงวด
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.nativeEvent) {
+        event.nativeEvent.stopImmediatePropagation();
+      }
+    }
+
+    if (!confirm('ยืนยันยกเลิกการมอบหมายงาน?')) return;
+
+    console.log('🔄 Unassigning complaint:', complaintId);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      console.log('📡 Sending DELETE request to:', `${API}/api/assignments/${complaintId}/unassign`);
+      
+      const res = await fetch(`${API}/api/assignments/${complaintId}/unassign`, {
+        method: 'DELETE',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('📡 Response status:', res.status);
+
+      if (!res.ok) {
+        const data = await res.json();
+        console.error('❌ Unassign failed:', data);
+        alert(data.error || 'ยกเลิกการมอบหมายไม่สำเร็จ');
+        return;
+      }
+
+      const data = await res.json();
+      console.log('✅ Unassign success:', data);
+      
+      await loadData();
+      alert('ยกเลิกการมอบหมายสำเร็จ');
+    } catch (err) {
+      console.error('❌ Error unassigning:', err);
+      alert('เกิดข้อผิดพลาด: ' + err.message);
     }
   };
 
@@ -340,7 +384,7 @@ export default function ComplaintsListManagement() {
           </div>
         </div>
 
-        {/* Category Menu - ✅ ใช้ข้อมูลจาก DB */}
+        {/* Category Menu */}
         {showCategoryMenu && (
           <div className="flex flex-wrap justify-center gap-3 mb-6 bg-white border border-green-200 rounded-2xl p-4 shadow-md">
             {categories.map((cat) => (
@@ -428,7 +472,6 @@ export default function ComplaintsListManagement() {
                     <td className="px-4 py-2 align-top">{c.complaint_id}</td>
                     <td className="px-4 py-2 align-top font-medium">{c.title}</td>
 
-                    {/* ✅ แก้ไขการแสดง category ให้ใช้ข้อมูลจาก DB */}
                     <td className="px-4 py-2 align-top">
                       <div className="flex flex-wrap gap-1">
                         {(c.categories || []).map((catName, i) => {
@@ -471,9 +514,11 @@ export default function ComplaintsListManagement() {
 
                     <td className="px-4 py-2 align-top" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-col gap-2">
+                        {/* ✅ แสดงปุ่มมอบหมายถ้ายังไม่มีการมอบหมาย */}
                         {!c.assigned_to && c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
                           <button
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               setSelectedComplaintId(c.complaint_id);
                               setShowAssignModal(true);
@@ -485,9 +530,34 @@ export default function ComplaintsListManagement() {
                           </button>
                         )}
 
+                        {/* ✅ แสดงปุ่มยกเลิกการมอบหมายถ้ามีการมอบหมายแล้ว */}
+                        {c.assigned_to && c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
+                          <>
+                            <div className="text-xs text-gray-600 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
+                              <UserGroupIcon className="h-3 w-3 text-blue-600" />
+                              <span className="text-blue-600 font-medium">
+                                {staffList.find(s => s._id === c.assigned_to)?.name || 'มอบหมายแล้ว'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleUnassign(c.complaint_id, e);
+                              }}
+                              className="px-3 py-1.5 bg-orange-600 text-white rounded-md text-sm hover:bg-orange-700 flex items-center gap-1 justify-center"
+                            >
+                              <XCircleIcon className="h-4 w-4" />
+                              ยกเลิกมอบหมาย
+                            </button>
+                          </>
+                        )}
+
+                        {/* ปุ่มยกเลิกเรื่อง */}
                         {c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
                           <button
                             onClick={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               handleStatusChange(c.complaint_id, "ยกเลิก");
                             }}
@@ -495,13 +565,6 @@ export default function ComplaintsListManagement() {
                           >
                             ยกเลิก
                           </button>
-                        )}
-
-                        {c.assigned_to && c.current_status !== 'เสร็จสิ้น' && c.current_status !== 'ยกเลิก' && (
-                          <div className="text-xs text-gray-600 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
-                            <UserGroupIcon className="h-3 w-3 text-blue-600" />
-                            <span className="text-blue-600 font-medium">มอบหมายแล้ว</span>
-                          </div>
                         )}
 
                         {(c.current_status === "เสร็จสิ้น" || c.current_status === "ยกเลิก") && (
@@ -591,7 +654,7 @@ export default function ComplaintsListManagement() {
         )}
       </div>
 
-      {/* Assignment Modal - ✅ แสดงข้อมูล Admin */}
+      {/* Assignment Modal */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -599,13 +662,6 @@ export default function ComplaintsListManagement() {
               <UserGroupIcon className="h-6 w-6 text-[#55C388]" />
               เลือกเจ้าหน้าที่
             </h3>
-
-            {currentAdmin && (
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600">มอบหมายโดย:</p>
-                <p className="font-medium text-gray-800">{currentAdmin.name}</p>
-              </div>
-            )}
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
