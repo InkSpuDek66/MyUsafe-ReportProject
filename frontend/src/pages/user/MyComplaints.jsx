@@ -21,7 +21,6 @@ const MyComplaints = () => {
             setLoading(true);
             const response = await complaintAPI.getMyComplaints();
 
-            // ตรวจสอบว่าได้ array กลับมา
             if (Array.isArray(response.data)) {
                 setComplaints(response.data);
             } else {
@@ -29,11 +28,31 @@ const MyComplaints = () => {
             }
         } catch (error) {
             console.error('Error fetching my complaints:', error);
-            setComplaints([]); // สำคัญ: set เป็น array เปล่าเมื่อ error
+            setComplaints([]);
             alert('ไม่สามารถโหลดข้อมูลได้');
         } finally {
             setLoading(false);
         }
+    };
+
+    // Callback สำหรับการอัพเดทเรื่องร้องเรียนหลังแก้ไข
+    const handleComplaintUpdate = (updatedComplaint) => {
+        setComplaints(prevComplaints => 
+            prevComplaints.map(complaint => 
+                complaint.complaint_id === updatedComplaint.complaint_id 
+                    ? updatedComplaint 
+                    : complaint
+            )
+        );
+    };
+
+    // Callback สำหรับการลบเรื่องร้องเรียน
+    const handleComplaintDelete = (deletedComplaintId) => {
+        setComplaints(prevComplaints => 
+            prevComplaints.filter(complaint => 
+                complaint.complaint_id !== deletedComplaintId
+            )
+        );
     };
 
     return (
@@ -42,7 +61,7 @@ const MyComplaints = () => {
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold ">
+                        <h1 className="text-3xl font-bold">
                             เรื่องร้องเรียนของฉัน
                         </h1>
                         <p className="text-gray-400 mt-2">
@@ -66,6 +85,8 @@ const MyComplaints = () => {
                         complaints={complaints}
                         loading={loading}
                         showFilters={true}
+                        onUpdate={handleComplaintUpdate}
+                        onDelete={handleComplaintDelete}
                     />
                 )}
             </div>

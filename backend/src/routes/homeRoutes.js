@@ -1,7 +1,7 @@
 // backend/src/routes/homeRoutes.js
 // Routes สำหรับจัดการเรื่องร้องเรียน (Complaints)
 // ================================
-// Home APIs Checklist
+// Complaint APIs Checklist
 // 1. [GET] /api/complaints - ดึงรายการเรื่องร้องเรียนทั้งหมด
 // 2. [GET] /api/complaints/:id - ดึงเรื่องร้องเรียนตาม ID
 // 3. [POST] /api/complaints - สร้างเรื่องร้องเรียนใหม่
@@ -131,8 +131,8 @@ router.get('/:id', complaintController.getComplaintById);
 // POST - สร้างเรื่องร้องเรียนใหม่ (ต้อง login ก่อน)
 router.post('/', protect, upload.array('images', 5), handleMulterError, complaintController.createComplaint);
 
-// PUT - แก้ไขเรื่องร้องเรียน
-router.put('/:id', complaintController.updateComplaint);
+// PATCH - แก้ไขเรื่องร้องเรียน
+router.patch('/:id', complaintController.updateComplaint);
 
 // DELETE - ลบเรื่องร้องเรียน
 router.delete('/:id', complaintController.deleteComplaint);

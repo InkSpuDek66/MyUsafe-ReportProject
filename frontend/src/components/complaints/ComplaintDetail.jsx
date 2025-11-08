@@ -1,3 +1,5 @@
+// frontend/src/components/complaints/ComplaintDetail.jsx
+// Component สำหรับแสดงรายละเอียดเรื่องร้องเรียน
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -39,17 +41,8 @@ export default function ComplaintDetail() {
   const isStaffOrAdmin = ['staff', 'admin'].includes(currentUser.user_role);
   const isOwner = data?.user_id === currentUser.user_id;
 
-  // หมวดหมู่
-  const categories = [
-    { id: "flood", name: "น้ำท่วม" },
-    { id: "electrical", name: "ไฟฟ้า" },
-    { id: "computer", name: "คอมพิวเตอร์/เว็บไซต์" },
-    { id: "plumbing", name: "ประปา/ท่อน้ำ" },
-    { id: "facilities", name: "สิ่งอำนวยความสะดวก" },
-    { id: "cleanliness", name: "ความสะอาด" },
-    { id: "safety", name: "ความปลอดภัย" },
-    { id: "other", name: "อื่นๆ" },
-  ];
+  // เช็คว่าสามารถแก้ไขหรือลบได้หรือไม่ (เฉพาะสถานะ "รอรับเรื่อง" เท่านั้น)
+  const canEdit = isOwner && (data?.current_status === 'รอรับเรื่อง' || data?.status === 'รอรับเรื่อง');
 
   const fetchComplaint = async () => {
     try {
@@ -145,16 +138,14 @@ export default function ComplaintDetail() {
     );
   }
 
-  // จัดการรูปภาพที่แนบมา - ปรับปรุงให้รองรับ path format ต่างๆ
+  // จัดการรูปภาพที่แนบมา
   const attachments = Array.isArray(data.images)
     ? data.images
-      .filter(file => file && file !== '') // กรองไฟล์ว่างออก
+      .filter(file => file && file !== '')
       .map(file => {
-        // ถ้าเป็น absolute URL ใช้ได้เลย
         if (file.startsWith('http://') || file.startsWith('https://')) {
           return file;
         }
-        // ถ้ามี /uploads นำหน้าแล้ว ใช้ได้เลย
         const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
         return `${API_BASE_URL}${imagePath}`;
       })
@@ -174,13 +165,6 @@ export default function ComplaintDetail() {
         return `${API_BASE_URL}${imagePath}`;
       })
     : [];
-
-  // Debug: แสดง URL รูปภาพใน console
-  console.log('ComplaintDetail Images:', {
-    raw_images: data.images,
-    processed_attachments: attachments,
-    api_base: API_BASE_URL
-  });
 
   const currentFile = attachments[currentIndex];
   const currentResolutionFile = resolutionAttachments[resolutionMediaIndex];
@@ -277,36 +261,49 @@ export default function ComplaintDetail() {
 
           {/* Content Section */}
           <div className="p-6 sm:p-8">
-            {/* Header with Status and Priority */}
-            <div className="flex flex-wrap gap-3 items-center mb-4">
-              <StatusBadge status={data.current_status} />
-              <PriorityBadge priority={data.priority} />
-              {isStaffOrAdmin && (
-                <>
+            {/* Header with Status, Priority and Action Buttons */}
+            <div className="flex flex-wrap gap-3 items-center justify-between mb-4">
+              <div className="flex flex-wrap gap-3 items-center">
+                <StatusBadge status={data.current_status} />
+                <PriorityBadge priority={data.priority} />
+                {isStaffOrAdmin && (
+                  <>
+                    <button
+                      onClick={() => setStatusModalOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      <Edit size={16} />
+                      เปลี่ยนสถานะ
+                    </button>
+                    <button
+                      onClick={() => setAssignModalOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                    >
+                      <UserPlus size={16} />
+                      มอบหมายงาน
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* ปุ่มแก้ไข/ลบชิดขวา */}
+              {canEdit && (
+                <div className="flex gap-2">
                   <button
-                    onClick={() => setStatusModalOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    onClick={() => navigate(`/complaints/edit/${data.complaint_id || id}`)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-orange-600 transition-colors shadow-md"
                   >
                     <Edit size={16} />
-                    เปลี่ยนสถานะ
+                    แก้ไข
                   </button>
                   <button
-                    onClick={() => setAssignModalOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                    onClick={handleDelete}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md"
                   >
-                    <UserPlus size={16} />
-                    มอบหมายงาน
+                    <Trash2 size={16} />
+                    ลบ
                   </button>
-                </>
-              )}
-              {isOwner && (
-                <button
-                  onClick={handleDelete}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors ml-auto"
-                >
-                  <Trash2 size={16} />
-                  ลบเรื่องร้องเรียน
-                </button>
+                </div>
               )}
             </div>
 
@@ -321,24 +318,21 @@ export default function ComplaintDetail() {
             {/* Categories */}
             {cates.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-6">
-                {cates.map((catId, index) => {
-                  const cat = categories.find(c => c.id === catId) || { name: catId };
-                  return (
-                    <span
-                      key={index}
-                      className="px-3 py-1 text-sm rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30"
-                    >
-                      {cat.name}
-                    </span>
-                  );
-                })}
+                {cates.map((categoryName, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 text-sm rounded-full bg-[#E6F6EE] text-[#55C388] border border-[#55C388]/30"
+                  >
+                    {categoryName}
+                  </span>
+                ))}
               </div>
             )}
 
             {/* Description */}
             <div className="mb-6">
               <h3 className="font-semibold text-gray-800 mb-2">รายละเอียด</h3>
-              <p className="text-gray-600 whitespace-pre-wrap">
+              <p className="text-gray-600 leading-relaxed break-words whitespace-pre-wrap">
                 {data.description || 'ไม่มีรายละเอียด'}
               </p>
             </div>
@@ -389,7 +383,6 @@ export default function ComplaintDetail() {
                 </h4>
                 <p className="text-gray-700 whitespace-pre-wrap mb-2">{data.resolution_note}</p>
 
-                {/* แสดงเวลาที่ใช้ในการแก้ไข */}
                 {data.time_used && data.time_used !== '-' && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-3 mt-2">
                     <Clock size={16} className="text-green-600" />
@@ -397,7 +390,6 @@ export default function ComplaintDetail() {
                   </div>
                 )}
 
-                {/* ปุ่มแสดง/ซ่อนรูปภาพ */}
                 {resolutionAttachments.length > 0 && (
                   <button
                     onClick={() => setShowResolutionMedia(!showResolutionMedia)}
@@ -413,7 +405,6 @@ export default function ComplaintDetail() {
                   <p className="text-gray-500 text-sm italic">ไม่มีรูปภาพ/วิดีโอที่แนบมา</p>
                 )}
 
-                {/* แสดงรูปภาพ/วิดีโอเมื่อกดปุ่ม */}
                 {showResolutionMedia && resolutionAttachments.length > 0 && (
                   <div className="mt-4 relative bg-gray-100 rounded-lg p-4">
                     <div className="relative flex justify-center items-center h-64">
@@ -458,8 +449,8 @@ export default function ComplaintDetail() {
                               <div
                                 key={i}
                                 className={`w-2 h-2 rounded-full ${i === resolutionMediaIndex
-                                  ? "bg-green-600"
-                                  : "bg-white/50"
+                                    ? "bg-green-600"
+                                    : "bg-white/50"
                                   }`}
                               />
                             ))}

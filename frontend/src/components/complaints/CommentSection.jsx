@@ -12,22 +12,22 @@ const CommentSection = ({ complaintId }) => {
     const [editingId, setEditingId] = useState(null);
     const [editText, setEditText] = useState('');
     
-    // ⭐ เพิ่ม constant สำหรับความยาวสูงสุด
+    // เพิ่ม constant สำหรับความยาวสูงสุด
     const MAX_COMMENT_LENGTH = 2500;
 
-    // ⭐ ต้องมีส่วนนี้!
+    // ต้องมีส่วนนี้!
     const currentUser = {
         user_id: localStorage.getItem('user_id') || 'U0000001',
         user_name: localStorage.getItem('user_name') || 'Test User',
         user_role: localStorage.getItem('user_role') || 'reporter'
     };
 
-    // ⭐ useEffect สำหรับดึงความคิดเห็น
+    // useEffect สำหรับดึงความคิดเห็น
     useEffect(() => {
         fetchComments();
     }, [complaintId]);
 
-    // ⭐ ฟังก์ชันดึงความคิดเห็น
+    // ฟังก์ชันดึงความคิดเห็น
     const fetchComments = async () => {
         try {
             setFetchLoading(true);
@@ -45,7 +45,7 @@ const CommentSection = ({ complaintId }) => {
         e.preventDefault();
         if (!newComment.trim()) return;
 
-        // ⭐ เพิ่ม validation ความยาว
+        // เพิ่ม validation ความยาว
         if (newComment.length > MAX_COMMENT_LENGTH) {
             alert(`ความคิดเห็นต้องไม่เกิน ${MAX_COMMENT_LENGTH} ตัวอักษร (ปัจจุบัน: ${newComment.length})`);
             return;
@@ -65,7 +65,7 @@ const CommentSection = ({ complaintId }) => {
         } catch (error) {
             console.error('Error adding comment:', error);
             
-            // ⭐ แสดง error message ที่ชัดเจนขึ้น
+            // แสดง error message ที่ชัดเจนขึ้น
             const errorMsg = error.response?.data?.error || 
                             error.response?.data?.details ||
                             'เกิดข้อผิดพลาดในการเพิ่มความคิดเห็น';
@@ -78,7 +78,7 @@ const CommentSection = ({ complaintId }) => {
     const handleEdit = async (commentId) => {
         if (!editText.trim()) return;
 
-        // ⭐ เพิ่ม validation ความยาวสำหรับการแก้ไข
+        // เพิ่ม validation ความยาวสำหรับการแก้ไข
         if (editText.length > MAX_COMMENT_LENGTH) {
             alert(`ความคิดเห็นต้องไม่เกิน ${MAX_COMMENT_LENGTH} ตัวอักษร (ปัจจุบัน: ${editText.length})`);
             return;
@@ -136,7 +136,7 @@ const CommentSection = ({ complaintId }) => {
                     <label className="block text-sm font-medium text-gray-700">
                         เพิ่มความคิดเห็น
                     </label>
-                    {/* ⭐ เพิ่ม Character Counter */}
+                    {/* เพิ่ม Character Counter */}
                     <span className={`text-xs ${
                         newComment.length > MAX_COMMENT_LENGTH 
                             ? 'text-red-600 font-semibold' 
@@ -193,17 +193,19 @@ const CommentSection = ({ complaintId }) => {
                         const isEditing = editingId === comment._id;
 
                         return (
+                            // Comment Item
                             <div
                                 key={comment._id}
                                 className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100 w-full max-w-full"
                             >
+                                {/* Comment Header */}
                                 <div className="flex items-start gap-2 sm:gap-3 w-full">
                                     <div className="flex-shrink-0">
                                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#55C388]/10 flex items-center justify-center">
                                             <User size={16} className="sm:size-5 text-[#55C388]" />
                                         </div>
                                     </div>
-
+                                    {/*  */}
                                     <div className="flex-1 min-w-0 overflow-hidden">
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-1">
                                             <div className="flex items-center gap-2 min-w-0">
