@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Clock, User, CheckCircle, FileText, AlertTriangle, Eye, X, ChevronLeft, ChevronRight, Edit, UserPlus, Trash2, Loader2, ChevronDown, ChevronUp, Image as ImageIcon} from "lucide-react";
+import { ArrowLeft, MapPin, Clock, User, CheckCircle, FileText, AlertTriangle, Eye, X, ChevronLeft, ChevronRight, Edit, UserPlus, Trash2, Loader2, ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react";
 import { io } from "socket.io-client";
 import StatusBadge from './StatusBadge';
 import PriorityBadge from './PriorityBadge';
@@ -21,11 +21,11 @@ export default function ComplaintDetail() {
   const [loading, setLoading] = useState(true);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  
+
   // สำหรับ Image Carousel
   const [previewMedia, setPreviewMedia] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   // สำหรับแสดง/ซ่อนรูปภาพหลังแก้ไข
   const [showResolutionMedia, setShowResolutionMedia] = useState(false);
   const [resolutionMediaIndex, setResolutionMediaIndex] = useState(0);
@@ -148,16 +148,16 @@ export default function ComplaintDetail() {
   // จัดการรูปภาพที่แนบมา - ปรับปรุงให้รองรับ path format ต่างๆ
   const attachments = Array.isArray(data.images)
     ? data.images
-        .filter(file => file && file !== '') // กรองไฟล์ว่างออก
-        .map(file => {
-          // ถ้าเป็น absolute URL ใช้ได้เลย
-          if (file.startsWith('http://') || file.startsWith('https://')) {
-            return file;
-          }
-          // ถ้ามี /uploads นำหน้าแล้ว ใช้ได้เลย
-          const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
-          return `${API_BASE_URL}${imagePath}`;
-        })
+      .filter(file => file && file !== '') // กรองไฟล์ว่างออก
+      .map(file => {
+        // ถ้าเป็น absolute URL ใช้ได้เลย
+        if (file.startsWith('http://') || file.startsWith('https://')) {
+          return file;
+        }
+        // ถ้ามี /uploads นำหน้าแล้ว ใช้ได้เลย
+        const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
+        return `${API_BASE_URL}${imagePath}`;
+      })
     : data.image
       ? [data.image.startsWith('http') ? data.image : `${API_BASE_URL}${data.image}`]
       : [];
@@ -165,14 +165,14 @@ export default function ComplaintDetail() {
   // จัดการรูปภาพหลังแก้ไข
   const resolutionAttachments = Array.isArray(data.resolution_attachments)
     ? data.resolution_attachments
-        .filter(file => file && file !== '')
-        .map(file => {
-          if (file.startsWith('http://') || file.startsWith('https://')) {
-            return file;
-          }
-          const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
-          return `${API_BASE_URL}${imagePath}`;
-        })
+      .filter(file => file && file !== '')
+      .map(file => {
+        if (file.startsWith('http://') || file.startsWith('https://')) {
+          return file;
+        }
+        const imagePath = file.startsWith('/uploads') ? file : `/uploads/${file}`;
+        return `${API_BASE_URL}${imagePath}`;
+      })
     : [];
 
   // Debug: แสดง URL รูปภาพใน console
@@ -184,13 +184,13 @@ export default function ComplaintDetail() {
 
   const currentFile = attachments[currentIndex];
   const currentResolutionFile = resolutionAttachments[resolutionMediaIndex];
-  
+
   // จัดการ categories
   const cates = Array.isArray(data.categories)
     ? data.categories
     : data.categories
-    ? [data.categories]
-    : [];
+      ? [data.categories]
+      : [];
 
   return (
     <div className="min-h-screen p-4 sm:p-6">
@@ -254,11 +254,10 @@ export default function ComplaintDetail() {
                       {attachments.map((_, i) => (
                         <div
                           key={i}
-                          className={`w-3 h-3 rounded-full ${
-                            i === currentIndex
-                              ? "bg-[#55C388]"
-                              : "bg-white/50"
-                          }`}
+                          className={`w-3 h-3 rounded-full ${i === currentIndex
+                            ? "bg-[#55C388]"
+                            : "bg-white/50"
+                            }`}
                         />
                       ))}
                     </div>
@@ -267,8 +266,11 @@ export default function ComplaintDetail() {
               </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <ImageIcon size={64} className="mb-2" />
-                <p>ไม่มีรูปภาพแนบมา</p>
+                <img
+                  src="/MyUSafe_mini_none-bg_LOGO1.png"
+                  alt="No image"
+                  className="w-full h-full object-contain"
+                />
               </div>
             )}
           </div>
@@ -348,9 +350,8 @@ export default function ComplaintDetail() {
                 <span>
                   สถานที่:{" "}
                   {data.location
-                    ? `${data.location.building || ""} ${
-                        data.location.floor || ""
-                      } ${data.location.room || ""}`
+                    ? `${data.location.building || ""} ${data.location.floor || ""
+                    } ${data.location.room || ""}`
                     : "-"}
                 </span>
               </div>
@@ -387,7 +388,7 @@ export default function ComplaintDetail() {
                   รายละเอียดการแก้ไข
                 </h4>
                 <p className="text-gray-700 whitespace-pre-wrap mb-2">{data.resolution_note}</p>
-                
+
                 {/* แสดงเวลาที่ใช้ในการแก้ไข */}
                 {data.time_used && data.time_used !== '-' && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-3 mt-2">
@@ -395,7 +396,7 @@ export default function ComplaintDetail() {
                     <span>เวลาที่ใช้ในการแก้ไข: <span className="font-semibold text-green-700">{data.time_used}</span></span>
                   </div>
                 )}
-                
+
                 {/* ปุ่มแสดง/ซ่อนรูปภาพ */}
                 {resolutionAttachments.length > 0 && (
                   <button
@@ -407,11 +408,11 @@ export default function ComplaintDetail() {
                     {showResolutionMedia ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </button>
                 )}
-                
+
                 {resolutionAttachments.length === 0 && (
                   <p className="text-gray-500 text-sm italic">ไม่มีรูปภาพ/วิดีโอที่แนบมา</p>
                 )}
-                
+
                 {/* แสดงรูปภาพ/วิดีโอเมื่อกดปุ่ม */}
                 {showResolutionMedia && resolutionAttachments.length > 0 && (
                   <div className="mt-4 relative bg-gray-100 rounded-lg p-4">
@@ -456,11 +457,10 @@ export default function ComplaintDetail() {
                             {resolutionAttachments.map((_, i) => (
                               <div
                                 key={i}
-                                className={`w-2 h-2 rounded-full ${
-                                  i === resolutionMediaIndex
-                                    ? "bg-green-600"
-                                    : "bg-white/50"
-                                }`}
+                                className={`w-2 h-2 rounded-full ${i === resolutionMediaIndex
+                                  ? "bg-green-600"
+                                  : "bg-white/50"
+                                  }`}
                               />
                             ))}
                           </div>

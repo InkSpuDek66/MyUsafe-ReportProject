@@ -77,21 +77,23 @@ export default function Home() {
     };
 
     // คำนวณสถิติ
-    const stats = useMemo(() => {
-        const total = complaints.length;
-        const counts = { รอรับเรื่อง: 0, กำลังดำเนินการ: 0, เสร็จสิ้น: 0 };
-        complaints.forEach((c) => {
-            const s = c.current_status || "รอรับเรื่อง";
-            if (counts[s] !== undefined) counts[s]++;
-        });
-        const percentCompleted =
-            total === 0 ? 0 : Math.round((counts["เสร็จสิ้น"] / total) * 100);
-        return { total, counts, percentCompleted };
-    }, [complaints]);
+const stats = useMemo(() => {
+    const total = complaints.filter(c => c.current_status !== 'ยกเลิก').length; // ✅ ไม่นับยกเลิก
+    const counts = { รอรับเรื่อง: 0, กำลังดำเนินการ: 0, เสร็จสิ้น: 0 };
+    complaints.forEach((c) => {
+        const s = c.current_status || "รอรับเรื่อง";
+        if (counts[s] !== undefined) counts[s]++;
+    });
+    const percentCompleted =
+        total === 0 ? 0 : Math.round((counts["เสร็จสิ้น"] / total) * 100);
+    return { total, counts, percentCompleted };
+}, [complaints]);
 
-    // ✅ แก้ไขการกรองให้ใช้ name แทน id
+    //การกรอง
     const filtered = useMemo(() => {
-        return complaints.filter((c) => {
+    return complaints
+        .filter((c) => c.current_status !== 'ยกเลิก') // ✅ กรองไม่ให้แสดงสถานะยกเลิก
+        .filter((c) => {
             // กรองตามสถานะ
             if (filterStatus !== "ทั้งหมด" && c.current_status !== filterStatus)
                 return false;
@@ -118,7 +120,7 @@ export default function Home() {
 
             return true;
         });
-    }, [complaints, filterStatus, q, selectedCategories]);
+}, [complaints, filterStatus, q, selectedCategories]);
 
     // สีสถานะ
     const statusColor = (s) => {
@@ -162,14 +164,14 @@ export default function Home() {
         {
             title: "รอรับเรื่อง",
             value: stats.counts["รอรับเรื่อง"],
-            subtitle: "รอการตอบรับ / ดำเนินการ",
+            subtitle: `${stats.total > 0 ? Math.round((stats.counts["รอรับเรื่อง"] / stats.total) * 100) : 0}% ของทั้งหมด`,
             color: "from-yellow-400 to-yellow-500",
             icon: <ClockIcon className="h-10 w-10 text-white" />,
         },
         {
             title: "กำลังดำเนินการ",
             value: stats.counts["กำลังดำเนินการ"],
-            subtitle: "อยู่ระหว่างแก้ไขปัญหา",
+            subtitle: `${stats.total > 0 ? Math.round((stats.counts["กำลังดำเนินการ"] / stats.total) * 100) : 0}% ของทั้งหมด`, 
             color: "from-blue-400 to-blue-600",
             icon: <Cog6ToothIcon className="h-10 w-10 text-white animate-spin-slow" />,
         },
@@ -240,35 +242,35 @@ export default function Home() {
                         >
                             สถานะ: {filterStatus} <ChevronDownIcon className="h-4 w-4" />
                         </button>
-                        {showStatusMenu && (
-                            <div className="absolute z-10 mt-2 bg-white text-gray-800 rounded-lg shadow-lg p-2 min-w-[180px]">
-                                {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น"].map(
-                                    (status) => (
-                                        <button
-                                            key={status}
-                                            onClick={() => {
-                                                setFilterStatus(status);
-                                                setShowStatusMenu(false);
-                                            }}
-                                            className={`w-full text-left px-3 py-2 rounded hover:bg-[#E6F6EE] transition ${filterStatus === status
+                            {showStatusMenu && (
+                                <div className="absolute z-10 mt-2 bg-white text-gray-800 rounded-lg shadow-lg p-2 min-w-[180px]">
+                                    {["ทั้งหมด", "รอรับเรื่อง", "กำลังดำเนินการ", "เสร็จสิ้น"].map(
+                                        (status) => (
+                                            <button
+                                                key={status}
+                                                onClick={() => {
+                                                    setFilterStatus(status);
+                                                    setShowStatusMenu(false);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 rounded hover:bg-[#E6F6EE] transition ${filterStatus === status
                                                     ? "bg-[#E6F6EE] text-[#55C388] font-semibold"
                                                     : ""
-                                                }`}
-                                        >
-                                            {status}
-                                        </button>
-                                    )
-                                )}
-                            </div>
-                        )}
-                    </div>
+                                                    }`}
+                                            >
+                                                {status}
+                                            </button>
+                                        )
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                     {/* Category Filter */}
                     <button
                         onClick={() => setShowCategoryMenu(!showCategoryMenu)}
                         className={`px-4 py-2 rounded-lg transition flex items-center gap-2 ${selectedCategories.length > 0
-                                ? "bg-[#55C388] text-white border-[#55C388]"
-                                : "bg-[#55C388] text-white hover:bg-[#43A874]"
+                            ? "bg-[#55C388] text-white border-[#55C388]"
+                            : "bg-[#55C388] text-white hover:bg-[#43A874]"
                             }`}
                     >
                         <FunnelIcon className="h-5 w-5" /> หมวดหมู่
@@ -302,8 +304,8 @@ export default function Home() {
                                 key={cat._id}
                                 onClick={() => toggleCategory(cat.name)}
                                 className={`px-4 py-2 rounded-full border transition-all flex items-center gap-2 ${selectedCategories.includes(cat.name)
-                                        ? "bg-[#55C388] text-white border-[#55C388]"
-                                        : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
+                                    ? "bg-[#55C388] text-white border-[#55C388]"
+                                    : "border-[#55C388] text-[#55C388] hover:bg-[#55C388]/10"
                                     }`}
                             >
                                 <span>{cat.icon || '📋'}</span>
@@ -434,8 +436,8 @@ export default function Home() {
                                                     sendAction(c.complaint_id, "like");
                                                 }}
                                                 className={`hover:text-[#55C388] transition flex items-center gap-1 ${c.liked_by?.includes(userId)
-                                                        ? "text-[#55C388] font-bold"
-                                                        : "text-gray-400"
+                                                    ? "text-[#55C388] font-bold"
+                                                    : "text-gray-400"
                                                     }`}
                                             >
                                                 <HandThumbUpIcon className="h-4 w-4" /> {c.likes || 0}
@@ -448,8 +450,8 @@ export default function Home() {
                                                     sendAction(c.complaint_id, "dislike");
                                                 }}
                                                 className={`hover:text-red-500 transition flex items-center gap-1 ${c.disliked_by?.includes(userId)
-                                                        ? "text-red-500 font-bold"
-                                                        : "text-gray-400"
+                                                    ? "text-red-500 font-bold"
+                                                    : "text-gray-400"
                                                     }`}
                                             >
                                                 <HandThumbDownIcon className="h-4 w-4" /> {c.dislikes || 0}

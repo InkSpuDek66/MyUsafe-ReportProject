@@ -10,6 +10,7 @@ import {
   ChartPieIcon,
   PresentationChartLineIcon,
   FireIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/solid";
 import {
   BarChart,
@@ -152,8 +153,8 @@ export default function Reports() {
   }, [complaints, categories]);
 
   const categoryColors = [
-    "#FF6B6B", "#4ECDC4", "#FFD93D", "#1A535C", 
-    "#FF9F1C", "#6A4C93", "#00A896", "#F15BB5", 
+    "#FF6B6B", "#4ECDC4", "#FFD93D", "#1A535C",
+    "#FF9F1C", "#6A4C93", "#00A896", "#F15BB5",
     "#2E8BFF", "#8BDBE6"
   ];
 
@@ -164,7 +165,7 @@ export default function Reports() {
       </h1>
 
       {/* สรุป (cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
         {[
           {
             title: "ทั้งหมด",
@@ -183,16 +184,23 @@ export default function Reports() {
           {
             title: "รอรับเรื่อง",
             value: counts.waiting,
-            subtitle: "รอการตอบรับ / ดำเนินการ",
+            subtitle: `${counts.total > 0 ? Math.round((counts.waiting / counts.total) * 100) : 0}% ของทั้งหมด`,
             color: "from-yellow-400 to-yellow-500",
             icon: <ClockIcon className="h-10 w-10 text-white" />,
           },
           {
             title: "กำลังดำเนินการ",
             value: counts.processing,
-            subtitle: "อยู่ระหว่างแก้ไขปัญหา",
+            subtitle: `${counts.total > 0 ? Math.round((counts.processing / counts.total) * 100) : 0}% ของทั้งหมด`,
             color: "from-blue-400 to-blue-600",
             icon: <Cog6ToothIcon className="h-10 w-10 text-white animate-spin-slow" />,
+          },
+          {
+            title: "ยกเลิก",
+            value: counts.canceled,
+            subtitle: `${counts.total > 0 ? Math.round((counts.canceled / counts.total) * 100) : 0}% ของทั้งหมด`,
+            color: "from-red-500 to-red-600",
+            icon: <XCircleIcon className="h-10 w-10 text-white" />,
           },
         ].map((card, i) => (
           <div
@@ -290,7 +298,7 @@ export default function Reports() {
         {/* หมวดหมู่ยอดนิยม */}
         <div className="bg-white p-4 rounded-xl shadow border border-green-100">
           <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <FireIcon className="h-5 w-5 text-[#  ]" /> หมวดหมู่ที่ถูกร้องเรียนมากที่สุด
+            <FireIcon className="h-5 w-5 text-[#55C388]" /> หมวดหมู่ที่ถูกร้องเรียนมากที่สุด
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>

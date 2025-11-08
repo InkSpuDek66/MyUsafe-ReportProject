@@ -322,26 +322,26 @@ const handleNotificationClick = (notification) => {
   };
 
   const navigation = [
-  { name: "Dashboard", href: "/" },
+  { name: "หน้าหลัก", href: "/" },
   ...(role === 'admin' ? [
-    { name: "Admin Reports", href: "/admin/reports" },
-    { name: "Staff Performance", href: "/admin/staff-performance" },
-    { name: "Complaint List", href: "/admin/complaint-list" },
-    { name: "Categories", href: "/admin/categories" }  // ⬅️ เพิ่มบรรทัดนี้
+    { name: "สถิติ", href: "/admin/reports" },
+    { name: "รายงานการปฏิบัติงาน", href: "/admin/staff-performance" },
+    { name: "รายการเรื่องร้องเรียน", href: "/admin/complaint-list" },
+    { name: "หมวดหมู่", href: "/admin/categories" }
   ] : []),
-  ...(role === 'admin' || role === 'staff' ? [
-    { name: "Assignments", href: "/admin/assignments" }
+  ...(role === 'staff' ? [
+    { name: "งานที่ถูกมอบหมาย", href: "/admin/assignments" }
   ] : []),
-  { name: "Reports", href: "/complaints/new" },
+  { name: "ร้องเรียน", href: "/complaints/new" },
 ];
 
-  const canSeeWork = role === 'admin' || role === 'staff';
+  const canSeeWork = role === 'staff';
   const baseItems = [
-    { name: "Your profile", href: "/profile" },
-    { name: "My Complains", href: "/my-complaints" },
+    { name: "โปรไฟล์", href: "/profile" },
+    { name: "เรื่องร้องเรียนของฉัน", href: "/my-complaints" },
   ];
-  const workItem = { name: "Assignments", href: "/admin/assignments" };
-  const signOutItem = { name: "Sign out", onClick: handleLogout };
+  const workItem = { name: "งานที่ถูกมอบหมาย", href: "/admin/assignments" };
+  const signOutItem = { name: "ลงชื่อออก", onClick: handleLogout };
   const userNavigation = token
     ? [...baseItems, ...(canSeeWork ? [workItem] : []), signOutItem]
     : [];
@@ -447,19 +447,7 @@ const handleNotificationClick = (notification) => {
           </div>
 
           {/* Footer */}
-          {notifications.length > 0 && (
-            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
-              <button
-                onClick={() => {
-                  setShowNotifications(false);
-                  navigate('/notifications');
-                }}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium w-full text-center"
-              >
-                ดูทั้งหมด
-              </button>
-            </div>
-          )}
+          {notifications.length > 0 }
         </div>
       )}
     </div>
