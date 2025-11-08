@@ -6,7 +6,7 @@
 // 2. [PUT] /api/profile - อัปเดตข้อมูลโปรไฟล์ (ชื่อ, เบอร์โทร)
 // 3. [POST] /api/profile/image - อัปเดตรูปโปรไฟล์
 // 4. [PUT] /api/profile/password - เปลี่ยนรหัสผ่าน
-// 5. [POST] /api/profile/download-oauth-image - ✅ ดาวน์โหลดรูป OAuth
+// 5. [POST] /api/profile/download-oauth-image - ดาวน์โหลดรูป OAuth
 // ================================
 const express = require('express');
 const router = express.Router();
@@ -25,7 +25,7 @@ router.post('/image', protect, profileController.uploadMiddleware, profileContro
 // เปลี่ยนรหัสผ่าน
 router.put('/password', protect, profileController.updatePassword);
 
-// ✅ ดาวน์โหลดรูป OAuth
+// ดาวน์โหลดรูป OAuth
 router.post('/download-oauth-image', protect, profileController.downloadOAuthImage);
 
 module.exports = router;

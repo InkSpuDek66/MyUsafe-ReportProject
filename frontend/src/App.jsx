@@ -14,6 +14,7 @@ import Home from './pages/Home/Home'
 import ComplaintDetail from './components/complaints/ComplaintDetail';
 import AssignmentDetail from './pages/staff/AssignmentDetail';
 import MyComplaints from './pages/user/MyComplaints';
+import EditComplaint from './pages/user/EditComplaint';
 import CreateComplaint from './pages/user/CreateComplaint';
 import Reports from "./pages/admin/Reports";
 import Assignments from "./pages/staff/Assignments";
@@ -46,6 +47,7 @@ function App() {
         <Route path="/complaints/new" element={<CreateComplaint />} />
         <Route path="/my-complaints" element={<MyComplaints />} />
         <Route path="/complaint/:id" element={<ComplaintDetail />} />
+        <Route path="/complaints/edit/:id" element={<EditComplaint />} />
         <Route path="/assignment/:id" element={<AssignmentDetail />} />
 
         {/* หน้า Admin */}

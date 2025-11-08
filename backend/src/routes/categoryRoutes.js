@@ -5,8 +5,8 @@
 // 1. [GET] /api/categories - ดึงรายการหมวดหมู่ทั้งหมด
 // 2. [GET] /api/categories/:id - ดึงหมวดหมู่ตาม ID
 // 3. [POST] /api/categories - เพิ่มหมวดหมู่ใหม่
-// 4. [PUT] /api/categories/:id - แก้ไขหมวดหมู่ ✅ เพิ่มใหม่
-// 5. [DELETE] /api/categories/:id - ลบหมวดหมู่ ✅ เพิ่มใหม่
+// 4. [PUT] /api/categories/:id - แก้ไขหมวดหมู่
+// 5. [DELETE] /api/categories/:id - ลบหมวดหมู่
 // 6. [PATCH] /api/categories/:id/toggle - เปลี่ยนสถานะการใช้งาน (ถ้าต้องการใช้ในอนาคต)
 // ================================
 const express = require('express');
@@ -22,10 +22,10 @@ router.get('/:id', categoryController.getCategoryById);
 // POST: เพิ่มหมวดหมู่ใหม่
 router.post('/', categoryController.createCategory);
 
-// PUT: แก้ไขหมวดหมู่ ✅ เพิ่มใหม่
+// PUT: แก้ไขหมวดหมู่
 router.put('/:id', categoryController.updateCategory);
 
-// DELETE: ลบหมวดหมู่ ✅ เพิ่มใหม่
+// DELETE: ลบหมวดหมู่
 router.delete('/:id', categoryController.deleteCategory);
 
 // PATCH: เปลี่ยนสถานะการใช้งาน (ถ้าต้องการใช้ในอนาคต)
