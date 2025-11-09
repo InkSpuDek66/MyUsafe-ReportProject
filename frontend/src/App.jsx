@@ -7,7 +7,7 @@ import Navbar from './components/common/Navbar/Navbar'
 // Auth Components
 import LoginForm from './components/LoginForm/LoginForm'
 import SignUpForm from './components/LoginForm/SignUpForm'
-import AuthSuccess from './pages/AuthSuccess'; // ✅ เพิ่มบรรทัดนี้
+import AuthSuccess from './pages/AuthSuccess';
 
 // Pages
 import Home from './pages/Home/Home'
@@ -22,11 +22,11 @@ import StaffPerformanceReports from "./pages/admin/StaffPerformanceReport";
 import ComplaintsListManagement from "./pages/admin/ComplaintListManagement";
 import Profile from './pages/user/Profile';
 import CategoryManagement from './pages/admin/CategoryManagement';
+import LocationManagement from './pages/admin/LocationManagement'; // ✅ เพิ่มบรรทัดนี้
 
 function App() {
   const location = useLocation();
 
-  // ✅ เพิ่ม '/auth-success' เข้าไปในรายการ
   const hideNavbarAndButtons = ['/login', '/signup', '/auth-success'].includes(location.pathname);
 
   return (
@@ -40,7 +40,7 @@ function App() {
         {/* หน้า Auth */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/signup" element={<SignUpForm />} />
-        <Route path="/auth-success" element={<AuthSuccess />} /> {/* ✅ เพิ่มเส้นทางนี้ */}
+        <Route path="/auth-success" element={<AuthSuccess />} />
         <Route path="/profile" element={<Profile />} />
 
         {/* หน้าเรื่องร้องเรียน */}
@@ -55,7 +55,8 @@ function App() {
         <Route path="/admin/staff-performance" element={<StaffPerformanceReports />} />
         <Route path="/admin/complaint-list" element={<ComplaintsListManagement />} />
         <Route path="/admin/assignments" element={<Assignments />} />
-        <Route path="/admin/categories" element={<CategoryManagement />} /> {/* ⬅️ เพิ่มบรรทัดนี้ */}
+        <Route path="/admin/categories" element={<CategoryManagement />} />
+        <Route path="/admin/locations" element={<LocationManagement />} /> {/* ✅ แก้ไขบรรทัดนี้ */}
 
         {/* หน้า Staff */}
         <Route path="/assignments" element={<Assignments />} />

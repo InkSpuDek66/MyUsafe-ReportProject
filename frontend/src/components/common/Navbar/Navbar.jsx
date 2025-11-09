@@ -323,18 +323,19 @@ export default function Navbar() {
   };
 
   const navigation = [
-    { name: "หน้าหลัก", href: "/" },
-    ...(role === 'admin' ? [
-      { name: "สถิติ", href: "/admin/reports" },
-      { name: "รายงานการปฏิบัติงาน", href: "/admin/staff-performance" },
-      { name: "รายการเรื่องร้องเรียน", href: "/admin/complaint-list" },
-      { name: "หมวดหมู่", href: "/admin/categories" }
-    ] : []),
-    ...(role === 'staff' ? [
-      { name: "งานที่ถูกมอบหมาย", href: "/admin/assignments" }
-    ] : []),
-    { name: "ร้องเรียน", href: "/complaints/new" },
-  ];
+  { name: "หน้าหลัก", href: "/" },
+  ...(role === 'admin' ? [
+    { name: "สถิติ", href: "/admin/reports" },
+    { name: "รายงานการปฏิบัติงาน", href: "/admin/staff-performance" },
+    { name: "รายการเรื่องร้องเรียน", href: "/admin/complaint-list" },
+    { name: "หมวดหมู่", href: "/admin/categories" },
+    { name: "สถานที่", href: "/admin/locations" } // ✅ เพิ่มบรรทัดนี้
+  ] : []),
+  ...(role === 'staff' ? [
+    { name: "งานที่ถูกมอบหมาย", href: "/admin/assignments" }
+  ] : []),
+  { name: "ร้องเรียน", href: "/complaints/new" },
+];
 
   const canSeeWork = role === 'staff';
   const baseItems = [

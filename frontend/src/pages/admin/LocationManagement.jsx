@@ -1,0 +1,539 @@
+import React, { useState, useEffect } from 'react';
+import { Search, X, Plus, Edit2, Trash2, ChevronDown } from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const LocationManagement = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBuilding, setSelectedBuilding] = useState('');
+  const [selectedFloor, setSelectedFloor] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState('');
+  const [buildings, setBuildings] = useState([]);
+  const [floors, setFloors] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [filteredLocations, setFilteredLocations] = useState([]);
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Modal states
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [formData, setFormData] = useState({
+    building: '',
+    floor: '',
+    room: ''
+  });
+
+  // ดึงข้อมูลอาคารเมื่อโหลดหน้า
+  useEffect(() => {
+    fetchBuildings();
+    fetchAllLocations();
+  }, []);
+
+  // ดึงอาคารทั้งหมด
+  const fetchBuildings = async () => {
+    try {
+      const response = await fetch(`${API_URL}/locations/buildings`);
+      const data = await response.json();
+      if (data.success) {
+        setBuildings(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching buildings:', error);
+    }
+  };
+
+  // ดึงข้อมูล Location ทั้งหมด (จะต้องสร้าง API endpoint นี้)
+  const fetchAllLocations = async () => {
+    setLoading(true);
+    try {
+      // ใช้ API ที่มีอยู่เพื่อดึงข้อมูลทั้งหมด
+      const buildingsRes = await fetch(`${API_URL}/locations/buildings`);
+      const buildingsData = await buildingsRes.json();
+      
+      if (buildingsData.success) {
+        const allLocations = [];
+        
+        // วนลูปดึงข้อมูลแต่ละอาคาร
+        for (const building of buildingsData.data) {
+          const floorsRes = await fetch(`${API_URL}/locations/floors/${building}`);
+          const floorsData = await floorsRes.json();
+          
+          if (floorsData.success) {
+            for (const floor of floorsData.data) {
+              const roomsRes = await fetch(`${API_URL}/locations/rooms/${building}/${floor}`);
+              const roomsData = await roomsRes.json();
+              
+              if (roomsData.success && roomsData.data.length > 0) {
+                roomsData.data.forEach(room => {
+                  allLocations.push({
+                    id: `${building}-${floor}-${room}`,
+                    building,
+                    floor,
+                    room
+                  });
+                });
+              } else {
+                // ถ้าไม่มีห้อง ให้เพิ่มเฉพาะอาคารและชั้น
+                allLocations.push({
+                  id: `${building}-${floor}`,
+                  building,
+                  floor,
+                  room: '-'
+                });
+              }
+            }
+          }
+        }
+        
+        setLocations(allLocations);
+        setFilteredLocations(allLocations);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ดึงชั้นเมื่อเลือกอาคาร
+  useEffect(() => {
+    if (selectedBuilding) {
+      fetchFloors(selectedBuilding);
+    } else {
+      setFloors([]);
+      setSelectedFloor('');
+      setRooms([]);
+      setSelectedRoom('');
+    }
+  }, [selectedBuilding]);
+
+  const fetchFloors = async (building) => {
+    try {
+      const response = await fetch(`${API_URL}/locations/floors/${building}`);
+      const data = await response.json();
+      if (data.success) {
+        setFloors(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching floors:', error);
+    }
+  };
+
+  // ดึงห้องเมื่อเลือกชั้น
+  useEffect(() => {
+    if (selectedBuilding && selectedFloor) {
+      fetchRooms(selectedBuilding, selectedFloor);
+    } else {
+      setRooms([]);
+      setSelectedRoom('');
+    }
+  }, [selectedFloor]);
+
+  const fetchRooms = async (building, floor) => {
+    try {
+      const response = await fetch(`${API_URL}/locations/rooms/${building}/${floor}`);
+      const data = await response.json();
+      if (data.success) {
+        setRooms(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+    }
+  };
+
+  // กรองข้อมูลตามฟิลเตอร์
+  useEffect(() => {
+    let filtered = locations;
+    
+    if (selectedBuilding) {
+      filtered = filtered.filter(loc => loc.building === selectedBuilding);
+    }
+    
+    if (selectedFloor) {
+      filtered = filtered.filter(loc => loc.floor === selectedFloor);
+    }
+    
+    if (selectedRoom) {
+      filtered = filtered.filter(loc => loc.room === selectedRoom);
+    }
+    
+    if (searchTerm) {
+      filtered = filtered.filter(loc => 
+        loc.building?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loc.floor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loc.room?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    setFilteredLocations(filtered);
+    updateActiveFilters();
+  }, [selectedBuilding, selectedFloor, selectedRoom, searchTerm, locations]);
+
+  const updateActiveFilters = () => {
+    const filters = [];
+    if (selectedBuilding) filters.push({ type: 'building', value: selectedBuilding, label: `อาคาร: ${selectedBuilding}` });
+    if (selectedFloor) filters.push({ type: 'floor', value: selectedFloor, label: selectedFloor });
+    if (selectedRoom) filters.push({ type: 'room', value: selectedRoom, label: selectedRoom });
+    setActiveFilters(filters);
+  };
+
+  const removeFilter = (type) => {
+    if (type === 'building') {
+      setSelectedBuilding('');
+      setSelectedFloor('');
+      setSelectedRoom('');
+      setFloors([]);
+      setRooms([]);
+    } else if (type === 'floor') {
+      setSelectedFloor('');
+      setSelectedRoom('');
+      setRooms([]);
+    } else if (type === 'room') {
+      setSelectedRoom('');
+    }
+  };
+
+  // เปิด Modal สำหรับเพิ่ม Location
+  const handleAdd = () => {
+    setModalMode('create');
+    setFormData({ building: '', floor: '', room: '' });
+    setShowModal(true);
+  };
+
+  // เปิด Modal สำหรับแก้ไข Location
+  const handleEdit = (location) => {
+    setModalMode('edit');
+    setSelectedLocation(location);
+    setFormData({
+      building: location.building,
+      floor: location.floor,
+      room: location.room === '-' ? '' : location.room
+    });
+    setShowModal(true);
+  };
+
+  // บันทึกข้อมูล (Create/Update)
+  const handleSave = async () => {
+    try {
+      if (!formData.building || !formData.floor) {
+        alert('กรุณากรอกอาคารและชั้น');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/locations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(modalMode === 'create' ? 'เพิ่มตำแหน่งสำเร็จ' : 'แก้ไขตำแหน่งสำเร็จ');
+        setShowModal(false);
+        fetchBuildings();
+        fetchAllLocations();
+      } else {
+        alert(data.error || 'เกิดข้อผิดพลาด');
+      }
+    } catch (error) {
+      console.error('Error saving location:', error);
+      alert('เกิดข้อผิดพลาดในการบันทึก');
+    }
+  };
+
+  // ลบ Location
+  const handleDelete = async (location) => {
+    if (!confirm(`คุณต้องการลบ ${location.building} - ${location.floor} - ${location.room} หรือไม่?`)) {
+      return;
+    }
+
+    try {
+      // เนื่องจาก API ยังไม่มี endpoint สำหรับลบ จะต้องเพิ่มใน backend
+      // สำหรับตอนนี้จะแสดง alert
+      alert('ฟังก์ชันลบยังไม่พร้อมใช้งาน กรุณาเพิ่ม DELETE endpoint ใน backend');
+      
+      // เมื่อมี API แล้วให้ใช้โค้ดนี้:
+      /*
+      const response = await fetch(`${API_URL}/locations/${location.id}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('ลบตำแหน่งสำเร็จ');
+        fetchAllLocations();
+      }
+      */
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      alert('เกิดข้อผิดพลาดในการลบ');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#55C38E] to-[#45B37E] rounded-lg shadow-md p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-white">จัดการสถานที่</h1>
+            <button
+              onClick={handleAdd}
+              className="flex items-center gap-2 bg-white text-[#55C38E] px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+            >
+              <Plus size={20} />
+              เพิ่มสถานที่
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-12 gap-6">
+          {/* Sidebar Filters */}
+          <div className="col-span-3">
+            <div className="bg-white rounded-lg shadow-md p-4">
+              {/* Search */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="ค้นหาสถานที่..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                />
+              </div>
+
+              {/* Building Filter */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">อาคาร</label>
+                <select
+                  value={selectedBuilding}
+                  onChange={(e) => setSelectedBuilding(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                >
+                  <option value="">ทั้งหมด</option>
+                  {buildings.map((building) => (
+                    <option key={building} value={building}>{building}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Floor Filter */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">ชั้น</label>
+                <select
+                  value={selectedFloor}
+                  onChange={(e) => setSelectedFloor(e.target.value)}
+                  disabled={!selectedBuilding}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E] disabled:bg-gray-100"
+                >
+                  <option value="">ทั้งหมด</option>
+                  {floors.map((floor) => (
+                    <option key={floor} value={floor}>{floor}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Room Filter */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">ห้อง</label>
+                <select
+                  value={selectedRoom}
+                  onChange={(e) => setSelectedRoom(e.target.value)}
+                  disabled={!selectedFloor}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E] disabled:bg-gray-100"
+                >
+                  <option value="">ทั้งหมด</option>
+                  {rooms.map((room) => (
+                    <option key={room} value={room}>{room}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Active Filters */}
+              {activeFilters.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">ตัวกรองที่เลือก</h3>
+                  <div className="space-y-2">
+                    {activeFilters.map((filter, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between bg-[#55C38E] text-white px-3 py-2 rounded-lg text-sm"
+                      >
+                        <span>{filter.label}</span>
+                        <button
+                          onClick={() => removeFilter(filter.type)}
+                          className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    (พบทั้งหมด: {filteredLocations.length} รายการ)
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="col-span-9">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              {loading ? (
+                <div className="p-12 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#55C38E] mx-auto"></div>
+                  <p className="mt-4 text-gray-600">กำลังโหลดข้อมูล...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">อาคาร</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">ชั้น</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">ห้อง</th>
+                          <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">การจัดการ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {filteredLocations.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                              ไม่พบข้อมูลสถานที่
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredLocations.map((location) => (
+                            <tr key={location.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4 text-sm text-gray-700">{location.building}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{location.floor}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{location.room}</td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleEdit(location)}
+                                    className="flex items-center gap-1 bg-[#55C38E] hover:bg-[#45B37E] text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    <Edit2 size={16} />
+                                    แก้ไข
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(location)}
+                                    className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    <Trash2 size={16} />
+                                    ลบ
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                    <p className="text-sm text-gray-600">
+                      แสดง {filteredLocations.length} รายการ จากทั้งหมด {locations.length} รายการ
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800">
+                {modalMode === 'create' ? 'เพิ่มสถานที่ใหม่' : 'แก้ไขสถานที่'}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  อาคาร <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.building}
+                  onChange={(e) => setFormData({ ...formData, building: e.target.value })}
+                  placeholder="เช่น อาคาร 1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ชั้น <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.floor}
+                  onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
+                  placeholder="เช่น ชั้น 3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ห้อง (ไม่จำเป็น)
+                </label>
+                <input
+                  type="text"
+                  value={formData.room}
+                  onChange={(e) => setFormData({ ...formData, room: e.target.value })}
+                  placeholder="เช่น ห้อง 301"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-[#55C38E] hover:bg-[#45B37E] text-white rounded-lg font-medium transition-colors"
+              >
+                {modalMode === 'create' ? 'เพิ่ม' : 'บันทึก'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default LocationManagement;
