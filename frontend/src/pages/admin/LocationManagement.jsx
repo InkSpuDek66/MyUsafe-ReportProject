@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Plus, Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -16,11 +16,9 @@ const LocationManagement = () => {
   const [activeFilters, setActiveFilters] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
-  // Modal states
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -30,13 +28,11 @@ const LocationManagement = () => {
     room: ''
   });
 
-  // ดึงข้อมูลอาคารเมื่อโหลดหน้า
   useEffect(() => {
     fetchBuildings();
     fetchAllLocations();
   }, []);
 
-  // ดึงอาคารทั้งหมด
   const fetchBuildings = async () => {
     try {
       const response = await fetch(`${API_URL}/locations/buildings`);
@@ -49,57 +45,25 @@ const LocationManagement = () => {
     }
   };
 
-  // ดึงข้อมูล Location ทั้งหมด
+  // ✅ แก้ไข: ใช้ GET /api/locations เพื่อดึงข้อมูลทั้งหมดพร้อม _id
   const fetchAllLocations = async () => {
     setLoading(true);
     try {
-      const buildingsRes = await fetch(`${API_URL}/locations/buildings`);
-      const buildingsData = await buildingsRes.json();
+      const response = await fetch(`${API_URL}/locations`);
+      const data = await response.json();
       
-      if (buildingsData.success) {
-        const allLocations = [];
-        
-        for (const building of buildingsData.data) {
-          const floorsRes = await fetch(`${API_URL}/locations/floors/${building}`);
-          const floorsData = await floorsRes.json();
-          
-          if (floorsData.success) {
-            for (const floor of floorsData.data) {
-              const roomsRes = await fetch(`${API_URL}/locations/rooms/${building}/${floor}`);
-              const roomsData = await roomsRes.json();
-              
-              if (roomsData.success && roomsData.data.length > 0) {
-                roomsData.data.forEach(room => {
-                  allLocations.push({
-                    id: `${building}-${floor}-${room}`,
-                    building,
-                    floor,
-                    room
-                  });
-                });
-              } else {
-                allLocations.push({
-                  id: `${building}-${floor}`,
-                  building,
-                  floor,
-                  room: '-'
-                });
-              }
-            }
-          }
-        }
-        
-        setLocations(allLocations);
-        setFilteredLocations(allLocations);
+      if (data.success) {
+        setLocations(data.data);
+        setFilteredLocations(data.data);
       }
     } catch (error) {
       console.error('Error fetching locations:', error);
+      alert('เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
     }
   };
 
-  // ดึงชั้นเมื่อเลือกอาคาร
   useEffect(() => {
     if (selectedBuilding) {
       fetchFloors(selectedBuilding);
@@ -123,7 +87,6 @@ const LocationManagement = () => {
     }
   };
 
-  // ดึงห้องเมื่อเลือกชั้น
   useEffect(() => {
     if (selectedBuilding && selectedFloor) {
       fetchRooms(selectedBuilding, selectedFloor);
@@ -145,7 +108,6 @@ const LocationManagement = () => {
     }
   };
 
-  // กรองข้อมูลตามฟิลเตอร์
   useEffect(() => {
     let filtered = locations;
     
@@ -174,13 +136,11 @@ const LocationManagement = () => {
     updateActiveFilters();
   }, [selectedBuilding, selectedFloor, selectedRoom, searchTerm, locations]);
 
-  // คำนวณข้อมูลสำหรับแสดงในหน้าปัจจุบัน
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredLocations.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredLocations.length / itemsPerPage);
 
-  // สร้างปุ่มหมายเลขหน้า
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxVisible = 5;
@@ -250,6 +210,7 @@ const LocationManagement = () => {
   const handleAdd = () => {
     setModalMode('create');
     setFormData({ building: '', floor: '', room: '' });
+    setSelectedLocation(null);
     setShowModal(true);
   };
 
@@ -259,11 +220,12 @@ const LocationManagement = () => {
     setFormData({
       building: location.building,
       floor: location.floor,
-      room: location.room === '-' ? '' : location.room
+      room: location.room || ''
     });
     setShowModal(true);
   };
 
+  // ✅ แก้ไข: แยก logic ระหว่าง Create และ Update
   const handleSave = async () => {
     try {
       if (!formData.building || !formData.floor) {
@@ -271,11 +233,23 @@ const LocationManagement = () => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/locations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      let response;
+      
+      if (modalMode === 'create') {
+        // POST: สร้างใหม่
+        response = await fetch(`${API_URL}/locations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+      } else {
+        // PUT: แก้ไข
+        response = await fetch(`${API_URL}/locations/${selectedLocation._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+      }
 
       const data = await response.json();
 
@@ -293,13 +267,26 @@ const LocationManagement = () => {
     }
   };
 
+  // ✅ แก้ไข: เรียกใช้ DELETE API
   const handleDelete = async (location) => {
-    if (!confirm(`คุณต้องการลบ ${location.building} - ${location.floor} - ${location.room} หรือไม่?`)) {
+    if (!confirm(`คุณต้องการลบ ${location.building} - ${location.floor} - ${location.room || 'ไม่ระบุห้อง'} หรือไม่?`)) {
       return;
     }
 
     try {
-      alert('ฟังก์ชันลบยังไม่พร้อมใช้งาน กรุณาเพิ่ม DELETE endpoint ใน backend');
+      const response = await fetch(`${API_URL}/locations/${location._id}`, {
+        method: 'DELETE'
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('ลบตำแหน่งสำเร็จ');
+        fetchBuildings();
+        fetchAllLocations();
+      } else {
+        alert(data.error || 'เกิดข้อผิดพลาดในการลบ');
+      }
     } catch (error) {
       console.error('Error deleting location:', error);
       alert('เกิดข้อผิดพลาดในการลบ');
@@ -444,10 +431,10 @@ const LocationManagement = () => {
                           </tr>
                         ) : (
                           currentItems.map((location) => (
-                            <tr key={location.id} className="hover:bg-gray-50 transition-colors">
+                            <tr key={location._id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-6 py-4 text-sm text-gray-700">{location.building}</td>
                               <td className="px-6 py-4 text-sm text-gray-700">{location.floor}</td>
-                              <td className="px-6 py-4 text-sm text-gray-700">{location.room}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{location.room || '-'}</td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center justify-center gap-2">
                                   <button
@@ -476,7 +463,6 @@ const LocationManagement = () => {
                   {/* Pagination */}
                   <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                      {/* Left side - Items per page & info */}
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <label className="text-sm text-gray-600">แสดง</label>
@@ -497,7 +483,6 @@ const LocationManagement = () => {
                         </p>
                       </div>
 
-                      {/* Right side - Page navigation */}
                       {totalPages > 1 && (
                         <div className="flex items-center gap-1">
                           <button
@@ -554,7 +539,6 @@ const LocationManagement = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-800">
                 {modalMode === 'create' ? 'เพิ่มสถานที่ใหม่' : 'แก้ไขสถานที่'}
@@ -567,7 +551,6 @@ const LocationManagement = () => {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -609,7 +592,6 @@ const LocationManagement = () => {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowModal(false)}
