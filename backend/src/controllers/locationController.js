@@ -94,3 +94,89 @@ exports.createLocation = async (req, res) => {
         });
     }
 };
+
+// DELETE: ลบตำแหน่ง (Admin only)
+exports.deleteLocation = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deletedLocation = await Location.findByIdAndDelete(id);
+
+        if (!deletedLocation) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบตำแหน่งที่ต้องการลบ'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'ลบตำแหน่งสำเร็จ',
+            data: deletedLocation
+        });
+    } catch (err) {
+        console.error('Delete Location Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการลบตำแหน่ง'
+        });
+    }
+};
+
+// GET: ดึงข้อมูล Location ทั้งหมด (เพิ่มใหม่)
+exports.getAllLocations = async (req, res) => {
+    try {
+        const locations = await Location.find().sort({ building: 1, floor: 1, room: 1 });
+
+        res.json({
+            success: true,
+            data: locations
+        });
+    } catch (err) {
+        console.error('Get All Locations Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการดึงข้อมูล'
+        });
+    }
+};
+
+// PUT: อัพเดทตำแหน่ง (Admin only)
+exports.updateLocation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { building, floor, room } = req.body;
+
+        if (!building || !floor) {
+            return res.status(400).json({
+                success: false,
+                error: 'กรุณาระบุอาคารและชั้น'
+            });
+        }
+
+        const updatedLocation = await Location.findByIdAndUpdate(
+            id,
+            { building, floor, room: room || '' },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedLocation) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบตำแหน่งที่ต้องการแก้ไข'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'แก้ไขตำแหน่งสำเร็จ',
+            data: updatedLocation
+        });
+    } catch (err) {
+        console.error('Update Location Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการแก้ไขตำแหน่ง'
+        });
+    }
+};
