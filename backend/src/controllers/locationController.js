@@ -49,7 +49,7 @@ exports.getRoomsByBuildingFloor = async (req, res) => {
 
         res.json({
             success: true,
-            data: rooms.filter(room => room) // กรองห้องว่างออก
+            data: rooms.filter(room => room)
         });
     } catch (err) {
         console.error('Get Rooms Error:', err);
@@ -60,23 +60,56 @@ exports.getRoomsByBuildingFloor = async (req, res) => {
     }
 };
 
+// GET: ดึงข้อมูล Location ทั้งหมด
+exports.getAllLocations = async (req, res) => {
+    try {
+        const locations = await Location.find().sort({ building: 1, floor: 1, room: 1 });
+
+        res.json({
+            success: true,
+            data: locations
+        });
+    } catch (err) {
+        console.error('Get All Locations Error:', err);
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการดึงข้อมูล'
+        });
+    }
+};
+
 // POST: เพิ่มตำแหน่งใหม่ (Admin only)
 exports.createLocation = async (req, res) => {
     try {
         const { building, floor, room } = req.body;
 
         // ตรวจสอบข้อมูลที่จำเป็น
-        if (!building || !floor) {
+        if (!building || !floor || !room) {
             return res.status(400).json({
                 success: false,
-                error: 'กรุณาระบุอาคารและชั้น'
+                error: 'กรุณาระบุอาคาร ชั้น และห้อง'
+            });
+        }
+
+        // ตรวจสอบว่ามีสถานที่นี้อยู่แล้วหรือไม่
+        const existingLocation = await Location.findOne({
+            building: building.trim(),
+            floor: floor.trim(),
+            room: room.trim()
+        });
+
+        if (existingLocation) {
+            return res.status(409).json({
+                success: false,
+                error: 'สถานที่นี้มีอยู่แล้ว',
+                isDuplicate: true
             });
         }
 
         const newLocation = new Location({
-            building,
-            floor,
-            room: room || ''
+            building: building.trim(),
+            floor: floor.trim(),
+            room: room.trim()
         });
 
         await newLocation.save();
@@ -88,9 +121,89 @@ exports.createLocation = async (req, res) => {
         });
     } catch (err) {
         console.error('Create Location Error:', err);
+        
+        // จัดการกรณี unique index violation
+        if (err.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                error: 'สถานที่นี้มีอยู่แล้ว',
+                isDuplicate: true
+            });
+        }
+        
         res.status(500).json({
             success: false,
             error: 'เกิดข้อผิดพลาดในการเพิ่มตำแหน่ง'
+        });
+    }
+};
+
+// PUT: อัพเดทตำแหน่ง (Admin only)
+exports.updateLocation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { building, floor, room } = req.body;
+
+        if (!building || !floor || !room) {
+            return res.status(400).json({
+                success: false,
+                error: 'กรุณาระบุอาคาร ชั้น และห้อง'
+            });
+        }
+
+        // ตรวจสอบว่ามีสถานที่อื่นที่มีข้อมูลซ้ำกันหรือไม่ (ยกเว้นตัวมันเอง)
+        const existingLocation = await Location.findOne({
+            _id: { $ne: id },
+            building: building.trim(),
+            floor: floor.trim(),
+            room: room.trim()
+        });
+
+        if (existingLocation) {
+            return res.status(409).json({
+                success: false,
+                error: 'สถานที่นี้มีอยู่แล้ว',
+                isDuplicate: true
+            });
+        }
+
+        const updatedLocation = await Location.findByIdAndUpdate(
+            id,
+            { 
+                building: building.trim(), 
+                floor: floor.trim(), 
+                room: room.trim() 
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedLocation) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบตำแหน่งที่ต้องการแก้ไข'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'แก้ไขตำแหน่งสำเร็จ',
+            data: updatedLocation
+        });
+    } catch (err) {
+        console.error('Update Location Error:', err);
+        
+        // จัดการกรณี unique index violation
+        if (err.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                error: 'สถานที่นี้มีอยู่แล้ว',
+                isDuplicate: true
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            error: 'เกิดข้อผิดพลาดในการแก้ไขตำแหน่ง'
         });
     }
 };
@@ -119,64 +232,6 @@ exports.deleteLocation = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'เกิดข้อผิดพลาดในการลบตำแหน่ง'
-        });
-    }
-};
-
-// GET: ดึงข้อมูล Location ทั้งหมด (เพิ่มใหม่)
-exports.getAllLocations = async (req, res) => {
-    try {
-        const locations = await Location.find().sort({ building: 1, floor: 1, room: 1 });
-
-        res.json({
-            success: true,
-            data: locations
-        });
-    } catch (err) {
-        console.error('Get All Locations Error:', err);
-        res.status(500).json({
-            success: false,
-            error: 'เกิดข้อผิดพลาดในการดึงข้อมูล'
-        });
-    }
-};
-
-// PUT: อัพเดทตำแหน่ง (Admin only)
-exports.updateLocation = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { building, floor, room } = req.body;
-
-        if (!building || !floor) {
-            return res.status(400).json({
-                success: false,
-                error: 'กรุณาระบุอาคารและชั้น'
-            });
-        }
-
-        const updatedLocation = await Location.findByIdAndUpdate(
-            id,
-            { building, floor, room: room || '' },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedLocation) {
-            return res.status(404).json({
-                success: false,
-                error: 'ไม่พบตำแหน่งที่ต้องการแก้ไข'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'แก้ไขตำแหน่งสำเร็จ',
-            data: updatedLocation
-        });
-    } catch (err) {
-        console.error('Update Location Error:', err);
-        res.status(500).json({
-            success: false,
-            error: 'เกิดข้อผิดพลาดในการแก้ไขตำแหน่ง'
         });
     }
 };

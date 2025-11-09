@@ -16,7 +16,6 @@ const LocationSelector = ({ register, errors, setValue }) => {
         rooms: false
     });
 
-    // ดึงข้อมูลอาคารทั้งหมดเมื่อ component โหลด
     useEffect(() => {
         const fetchBuildings = async () => {
             try {
@@ -24,7 +23,6 @@ const LocationSelector = ({ register, errors, setValue }) => {
                 const response = await locationAPI.getBuildings();
 
                 if (response.success && response.data) {
-                    // แปลง array ของ string เป็น array ของ object
                     const buildingOptions = response.data.map(building => ({
                         id: building,
                         name: building
@@ -43,7 +41,6 @@ const LocationSelector = ({ register, errors, setValue }) => {
         fetchBuildings();
     }, []);
 
-    // ดึงข้อมูลชั้นเมื่อเลือกอาคาร
     const handleBuildingChange = async (e) => {
         const building = e.target.value;
         setSelectedBuilding(building);
@@ -69,7 +66,6 @@ const LocationSelector = ({ register, errors, setValue }) => {
         }
     };
 
-    // ดึงข้อมูลห้องเมื่อเลือกชั้น
     const handleFloorChange = async (e) => {
         const floor = e.target.value;
         setSelectedFloor(floor);
@@ -161,7 +157,7 @@ const LocationSelector = ({ register, errors, setValue }) => {
                 )}
                 {!selectedBuilding && (
                     <p className="mt-1 text-xs text-gray-500">
-                        💡 เลือกอาคารก่อนเพื่อเลือกชั้น
+                        เลือกอาคารก่อนเพื่อเลือกชั้น
                     </p>
                 )}
             </div>
@@ -169,16 +165,16 @@ const LocationSelector = ({ register, errors, setValue }) => {
             {/* Room Selector */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ห้อง <span className="text-gray-400 text-xs">(ถ้ามี)</span>
+                    ห้อง <span className="text-red-500">*</span>
                 </label>
                 <select
-                    {...register('room')}
+                    {...register('room', { required: 'กรุณาเลือกห้อง' })}
                     disabled={!selectedFloor || loading.rooms}
-                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-500 ${(!selectedFloor || loading.rooms) ? 'cursor-not-allowed opacity-50' : ''
-                        }`}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#55C388] focus:border-transparent transition-all text-gray-500 ${errors.room ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        } ${(!selectedFloor || loading.rooms) ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
                     <option value="">
-                        {loading.rooms ? 'กำลังโหลด...' : 'เลือกห้อง (ถ้ามี)'}
+                        {loading.rooms ? 'กำลังโหลด...' : 'เลือกห้อง'}
                     </option>
                     {rooms.map(room => (
                         <option key={room} value={room}>
@@ -186,9 +182,15 @@ const LocationSelector = ({ register, errors, setValue }) => {
                         </option>
                     ))}
                 </select>
+                {errors.room && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle size={14} />
+                        {errors.room.message}
+                    </p>
+                )}
                 {!selectedFloor && (
                     <p className="mt-1 text-xs text-gray-500">
-                        💡 เลือกชั้นก่อนเพื่อเลือกห้อง
+                        เลือกชั้นก่อนเพื่อเลือกห้อง
                     </p>
                 )}
             </div>

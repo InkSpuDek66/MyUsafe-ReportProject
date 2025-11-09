@@ -10,11 +10,13 @@ const locationSchema = new mongoose.Schema({
     },
     floor: {
         type: String,
-        required: true
+        required: true,
+        trim: true
     },
     room: {
         type: String,
-        default: ''
+        required: true,
+        trim: true
     },
     created_at: {
         type: Date,
@@ -22,7 +24,7 @@ const locationSchema = new mongoose.Schema({
     }
 });
 
-// Index เพื่อค้นหาเร็วขึ้น
-locationSchema.index({ building: 1, floor: 1 });
+// Index เพื่อค้นหาเร็วขึ้นและป้องกันข้อมูลซ้ำ
+locationSchema.index({ building: 1, floor: 1, room: 1 }, { unique: true });
 
 module.exports = mongoose.model('Location', locationSchema);

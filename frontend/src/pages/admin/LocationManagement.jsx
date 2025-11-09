@@ -1,7 +1,7 @@
 // frontend/src/pages/admin/LocationManagement.jsx
 // Page สำหรับจัดการสถานที่ (อาคาร, ชั้น, ห้อง) โดยแอดมิน
 import { useState, useEffect } from 'react';
-import { Search, X, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -29,6 +29,7 @@ const LocationManagement = () => {
     floor: '',
     room: ''
   });
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     fetchBuildings();
@@ -47,7 +48,6 @@ const LocationManagement = () => {
     }
   };
 
-  // แก้ไข: ใช้ GET /api/locations เพื่อดึงข้อมูลทั้งหมดพร้อม _id
   const fetchAllLocations = async () => {
     setLoading(true);
     try {
@@ -213,6 +213,7 @@ const LocationManagement = () => {
     setModalMode('create');
     setFormData({ building: '', floor: '', room: '' });
     setSelectedLocation(null);
+    setErrorMessage('');
     setShowModal(true);
   };
 
@@ -222,34 +223,42 @@ const LocationManagement = () => {
     setFormData({
       building: location.building,
       floor: location.floor,
-      room: location.room || ''
+      room: location.room
     });
+    setErrorMessage('');
     setShowModal(true);
   };
 
-  // แก้ไข: แยก logic ระหว่าง Create และ Update
   const handleSave = async () => {
     try {
-      if (!formData.building || !formData.floor) {
-        alert('กรุณากรอกอาคารและชั้น');
+      setErrorMessage('');
+
+      if (!formData.building.trim() || !formData.floor.trim() || !formData.room.trim()) {
+        setErrorMessage('กรุณากรอกอาคาร ชั้น และห้อง');
         return;
       }
 
       let response;
       
       if (modalMode === 'create') {
-        // POST: สร้างใหม่
         response = await fetch(`${API_URL}/locations`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
+          body: JSON.stringify({
+            building: formData.building.trim(),
+            floor: formData.floor.trim(),
+            room: formData.room.trim()
+          })
         });
       } else {
-        // PUT: แก้ไข
         response = await fetch(`${API_URL}/locations/${selectedLocation._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
+          body: JSON.stringify({
+            building: formData.building.trim(),
+            floor: formData.floor.trim(),
+            room: formData.room.trim()
+          })
         });
       }
 
@@ -258,20 +267,20 @@ const LocationManagement = () => {
       if (data.success) {
         alert(modalMode === 'create' ? 'เพิ่มตำแหน่งสำเร็จ' : 'แก้ไขตำแหน่งสำเร็จ');
         setShowModal(false);
+        setErrorMessage('');
         fetchBuildings();
         fetchAllLocations();
       } else {
-        alert(data.error || 'เกิดข้อผิดพลาด');
+        setErrorMessage(data.error || 'เกิดข้อผิดพลาด');
       }
     } catch (error) {
       console.error('Error saving location:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึก');
+      setErrorMessage('เกิดข้อผิดพลาดในการบันทึก');
     }
   };
 
-  // แก้ไข: เรียกใช้ DELETE API
   const handleDelete = async (location) => {
-    if (!confirm(`คุณต้องการลบ ${location.building} - ${location.floor} - ${location.room || 'ไม่ระบุห้อง'} หรือไม่?`)) {
+    if (!confirm(`คุณต้องการลบ ${location.building} - ${location.floor} - ${location.room} หรือไม่?`)) {
       return;
     }
 
@@ -436,7 +445,7 @@ const LocationManagement = () => {
                             <tr key={location._id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-6 py-4 text-sm text-gray-700">{location.building}</td>
                               <td className="px-6 py-4 text-sm text-gray-700">{location.floor}</td>
-                              <td className="px-6 py-4 text-sm text-gray-700">{location.room || '-'}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{location.room}</td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center justify-center gap-2">
                                   <button
@@ -546,7 +555,10 @@ const LocationManagement = () => {
                 {modalMode === 'create' ? 'เพิ่มสถานที่ใหม่' : 'แก้ไขสถานที่'}
               </h2>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setErrorMessage('');
+                }}
                 className="text-gray-400 hover:text-red-600 transition-colors"
               >
                 <X size={24} />
@@ -554,6 +566,14 @@ const LocationManagement = () => {
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Error Message */}
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+                  <p className="text-sm text-red-700">{errorMessage}</p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   อาคาร <span className="text-red-500">*</span>
@@ -582,7 +602,7 @@ const LocationManagement = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ห้อง (ไม่จำเป็น)
+                  ห้อง <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -596,7 +616,10 @@ const LocationManagement = () => {
 
             <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setErrorMessage('');
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-red-500 hover:text-white transition-colors"
               >
                 ยกเลิก
