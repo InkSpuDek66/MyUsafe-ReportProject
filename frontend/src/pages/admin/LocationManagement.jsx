@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Plus, Edit2, Trash2, ChevronDown } from 'lucide-react';
+import { Search, X, Plus, Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -16,9 +16,13 @@ const LocationManagement = () => {
   const [activeFilters, setActiveFilters] = useState([]);
   const [loading, setLoading] = useState(false);
   
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [modalMode, setModalMode] = useState('create');
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [formData, setFormData] = useState({
     building: '',
@@ -45,18 +49,16 @@ const LocationManagement = () => {
     }
   };
 
-  // ดึงข้อมูล Location ทั้งหมด (จะต้องสร้าง API endpoint นี้)
+  // ดึงข้อมูล Location ทั้งหมด
   const fetchAllLocations = async () => {
     setLoading(true);
     try {
-      // ใช้ API ที่มีอยู่เพื่อดึงข้อมูลทั้งหมด
       const buildingsRes = await fetch(`${API_URL}/locations/buildings`);
       const buildingsData = await buildingsRes.json();
       
       if (buildingsData.success) {
         const allLocations = [];
         
-        // วนลูปดึงข้อมูลแต่ละอาคาร
         for (const building of buildingsData.data) {
           const floorsRes = await fetch(`${API_URL}/locations/floors/${building}`);
           const floorsData = await floorsRes.json();
@@ -76,7 +78,6 @@ const LocationManagement = () => {
                   });
                 });
               } else {
-                // ถ้าไม่มีห้อง ให้เพิ่มเฉพาะอาคารและชั้น
                 allLocations.push({
                   id: `${building}-${floor}`,
                   building,
@@ -169,8 +170,58 @@ const LocationManagement = () => {
     }
     
     setFilteredLocations(filtered);
+    setCurrentPage(1);
     updateActiveFilters();
   }, [selectedBuilding, selectedFloor, selectedRoom, searchTerm, locations]);
+
+  // คำนวณข้อมูลสำหรับแสดงในหน้าปัจจุบัน
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredLocations.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredLocations.length / itemsPerPage);
+
+  // สร้างปุ่มหมายเลขหน้า
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pageNumbers.push(i);
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pageNumbers.push(i);
+      } else {
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        pageNumbers.push(currentPage - 1);
+        pageNumbers.push(currentPage);
+        pageNumbers.push(currentPage + 1);
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
+  };
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
 
   const updateActiveFilters = () => {
     const filters = [];
@@ -196,14 +247,12 @@ const LocationManagement = () => {
     }
   };
 
-  // เปิด Modal สำหรับเพิ่ม Location
   const handleAdd = () => {
     setModalMode('create');
     setFormData({ building: '', floor: '', room: '' });
     setShowModal(true);
   };
 
-  // เปิด Modal สำหรับแก้ไข Location
   const handleEdit = (location) => {
     setModalMode('edit');
     setSelectedLocation(location);
@@ -215,7 +264,6 @@ const LocationManagement = () => {
     setShowModal(true);
   };
 
-  // บันทึกข้อมูล (Create/Update)
   const handleSave = async () => {
     try {
       if (!formData.building || !formData.floor) {
@@ -245,30 +293,13 @@ const LocationManagement = () => {
     }
   };
 
-  // ลบ Location
   const handleDelete = async (location) => {
     if (!confirm(`คุณต้องการลบ ${location.building} - ${location.floor} - ${location.room} หรือไม่?`)) {
       return;
     }
 
     try {
-      // เนื่องจาก API ยังไม่มี endpoint สำหรับลบ จะต้องเพิ่มใน backend
-      // สำหรับตอนนี้จะแสดง alert
       alert('ฟังก์ชันลบยังไม่พร้อมใช้งาน กรุณาเพิ่ม DELETE endpoint ใน backend');
-      
-      // เมื่อมี API แล้วให้ใช้โค้ดนี้:
-      /*
-      const response = await fetch(`${API_URL}/locations/${location.id}`, {
-        method: 'DELETE'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('ลบตำแหน่งสำเร็จ');
-        fetchAllLocations();
-      }
-      */
     } catch (error) {
       console.error('Error deleting location:', error);
       alert('เกิดข้อผิดพลาดในการลบ');
@@ -294,7 +325,7 @@ const LocationManagement = () => {
 
         <div className="grid grid-cols-12 gap-6">
           {/* Sidebar Filters */}
-          <div className="col-span-3">
+          <div className="col-span-12 lg:col-span-3">
             <div className="bg-white rounded-lg shadow-md p-4">
               {/* Search */}
               <div className="relative mb-4">
@@ -384,7 +415,7 @@ const LocationManagement = () => {
           </div>
 
           {/* Main Content */}
-          <div className="col-span-9">
+          <div className="col-span-12 lg:col-span-9">
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               {loading ? (
                 <div className="p-12 text-center">
@@ -405,14 +436,14 @@ const LocationManagement = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {filteredLocations.length === 0 ? (
+                        {currentItems.length === 0 ? (
                           <tr>
                             <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
                               ไม่พบข้อมูลสถานที่
                             </td>
                           </tr>
                         ) : (
-                          filteredLocations.map((location) => (
+                          currentItems.map((location) => (
                             <tr key={location.id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-6 py-4 text-sm text-gray-700">{location.building}</td>
                               <td className="px-6 py-4 text-sm text-gray-700">{location.floor}</td>
@@ -442,11 +473,75 @@ const LocationManagement = () => {
                     </table>
                   </div>
 
-                  {/* Summary */}
+                  {/* Pagination */}
                   <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                    <p className="text-sm text-gray-600">
-                      แสดง {filteredLocations.length} รายการ จากทั้งหมด {locations.length} รายการ
-                    </p>
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      {/* Left side - Items per page & info */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm text-gray-600">แสดง</label>
+                          <select
+                            value={itemsPerPage}
+                            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                          <label className="text-sm text-gray-600">รายการ</label>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          แสดง {filteredLocations.length > 0 ? indexOfFirstItem + 1 : 0} - {Math.min(indexOfLastItem, filteredLocations.length)} จาก {filteredLocations.length} รายการ
+                        </p>
+                      </div>
+
+                      {/* Right side - Page navigation */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ChevronLeft size={16} />
+                            ก่อนหน้า
+                          </button>
+                          
+                          <div className="flex items-center gap-1">
+                            {getPageNumbers().map((page, index) => (
+                              page === '...' ? (
+                                <span key={`ellipsis-${index}`} className="px-2 text-gray-500">
+                                  ...
+                                </span>
+                              ) : (
+                                <button
+                                  key={page}
+                                  onClick={() => handlePageChange(page)}
+                                  className={`min-w-[2.5rem] px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                    currentPage === page
+                                      ? 'bg-[#55C38E] text-white'
+                                      : 'border border-gray-300 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              )
+                            ))}
+                          </div>
+                          
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            ถัดไป
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -457,8 +552,8 @@ const LocationManagement = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-800">
@@ -466,7 +561,7 @@ const LocationManagement = () => {
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X size={24} />
               </button>
