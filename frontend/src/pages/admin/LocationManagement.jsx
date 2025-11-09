@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+// frontend/src/pages/admin/LocationManagement.jsx
+// Page สำหรับจัดการสถานที่ (อาคาร, ชั้น, ห้อง) โดยแอดมิน
+import { useState, useEffect } from 'react';
 import { Search, X, Plus, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -45,7 +47,7 @@ const LocationManagement = () => {
     }
   };
 
-  // ✅ แก้ไข: ใช้ GET /api/locations เพื่อดึงข้อมูลทั้งหมดพร้อม _id
+  // แก้ไข: ใช้ GET /api/locations เพื่อดึงข้อมูลทั้งหมดพร้อม _id
   const fetchAllLocations = async () => {
     setLoading(true);
     try {
@@ -225,7 +227,7 @@ const LocationManagement = () => {
     setShowModal(true);
   };
 
-  // ✅ แก้ไข: แยก logic ระหว่าง Create และ Update
+  // แก้ไข: แยก logic ระหว่าง Create และ Update
   const handleSave = async () => {
     try {
       if (!formData.building || !formData.floor) {
@@ -267,7 +269,7 @@ const LocationManagement = () => {
     }
   };
 
-  // ✅ แก้ไข: เรียกใช้ DELETE API
+  // แก้ไข: เรียกใช้ DELETE API
   const handleDelete = async (location) => {
     if (!confirm(`คุณต้องการลบ ${location.building} - ${location.floor} - ${location.room || 'ไม่ระบุห้อง'} หรือไม่?`)) {
       return;
@@ -294,7 +296,7 @@ const LocationManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#55C38E] to-[#45B37E] rounded-lg shadow-md p-6 mb-6">
@@ -322,7 +324,7 @@ const LocationManagement = () => {
                   placeholder="ค้นหาสถานที่..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                  className="w-full pl-10 pr-4 py-2 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
                 />
               </div>
 
@@ -332,7 +334,7 @@ const LocationManagement = () => {
                 <select
                   value={selectedBuilding}
                   onChange={(e) => setSelectedBuilding(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                  className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
                 >
                   <option value="">ทั้งหมด</option>
                   {buildings.map((building) => (
@@ -348,7 +350,7 @@ const LocationManagement = () => {
                   value={selectedFloor}
                   onChange={(e) => setSelectedFloor(e.target.value)}
                   disabled={!selectedBuilding}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E] disabled:bg-gray-100"
+                  className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E] disabled:bg-gray-100"
                 >
                   <option value="">ทั้งหมด</option>
                   {floors.map((floor) => (
@@ -364,7 +366,7 @@ const LocationManagement = () => {
                   value={selectedRoom}
                   onChange={(e) => setSelectedRoom(e.target.value)}
                   disabled={!selectedFloor}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E] disabled:bg-gray-100"
+                  className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E] disabled:bg-gray-100"
                 >
                   <option value="">ทั้งหมด</option>
                   {rooms.map((room) => (
@@ -469,7 +471,7 @@ const LocationManagement = () => {
                           <select
                             value={itemsPerPage}
                             onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                            className="px-3 py-1.5 text-[#55C38E] border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
                           >
                             <option value={10}>10</option>
                             <option value={25}>25</option>
@@ -488,7 +490,7 @@ const LocationManagement = () => {
                           <button
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
-                            className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center text-gray-600 gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <ChevronLeft size={16} />
                             ก่อนหน้า
@@ -507,7 +509,7 @@ const LocationManagement = () => {
                                   className={`min-w-[2.5rem] px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                                     currentPage === page
                                       ? 'bg-[#55C38E] text-white'
-                                      : 'border border-gray-300 hover:bg-gray-100'
+                                      : 'border text-gray-600 border-gray-300 hover:bg-gray-100'
                                   }`}
                                 >
                                   {page}
@@ -519,7 +521,7 @@ const LocationManagement = () => {
                           <button
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
-                            className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center text-gray-600 gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             ถัดไป
                             <ChevronRight size={16} />
@@ -545,7 +547,7 @@ const LocationManagement = () => {
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-red-600 transition-colors"
               >
                 <X size={24} />
               </button>
@@ -561,7 +563,7 @@ const LocationManagement = () => {
                   value={formData.building}
                   onChange={(e) => setFormData({ ...formData, building: e.target.value })}
                   placeholder="เช่น อาคาร 1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                  className="w-full px-3 py-2 text-gray-600 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
                 />
               </div>
 
@@ -574,7 +576,7 @@ const LocationManagement = () => {
                   value={formData.floor}
                   onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
                   placeholder="เช่น ชั้น 3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                  className="w-full px-3 py-2 text-gray-600 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
                 />
               </div>
 
@@ -587,7 +589,7 @@ const LocationManagement = () => {
                   value={formData.room}
                   onChange={(e) => setFormData({ ...formData, room: e.target.value })}
                   placeholder="เช่น ห้อง 301"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
+                  className="w-full px-3 py-2 text-gray-600 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#55C38E]"
                 />
               </div>
             </div>
@@ -595,7 +597,7 @@ const LocationManagement = () => {
             <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-red-500 hover:text-white transition-colors"
               >
                 ยกเลิก
               </button>
