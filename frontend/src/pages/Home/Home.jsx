@@ -22,7 +22,6 @@ export default function Home() {
     const [showStatusMenu, setShowStatusMenu] = useState(false);
     const [q, setQ] = useState("");
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
     const navigate = useNavigate();
     const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -46,7 +45,6 @@ export default function Home() {
             setComplaints(Array.isArray(data) ? data : []);
         } catch (e) {
             console.error(e);
-            setError("โหลดข้อมูลไม่สำเร็จ");
         } finally {
             setLoading(false);
         }

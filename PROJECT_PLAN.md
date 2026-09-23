@@ -1480,7 +1480,7 @@ MyUsafe-ReportProject/
 │   ├── .env.test
 │   ├── package-lock.json
 │   ├── package.json
-│   ├── README.txt
+│   ├── README.md
 │   └── server.js
 │
 ├── frontend/
@@ -1597,8 +1597,8 @@ MyUsafe-ReportProject/
 │   ├── README.md
 │   └── vite.config.js
 ├── .gitignore
-├── project_readme.txt
-└── README.txt
+├── PROJECT_PLAN.md
+└── README.md
 ```
 
 ---

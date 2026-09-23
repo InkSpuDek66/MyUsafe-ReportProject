@@ -7,7 +7,6 @@ const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const path = require('path');
 const dotenv = require('dotenv');
-const bcrypt = require('bcryptjs');
 
 // Load environment variables
 dotenv.config();
@@ -22,7 +21,6 @@ const assignmentRoutes = require('./src/routes/assignmentRoutes');
 
 // Import Models
 const Complaint = require('./src/models/homeModel');
-// const User = require('./src/models/User');
 
 const app = express();
 const server = http.createServer(app);
@@ -68,32 +66,6 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/assignments', assignmentRoutes);
-
-// Simple user register/login test routes พักก่อนนน พี่อยากให้น้องพักผ่อน
-// app.post('/register', async (req, res) => {
-//   try {
-//     const user = new User(req.body);
-//     await user.save();
-//     res.json({ message: 'User created', user });
-//   } catch (err) {
-//     res.status(400).json({ error: err.message });
-//   }
-// });
-
-// app.post('/login', async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
-//     const user = await User.findOne({ email });
-//     if (!user) return res.status(404).json({ message: 'User not found' });
-
-//     const isMatch = await bcrypt.compare(password, user.password);
-//     if (!isMatch) return res.status(400).json({ message: 'Invalid password' });
-
-//     res.json({ message: 'Login success', user });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// });
 
 // Health check
 app.get('/health', (req, res) => {
